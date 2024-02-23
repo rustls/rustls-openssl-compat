@@ -414,6 +414,30 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_connect_state(ssl: *mut SSL) {
+        let ssl = try_clone_arc!(ssl);
+        let _ = ssl.lock().ok().map(|mut ssl| ssl.set_client_mode());
+    }
+}
+
+entry! {
+    pub fn _SSL_set_accept_state(ssl: *mut SSL) {
+        let ssl = try_clone_arc!(ssl);
+        let _ = ssl.lock().ok().map(|mut ssl| ssl.set_server_mode());
+    }
+}
+
+entry! {
+    pub fn _SSL_is_server(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.is_server())
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
     pub fn _SSL_set1_host(ssl: *mut SSL, hostname: *const c_char) -> c_int {
         let ssl = try_clone_arc!(ssl);
         let maybe_hostname = str_from_cstring(hostname);

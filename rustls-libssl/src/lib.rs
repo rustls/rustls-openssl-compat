@@ -1,8 +1,11 @@
-use core::ffi::CStr;
+use core::ffi::{c_int, CStr};
 use std::io::{ErrorKind, Read, Write};
 use std::sync::{Arc, Mutex};
 
-use openssl_sys::X509_STORE;
+use openssl_sys::{
+    SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509_STORE,
+    X509_V_ERR_UNSPECIFIED,
+};
 use rustls::crypto::ring as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::{CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore};
@@ -288,6 +291,8 @@ struct Ssl {
     bio: Option<bio::Bio>,
     conn: Option<Connection>,
     verifier: Option<Arc<verifier::ServerVerifier>>,
+    peer_cert: Option<x509::OwnedX509>,
+    peer_cert_chain: Option<x509::OwnedX509Stack>,
     shutdown_flags: ShutdownFlags,
 }
 
@@ -305,6 +310,8 @@ impl Ssl {
             bio: None,
             conn: None,
             verifier: None,
+            peer_cert: None,
+            peer_cert_chain: None,
             shutdown_flags: ShutdownFlags::default(),
         }
     }
@@ -535,6 +542,96 @@ impl Ssl {
                 Some(io_state.plaintext_bytes_to_read())
             })
             .unwrap_or_default()
+    }
+
+    fn get_agreed_alpn(&mut self) -> Option<&[u8]> {
+        self.conn.as_ref().and_then(|conn| conn.alpn_protocol())
+    }
+
+    fn init_peer_cert(&mut self) {
+        let conn = match &self.conn {
+            Some(conn) => conn,
+            None => return,
+        };
+
+        let certs = match conn.peer_certificates() {
+            Some(certs) => certs,
+            None => return,
+        };
+
+        let mut stack = x509::OwnedX509Stack::empty();
+        for (i, cert) in certs.iter().enumerate() {
+            let converted = match x509::OwnedX509::parse_der(cert.as_ref()) {
+                Some(converted) => converted,
+                None => return,
+            };
+
+            if i == 0 {
+                if !self.is_server() {
+                    // See docs for `SSL_get_peer_cert_chain`:
+                    // "If called on the client side, the stack also contains
+                    // the peer's certificate; if called on the server side, the peer's
+                    // certificate must be obtained separately"
+                    stack.push(&converted);
+                }
+                self.peer_cert = Some(converted);
+            } else {
+                stack.push(&converted);
+            }
+        }
+
+        self.peer_cert_chain = Some(stack);
+    }
+
+    fn get_peer_cert(&mut self) -> Option<&x509::OwnedX509> {
+        if self.peer_cert.is_none() {
+            self.init_peer_cert();
+        }
+        self.peer_cert.as_ref()
+    }
+
+    fn get_peer_cert_chain(&mut self) -> Option<&x509::OwnedX509Stack> {
+        if self.peer_cert_chain.is_none() {
+            self.init_peer_cert();
+        }
+        self.peer_cert_chain.as_ref()
+    }
+
+    fn get_negotiated_cipher_suite_id(&self) -> Option<CipherSuite> {
+        self.conn
+            .as_ref()
+            .and_then(|conn| conn.negotiated_cipher_suite())
+            .map(|suite| suite.suite())
+    }
+
+    fn get_last_verification_result(&self) -> i64 {
+        if let Some(verifier) = &self.verifier {
+            verifier.last_result()
+        } else {
+            X509_V_ERR_UNSPECIFIED as i64
+        }
+    }
+
+    fn get_error(&mut self) -> c_int {
+        match &mut self.conn {
+            Some(ref mut conn) => {
+                if let Err(e) = conn.process_new_packets() {
+                    error::Error::from_rustls(e).raise();
+                    return SSL_ERROR_SSL;
+                }
+
+                if let Some(bio) = self.bio.as_ref() {
+                    if bio.read_would_block() {
+                        return SSL_ERROR_WANT_READ;
+                    } else if bio.write_would_block() {
+                        return SSL_ERROR_WANT_WRITE;
+                    }
+                }
+
+                SSL_ERROR_NONE
+            }
+            None => SSL_ERROR_SSL,
+        }
     }
 }
 

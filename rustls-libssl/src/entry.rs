@@ -8,7 +8,9 @@ use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::sync::Mutex;
 use std::{fs, io, path::PathBuf};
 
-use openssl_sys::{OPENSSL_malloc, X509_STORE, X509_STORE_CTX};
+use openssl_sys::{
+    stack_st_X509, OPENSSL_malloc, X509, X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
+};
 
 use crate::bio::{Bio, BIO};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
@@ -629,6 +631,113 @@ entry! {
 entry! {
     pub fn _SSL_has_pending(ssl: *const SSL) -> c_int {
         (_SSL_pending(ssl) > 0) as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_get_error(ssl: *const SSL, _ret_code: c_int) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ssl| ssl.get_error() as c_int)
+            .map_err(|err| err.raise())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_get0_alpn_selected(ssl: *const SSL, data: *mut *const c_uchar, len: *mut c_uint) {
+        if data.is_null() || len.is_null() {
+            return;
+        }
+
+        let ssl = try_clone_arc!(ssl);
+
+        match ssl.lock().ok().and_then(|mut ssl| {
+            ssl.get_agreed_alpn().map(|proto| {
+                unsafe {
+                    // nb. alpn protocols are limited to 255 octets
+                    ptr::write(len, proto.len() as u32);
+                    ptr::write(data, proto.as_ptr());
+                };
+            })
+        }) {
+            Some(()) => {}
+            None => unsafe {
+                ptr::write(len, 0);
+                ptr::write(data, ptr::null());
+            },
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_get_peer_cert_chain(ssl: *const SSL) -> *mut stack_st_X509 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .and_then(|mut ssl| ssl.get_peer_cert_chain().map(|x509| x509.pointer()))
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get0_verified_chain(ssl: *const SSL) -> *mut stack_st_X509 {
+        _SSL_get_peer_cert_chain(ssl)
+    }
+}
+
+entry! {
+    pub fn _SSL_get0_peer_certificate(ssl: *const SSL) -> *mut X509 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .and_then(|mut ssl| ssl.get_peer_cert().map(|x509| x509.borrow_ref()))
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get1_peer_certificate(ssl: *const SSL) -> *mut X509 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .and_then(|mut ssl| ssl.get_peer_cert().map(|x509| x509.up_ref()))
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_current_cipher(ssl: *const SSL) -> *const SSL_CIPHER {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .and_then(|ssl| ssl.get_negotiated_cipher_suite_id())
+            .and_then(crate::SslCipher::find_by_id)
+            .map(|cipher| cipher as *const SSL_CIPHER)
+            .unwrap_or_else(ptr::null)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_version(ssl: *const SSL) -> *const c_char {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .and_then(|ssl| ssl.get_negotiated_cipher_suite_id())
+            .and_then(crate::SslCipher::find_by_id)
+            .map(|cipher| cipher.version.as_ptr())
+            .unwrap_or_else(ptr::null)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_verify_result(ssl: *const SSL) -> c_long {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_last_verification_result())
+            .unwrap_or(X509_V_ERR_UNSPECIFIED as i64)
     }
 }
 

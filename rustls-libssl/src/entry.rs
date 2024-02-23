@@ -9,7 +9,8 @@ use std::sync::Mutex;
 use std::{fs, io, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, OPENSSL_malloc, X509, X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
+    stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX,
+    X509_V_ERR_UNSPECIFIED,
 };
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
@@ -900,6 +901,202 @@ num_enum! {
         SetMaxProtoVersion = 124,
     }
 }
+
+// --- unimplemented stubs below here ---
+
+macro_rules! entry_stub {
+    (pub fn $name:ident($($args:tt)*);) => {
+        #[no_mangle]
+        pub extern "C" fn $name($($args)*) {
+            ffi_panic_boundary! {
+                Error::not_supported(stringify!($name)).raise().into()
+            }
+        }
+    };
+    (pub fn $name:ident($($args:tt)*) -> $ret:ty;) => {
+        #[no_mangle]
+        pub extern "C" fn $name($($args)*) -> $ret {
+            ffi_panic_boundary! {
+                Error::not_supported(stringify!($name)).raise().into()
+            }
+        }
+    };
+}
+
+// things we support and should be able to implement to
+// some extent:
+
+entry_stub! {
+    pub fn _SSL_CTX_set_ex_data(_ssl: *mut SSL_CTX, _idx: c_int, _data: *mut c_void) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_get_ex_data(_ssl: *const SSL_CTX, _idx: c_int) -> *mut c_void;
+}
+
+entry_stub! {
+    pub fn _SSL_set_ex_data(_ssl: *mut SSL, _idx: c_int, _data: *mut c_void) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get_ex_data(_ssl: *const SSL, _idx: c_int) -> *mut c_void;
+}
+
+entry_stub! {
+    pub fn _SSL_get_certificate(_ssl: *const SSL) -> *mut X509;
+}
+
+entry_stub! {
+    pub fn _SSL_get_privatekey(_ssl: *const SSL) -> *mut EVP_PKEY;
+}
+
+entry_stub! {
+    pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_keylog_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_keylog_cb_func);
+}
+
+pub type SSL_CTX_keylog_cb_func =
+    Option<unsafe extern "C" fn(ssl: *const SSL, line: *const c_char)>;
+
+entry_stub! {
+    pub fn _SSL_CTX_add_client_CA(_ctx: *mut SSL_CTX, _x: *mut X509) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_check_private_key(_ctx: *const SSL_CTX) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_sess_set_new_cb(_ctx: *mut SSL_CTX, _new_session_cb: SSL_CTX_new_session_cb);
+}
+
+pub type SSL_CTX_new_session_cb =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _sess: *mut SSL_SESSION) -> c_int>;
+
+entry_stub! {
+    pub fn _SSL_CTX_set_cipher_list(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_ciphersuites(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_use_PrivateKey(_ctx: *mut SSL_CTX, _pkey: *mut EVP_PKEY) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_use_PrivateKey_file(
+        _ctx: *mut SSL_CTX,
+        _file: *const c_char,
+        _type: c_int,
+    ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_use_certificate(_ctx: *mut SSL_CTX, _x: *mut X509) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_use_certificate_chain_file(_ctx: *mut SSL_CTX, _file: *const c_char) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_use_certificate_file(
+        _ctx: *mut SSL_CTX,
+        _file: *const c_char,
+        _type_: c_int,
+    ) -> c_int;
+}
+
+pub struct SSL_SESSION;
+
+entry_stub! {
+    pub fn _SSL_SESSION_free(_sess: *mut SSL_SESSION);
+}
+
+// no individual message logging
+
+entry_stub! {
+    pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func);
+}
+
+pub type SSL_CTX_msg_cb_func = Option<
+    unsafe extern "C" fn(
+        write_p: c_int,
+        version: c_int,
+        content_type: c_int,
+        buf: *const c_void,
+        len: usize,
+        ssl: *mut SSL,
+        arg: *mut c_void,
+    ),
+>;
+
+// no NPN (obsolete precursor to ALPN)
+
+entry_stub! {
+    pub fn _SSL_CTX_set_next_proto_select_cb(
+        _ctx: *mut SSL_CTX,
+        _cb: SSL_CTX_npn_select_cb_func,
+        _arg: *mut c_void,
+    );
+}
+
+pub type SSL_CTX_npn_select_cb_func = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        out: *mut *mut c_uchar,
+        outlen: *mut c_uchar,
+        in_: *const c_uchar,
+        inlen: c_uint,
+        arg: *mut c_void,
+    ) -> c_int,
+>;
+
+// no password-protected key loading
+
+entry_stub! {
+    pub fn _SSL_CTX_set_default_passwd_cb(_ctx: *mut SSL_CTX, _cb: pem_password_cb);
+}
+
+pub type pem_password_cb = Option<
+    unsafe extern "C" fn(
+        buf: *mut c_char,
+        size: c_int,
+        rwflag: c_int,
+        userdata: *mut c_void,
+    ) -> c_int,
+>;
+
+entry_stub! {
+    pub fn _SSL_CTX_set_default_passwd_cb_userdata(_ctx: *mut SSL_CTX, _u: *mut c_void);
+}
+
+// no SRP
+
+entry_stub! {
+    pub fn _SSL_CTX_set_srp_password(_ctx: *mut SSL_CTX, _password: *mut c_char) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_srp_username(_ctx: *mut SSL_CTX, _name: *mut c_char) -> c_int;
+}
+
+// no post-handshake auth
+
+entry_stub! {
+    pub fn _SSL_CTX_set_post_handshake_auth(_ctx: *mut SSL_CTX, _val: c_int);
+}
+
+entry_stub! {
+    pub fn _SSL_set_post_handshake_auth(_s: *mut SSL, _val: c_int);
+}
+
+// ---------------------
 
 #[cfg(test)]
 mod tests {

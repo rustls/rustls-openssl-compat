@@ -10,7 +10,9 @@
 # `entry!` with `mod entry`, and then restore it back afterwards.
 
 sed -i -e 's/^entry! {/mod entry {/g' src/entry.rs
+sed -i -e 's/^entry_stub! {/mod entry_stub {/g' src/entry.rs
 cargo fmt "$@"
 rc=$?
 sed -i -e 's/^mod entry {/entry! {/g' src/entry.rs
+sed -i -e 's/^mod entry_stub {/entry_stub! {/g' src/entry.rs
 exit $rc

@@ -498,6 +498,22 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_connect(ssl: *mut SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.connect())
+            .map_err(|err| err.raise())
+        {
+            Err(e) => e.into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use openssl_sys::X509_STORE;
 use rustls::crypto::ring as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
-use rustls::{CipherSuite, RootCertStore};
+use rustls::{CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore};
 
 mod bio;
 #[macro_use]
@@ -25,6 +25,7 @@ mod ffi;
 #[cfg(miri)]
 #[allow(non_camel_case_types, dead_code)]
 mod miri;
+mod verifier;
 mod x509;
 
 /// `SSL_METHOD` underlying type.
@@ -284,6 +285,8 @@ struct Ssl {
     alpn: Vec<Vec<u8>>,
     sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
+    conn: Option<Connection>,
+    verifier: Option<Arc<verifier::ServerVerifier>>,
 }
 
 impl Ssl {
@@ -298,6 +301,8 @@ impl Ssl {
             alpn: inner.alpn.clone(),
             sni_server_name: None,
             bio: None,
+            conn: None,
+            verifier: None,
         }
     }
 
@@ -320,6 +325,9 @@ impl Ssl {
     }
 
     fn set_client_mode(&mut self) {
+        // nb. don't fill in `conn` until the last minute.
+        // SSL_set_connect_state() .. SSL_set1_host() .. SSL_connect() is a valid
+        // sequence of calls.
         self.mode = ConnMode::Client;
     }
 
@@ -368,6 +376,74 @@ impl Ssl {
             bio.update(rbio, wbio);
         } else {
             self.bio = Some(bio::Bio::new_pair(rbio, wbio));
+        }
+    }
+
+    fn connect(&mut self) -> Result<(), error::Error> {
+        self.set_client_mode();
+        if self.conn.is_none() {
+            self.init_client_conn()?;
+        }
+        self.try_io()
+    }
+
+    fn init_client_conn(&mut self) -> Result<(), error::Error> {
+        // if absent, use a dummy IP address which disables SNI.
+        let sni_server_name = match &self.sni_server_name {
+            Some(sni_name) => sni_name.clone(),
+            None => ServerName::try_from("0.0.0.0").unwrap(),
+        };
+
+        let method = self
+            .ctx
+            .lock()
+            .map(|ctx| ctx.method)
+            .map_err(|_| error::Error::cannot_lock())?;
+
+        let provider = Arc::new(provider::default_provider());
+        let verifier = Arc::new(verifier::ServerVerifier::new(
+            self.verify_roots.clone().into(),
+            provider.clone(),
+            self.verify_mode,
+            &self.verify_server_name,
+        ));
+        self.verifier = Some(verifier.clone());
+
+        let mut config = ClientConfig::builder_with_provider(provider)
+            .with_protocol_versions(method.client_versions)
+            .map_err(error::Error::from_rustls)?
+            .dangerous()
+            .with_custom_certificate_verifier(verifier)
+            .with_no_client_auth();
+
+        config.alpn_protocols.clone_from(&self.alpn);
+
+        let client_conn = ClientConnection::new(Arc::new(config), sni_server_name.clone())
+            .map_err(error::Error::from_rustls)?;
+
+        self.conn = Some(client_conn.into());
+        Ok(())
+    }
+
+    fn try_io(&mut self) -> Result<(), error::Error> {
+        let bio = match self.bio.as_mut() {
+            Some(bio) => bio,
+            None => return Ok(()), // investigate OpenSSL behaviour without a BIO
+        };
+
+        match &mut self.conn {
+            Some(ref mut conn) => {
+                match conn.complete_io(bio) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(error::Error::from_io(e));
+                    }
+                };
+                conn.process_new_packets()
+                    .map_err(error::Error::from_rustls)
+                    .map(|_| ())
+            }
+            None => Ok(()),
         }
     }
 }

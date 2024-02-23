@@ -54,6 +54,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CIPHER_get_version",
     "SSL_CIPHER_standard_name",
     "SSL_clear_options",
+    "SSL_connect",
     "SSL_ctrl",
     "SSL_CTX_clear_options",
     "SSL_CTX_ctrl",

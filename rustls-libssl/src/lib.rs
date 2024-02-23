@@ -178,20 +178,76 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 
 pub struct SslContext {
     method: &'static SslMethod,
+    alpn: Vec<Vec<u8>>,
 }
 
 impl SslContext {
     fn new(method: &'static SslMethod) -> Self {
-        Self { method }
+        Self {
+            method,
+            alpn: vec![],
+        }
     }
+
+    fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
+        self.alpn = alpn;
+    }
+}
+
+/// Parse the ALPN wire format (which is used in the openssl API)
+/// to rustls's internal representation.
+///
+/// For an empty `slice`, returns `Some(vec![])`.
+/// For a slice with invalid contents, returns `None`.
+pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
+    let mut out = vec![];
+
+    while !slice.is_empty() {
+        let len = *slice.first()? as usize;
+        if len == 0 {
+            return None;
+        }
+        let body = slice.get(1..1 + len)?;
+        out.push(body.to_vec());
+        slice = &slice[1 + len..];
+    }
+
+    Some(out)
 }
 
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
+    alpn: Vec<Vec<u8>>,
 }
 
 impl Ssl {
-    fn new(ctx: Arc<Mutex<SslContext>>) -> Self {
-        Self { ctx }
+    fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Self {
+        Self {
+            ctx,
+            alpn: inner.alpn.clone(),
+        }
+    }
+
+    fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
+        self.alpn = alpn;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_parse_alpn() {
+        assert_eq!(Some(vec![]), parse_alpn(&[]));
+        assert_eq!(Some(vec![b"hi".to_vec()]), parse_alpn(&b"\x02hi"[..]));
+        assert_eq!(
+            Some(vec![b"hi".to_vec(), b"world".to_vec()]),
+            parse_alpn(&b"\x02hi\x05world"[..])
+        );
+
+        assert_eq!(None, parse_alpn(&[0]));
+        assert_eq!(None, parse_alpn(&[1]));
+        assert_eq!(None, parse_alpn(&[1, 1, 1]));
+        assert_eq!(None, parse_alpn(&[255]));
     }
 }

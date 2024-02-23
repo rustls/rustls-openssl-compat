@@ -12,7 +12,7 @@ use openssl_sys::{
     stack_st_X509, OPENSSL_malloc, X509, X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
 };
 
-use crate::bio::{Bio, BIO};
+use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
@@ -66,6 +66,12 @@ entry! {
 entry! {
     pub fn _SSL_alert_desc_string(value: c_int) -> *const c_char {
         crate::constants::alert_desc_to_short_string(value).as_ptr() as *const c_char
+    }
+}
+
+entry! {
+    pub fn _BIO_f_ssl() -> *const BIO_METHOD {
+        &crate::bio::SSL_BIO_METHOD
     }
 }
 

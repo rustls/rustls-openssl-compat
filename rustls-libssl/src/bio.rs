@@ -1,4 +1,4 @@
-use core::ffi::{c_char, c_int, c_long, c_void};
+use core::ffi::{c_char, c_int, c_long, c_void, CStr};
 use std::io;
 
 // nb. cannot use any BIO types from openssl_sys: it doesn't
@@ -225,6 +225,24 @@ impl Drop for Bio {
         }
     }
 }
+
+static NAME: &CStr = c"ssl";
+const BIO_TYPE_SSL: i32 = 0x0200 | 7;
+
+pub static SSL_BIO_METHOD: bio_method_st = bio_method_st {
+    type_: BIO_TYPE_SSL,
+    name: NAME.as_ptr(),
+    bwrite: None,
+    bwrite_old: None,
+    bread: None,
+    bread_old: None,
+    bputs: None,
+    bgets: None,
+    ctrl: None,
+    create: None,
+    destroy: None,
+    callback_ctrl: None,
+};
 
 // This is a public interface between libcrypto and libssl, but is
 // defined in `internal/bio.h`.  Hmm.

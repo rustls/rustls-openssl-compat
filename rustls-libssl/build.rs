@@ -43,6 +43,8 @@ fn write_version_file() -> String {
 
 const ENTRYPOINTS: &[&str] = &[
     "OPENSSL_init_ssl",
+    "SSL_alert_desc_string",
+    "SSL_alert_desc_string_long",
     "SSL_CTX_free",
     "SSL_CTX_new",
     "SSL_CTX_up_ref",

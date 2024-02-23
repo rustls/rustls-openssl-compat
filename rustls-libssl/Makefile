@@ -19,7 +19,7 @@ ifneq (,$(TARGET))
 	CARGOFLAGS += --target $(TARGET)
 endif
 
-all: target/$(PROFILE)/libssl.so.3
+all: target/constants target/$(PROFILE)/libssl.so.3
 
 test: all
 	${CARGO} test --locked
@@ -35,6 +35,12 @@ target/$(PROFILE)/libssl.so.3: target/$(PROFILE)/libssl.so
 
 target/$(PROFILE)/libssl.so: *.rs src/*.rs Cargo.toml
 	${CARGO} build $(CARGOFLAGS)
+
+target/%.o: tests/%.c | target
+	$(CC) -o $@ -c $< $(CFLAGS)
+
+target/constants: target/constants.o
+	$(CC) -o $@ $^ $(LDFLAGS) $(shell pkg-config --libs openssl)
 
 clean:
 	rm -rf target

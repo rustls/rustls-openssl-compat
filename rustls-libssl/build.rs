@@ -42,6 +42,7 @@ fn write_version_file() -> String {
 }
 
 const ENTRYPOINTS: &[&str] = &[
+    "BIO_f_ssl",
     "OPENSSL_init_ssl",
     "SSL_alert_desc_string",
     "SSL_alert_desc_string_long",

@@ -30,6 +30,25 @@ fn constants() {
     assert_eq!(openssl_output, rustls_output);
 }
 
+#[test]
+#[ignore]
+fn ciphers() {
+    let openssl_output = Command::new("target/ciphers")
+        .env("LD_LIBRARY_PATH", "")
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    let rustls_output = Command::new("target/ciphers")
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    assert_eq!(openssl_output, rustls_output);
+}
+
 fn print_output(out: Output) -> Output {
     println!("status: {:?}\n", out.status);
     println!(

@@ -142,6 +142,13 @@ impl From<Error> for c_int {
     }
 }
 
+impl From<Error> for MysteriouslyOppositeReturnValue {
+    fn from(_: Error) -> Self {
+        // for a small subset of OpenSSL functions (return 1 on error)
+        MysteriouslyOppositeReturnValue::Error
+    }
+}
+
 impl From<Error> for c_long {
     fn from(_: Error) -> Self {
         // ditto
@@ -192,3 +199,16 @@ macro_rules! ffi_panic_boundary {
 }
 
 pub(crate) use ffi_panic_boundary;
+
+/// An entry point that yields this type marks it as one where
+/// `0` is returned on success, `1` on error.
+///
+/// That is opposite to other OpenSSL functions which return 1 on success.
+///
+/// It has the same representation as `c_int`.
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MysteriouslyOppositeReturnValue {
+    Success = 0,
+    Error = 1,
+}

@@ -4,12 +4,12 @@
 //! the safe APIs implemented elsewhere.
 
 use core::{mem, ptr};
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::{c_char, c_int, c_uchar, c_uint};
 use std::sync::Mutex;
 
 use openssl_sys::OPENSSL_malloc;
 
-use crate::error::{ffi_panic_boundary, Error};
+use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
     free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, Castable,
     OwnershipArc, OwnershipRef,
@@ -112,6 +112,35 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_alpn_protos(
+        ctx: *mut SSL_CTX,
+        protos: *const c_uchar,
+        protos_len: c_uint,
+    ) -> MysteriouslyOppositeReturnValue {
+        let ctx = try_clone_arc!(ctx);
+        let slice = try_slice!(protos, protos_len);
+
+        let alpn = match crate::parse_alpn(slice) {
+            Some(alpn) => alpn,
+            None => {
+                // nb. openssl doesn't add anything to the error stack
+                // in this case.
+                return Error::bad_data("invalid alpn protocols").raise().into();
+            }
+        };
+
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.set_alpn_offer(alpn))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => MysteriouslyOppositeReturnValue::Success,
+        }
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL_CTX>;
@@ -122,7 +151,11 @@ type SSL = crate::Ssl;
 entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
         let ctx = try_clone_arc!(ctx);
-        to_arc_mut_ptr(Mutex::new(crate::Ssl::new(ctx)))
+
+        ctx.lock()
+            .ok()
+            .map(|c| to_arc_mut_ptr(Mutex::new(crate::Ssl::new(ctx.clone(), &c))))
+            .unwrap_or_else(ptr::null_mut)
     }
 }
 
@@ -137,6 +170,35 @@ entry! {
 entry! {
     pub fn _SSL_free(ssl: *mut SSL) {
         free_arc(ssl);
+    }
+}
+
+entry! {
+    pub fn _SSL_set_alpn_protos(
+        ssl: *mut SSL,
+        protos: *const c_uchar,
+        protos_len: c_uint,
+    ) -> MysteriouslyOppositeReturnValue {
+        let ssl = try_clone_arc!(ssl);
+        let slice = try_slice!(protos, protos_len);
+
+        let alpn = match crate::parse_alpn(slice) {
+            Some(alpn) => alpn,
+            None => {
+                // nb. openssl doesn't add anything to the error stack
+                // in this case.
+                return Error::bad_data("invalid alpn protocols").raise().into();
+            }
+        };
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ssl| ssl.set_alpn_offer(alpn))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => MysteriouslyOppositeReturnValue::Success,
+        }
     }
 }
 
@@ -249,6 +311,8 @@ impl Castable for SSL_CIPHER {
 }
 
 /// Normal OpenSSL return value convention success indicator.
+///
+/// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
 const C_INT_SUCCESS: c_int = 1;
 
 #[cfg(test)]
@@ -290,6 +354,82 @@ mod tests {
         assert_eq!(_SSL_up_ref(ssl), 1);
         _SSL_free(ssl); // ref 2
         _SSL_free(ssl); // ref 1
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_CTX_set_alpn_protos_works() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        assert_eq!(
+            _SSL_CTX_set_alpn_protos(ctx, b"\x05hello" as *const u8, 6) as i32,
+            0i32
+        );
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_CTX_set_alpn_protos_null_ctx() {
+        assert_eq!(
+            _SSL_CTX_set_alpn_protos(ptr::null_mut(), b"\x05hello" as *const u8, 6) as i32,
+            1i32
+        );
+    }
+
+    #[test]
+    fn test_SSL_CTX_set_alpn_protos_null_proto() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        assert_eq!(_SSL_CTX_set_alpn_protos(ctx, ptr::null(), 6) as i32, 1i32);
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_CTX_set_alpn_protos_invalid_proto() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        assert_eq!(
+            _SSL_CTX_set_alpn_protos(ctx, b"\x05hell" as *const u8, 5) as i32,
+            1i32
+        );
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_set_alpn_protos_works() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        let ssl = _SSL_new(ctx);
+        assert_eq!(
+            _SSL_set_alpn_protos(ssl, b"\x05hello" as *const u8, 6) as i32,
+            0i32
+        );
+        _SSL_free(ssl);
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_set_alpn_protos_null_ssl() {
+        assert_eq!(
+            _SSL_set_alpn_protos(ptr::null_mut(), b"\x05hello" as *const u8, 6) as i32,
+            1i32
+        );
+    }
+
+    #[test]
+    fn test_SSL_set_alpn_protos_null_proto() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        let ssl = _SSL_new(ctx);
+        assert_eq!(_SSL_set_alpn_protos(ssl, ptr::null(), 6) as i32, 1i32);
+        _SSL_free(ssl);
+        _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_set_alpn_protos_invalid_proto() {
+        let ctx = _SSL_CTX_new(_TLS_method());
+        let ssl = _SSL_new(ctx);
+        assert_eq!(
+            _SSL_set_alpn_protos(ssl, b"\x05hell" as *const u8, 5) as i32,
+            1i32
+        );
+        _SSL_free(ssl);
         _SSL_CTX_free(ctx);
     }
 }

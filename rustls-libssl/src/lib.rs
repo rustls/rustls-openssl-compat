@@ -1,4 +1,5 @@
 use core::ffi::CStr;
+use std::io::{ErrorKind, Read, Write};
 use std::sync::{Arc, Mutex};
 
 use openssl_sys::X509_STORE;
@@ -427,6 +428,53 @@ impl Ssl {
         Ok(())
     }
 
+    fn want(&self) -> Want {
+        match &self.conn {
+            Some(conn) => Want {
+                read: conn.wants_read(),
+                write: conn.wants_write(),
+            },
+            None => Want::default(),
+        }
+    }
+
+    fn write(&mut self, slice: &[u8]) -> Result<usize, error::Error> {
+        let written = match &mut self.conn {
+            Some(ref mut conn) => conn.writer().write(slice).map_err(error::Error::from_io)?,
+            None => 0,
+        };
+        self.try_io()?;
+        Ok(written)
+    }
+
+    fn read(&mut self, slice: &mut [u8]) -> Result<usize, error::Error> {
+        let (late_err, read_count) = loop {
+            let late_err = self.try_io();
+
+            match &mut self.conn {
+                Some(ref mut conn) => match conn.reader().read(slice) {
+                    Ok(read) => break (late_err, read),
+                    Err(err) if err.kind() == ErrorKind::WouldBlock && late_err.is_ok() => {
+                        // no data available, go around again.
+                        continue;
+                    }
+                    Err(err) => {
+                        return Err(error::Error::from_io(err));
+                    }
+                },
+                None => break (late_err, 0),
+            };
+        };
+
+        if read_count > 0 {
+            Ok(read_count)
+        } else {
+            // Only raise IO errors after all data has been read.
+            late_err?;
+            Ok(0)
+        }
+    }
+
     fn try_io(&mut self) -> Result<(), error::Error> {
         let bio = match self.bio.as_mut() {
             Some(bio) => bio,
@@ -478,6 +526,22 @@ impl Ssl {
     fn set_shutdown(&mut self, flags: i32) {
         self.shutdown_flags.set(flags);
     }
+
+    fn get_pending_plaintext(&mut self) -> usize {
+        self.conn
+            .as_mut()
+            .and_then(|conn| {
+                let io_state = conn.process_new_packets().ok()?;
+                Some(io_state.plaintext_bytes_to_read())
+            })
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Default)]
+struct Want {
+    read: bool,
+    write: bool,
 }
 
 #[derive(PartialEq)]

@@ -4,7 +4,7 @@
 //! the safe APIs implemented elsewhere.
 
 use core::{mem, ptr};
-use std::os::raw::{c_char, c_int, c_uchar, c_uint};
+use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::sync::Mutex;
 use std::{fs, io, path::PathBuf};
 
@@ -13,8 +13,8 @@ use openssl_sys::{OPENSSL_malloc, X509_STORE, X509_STORE_CTX};
 use crate::bio::{Bio, BIO};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
-    free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, try_str,
-    Castable, OwnershipArc, OwnershipRef,
+    free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr,
+    try_slice, try_str, Castable, OwnershipArc, OwnershipRef,
 };
 
 /// Makes a entry function definition.
@@ -141,6 +141,38 @@ entry! {
             .ok()
             .map(|mut ctx| ctx.set_options(op))
             .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_ctrl(
+        _ctx: *mut SSL_CTX,
+        cmd: c_int,
+        larg: c_long,
+        _parg: *mut c_void,
+    ) -> c_long {
+        match SslCtrl::try_from(cmd) {
+            Ok(SslCtrl::Mode) => {
+                log::warn!("unimplemented SSL_CTX_set_mode()");
+                0
+            }
+            Ok(SslCtrl::SetMsgCallbackArg) => {
+                log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
+                0
+            }
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
+                1
+            }
+            Ok(SslCtrl::SetTlsExtHostname) => {
+                // not a defined operation in the OpenSSL API
+                0
+            }
+            Err(()) => {
+                log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
+                0
+            }
+        }
     }
 }
 
@@ -291,6 +323,38 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_ctrl(ssl: *mut SSL, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
+        let ssl = try_clone_arc!(ssl);
+
+        match SslCtrl::try_from(cmd) {
+            Ok(SslCtrl::Mode) => {
+                log::warn!("unimplemented SSL_set_mode()");
+                0
+            }
+            Ok(SslCtrl::SetMsgCallbackArg) => {
+                log::warn!("unimplemented SSL_set_msg_callback_arg()");
+                0
+            }
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                log::warn!("unimplemented SSL_set_max_proto_version()");
+                1
+            }
+            Ok(SslCtrl::SetTlsExtHostname) => {
+                let hostname = try_str!(parg as *const c_char);
+                ssl.lock()
+                    .ok()
+                    .map(|mut ssl| ssl.set_sni_hostname(hostname))
+                    .unwrap_or_default() as c_long
+            }
+            Err(()) => {
+                log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
+                0
+            }
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_get_options(ssl: *const SSL) -> u64 {
         let ssl = try_clone_arc!(ssl);
         ssl.lock()
@@ -346,6 +410,17 @@ entry! {
             Err(e) => e.raise().into(),
             Ok(()) => MysteriouslyOppositeReturnValue::Success,
         }
+    }
+}
+
+entry! {
+    pub fn _SSL_set1_host(ssl: *mut SSL, hostname: *const c_char) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        let maybe_hostname = str_from_cstring(hostname);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.set_verify_hostname(maybe_hostname))
+            .unwrap_or_default() as c_int
     }
 }
 
@@ -511,6 +586,47 @@ impl Castable for SSL_CIPHER {
 ///
 /// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
 const C_INT_SUCCESS: c_int = 1;
+
+/// Define an enum that can round trip through a c_int, with no
+/// UB for unknown values.
+macro_rules! num_enum {
+    ($enum_vis:vis enum $enum_name:ident
+    { $( $enum_var:ident = $enum_val:expr ),* $(,)? }
+    ) => {
+        #[derive(Debug, PartialEq, Clone, Copy)]
+        $enum_vis enum $enum_name {
+            $( $enum_var),*
+        }
+
+        impl From<$enum_name> for c_int {
+            fn from(item: $enum_name) -> Self {
+                match item {
+                    $( $enum_name::$enum_var => $enum_val),*
+                }
+            }
+        }
+
+        impl TryFrom<c_int> for $enum_name {
+            type Error = ();
+            fn try_from(i: c_int) -> Result<Self, ()> {
+                match i {
+                    $( $enum_val => Ok(Self::$enum_var), )*
+                    _ => Err(()),
+                }
+            }
+        }
+    }
+}
+
+// See `ssl.h` for macros starting `SSL_CTRL_`, eg. `SSL_CTRL_SET_TLSEXT_HOSTNAME`
+num_enum! {
+    enum SslCtrl {
+        Mode = 33,
+        SetMsgCallbackArg = 16,
+        SetTlsExtHostname = 55,
+        SetMaxProtoVersion = 124,
+    }
+}
 
 #[cfg(test)]
 mod tests {

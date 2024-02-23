@@ -36,6 +36,19 @@ pub struct SslMethod {
     server_versions: &'static [&'static rustls::SupportedProtocolVersion],
 }
 
+impl SslMethod {
+    fn mode(&self) -> ConnMode {
+        match (
+            self.client_versions.is_empty(),
+            self.server_versions.is_empty(),
+        ) {
+            (true, false) => ConnMode::Server,
+            (false, true) => ConnMode::Client,
+            (_, _) => ConnMode::Unknown,
+        }
+    }
+}
+
 static TLS_CLIENT_METHOD: SslMethod = SslMethod {
     client_versions: rustls::ALL_VERSIONS,
     server_versions: &[],
@@ -264,6 +277,7 @@ pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
     raw_options: u64,
+    mode: ConnMode,
     verify_mode: VerifyMode,
     verify_roots: RootCertStore,
     verify_server_name: Option<ServerName<'static>>,
@@ -277,6 +291,7 @@ impl Ssl {
         Self {
             ctx,
             raw_options: inner.raw_options,
+            mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
             verify_roots: inner.verify_roots.clone(),
             verify_server_name: None,
@@ -302,6 +317,18 @@ impl Ssl {
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
         self.alpn = alpn;
+    }
+
+    fn set_client_mode(&mut self) {
+        self.mode = ConnMode::Client;
+    }
+
+    fn set_server_mode(&mut self) {
+        self.mode = ConnMode::Server;
+    }
+
+    fn is_server(&self) -> bool {
+        self.mode == ConnMode::Server
     }
 
     fn set_verify_hostname(&mut self, hostname: Option<&str>) -> bool {
@@ -343,6 +370,13 @@ impl Ssl {
             self.bio = Some(bio::Bio::new_pair(rbio, wbio));
         }
     }
+}
+
+#[derive(PartialEq)]
+enum ConnMode {
+    Unknown,
+    Client,
+    Server,
 }
 
 #[derive(Default, Debug, Clone, Copy)]

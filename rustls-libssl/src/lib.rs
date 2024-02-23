@@ -287,6 +287,7 @@ struct Ssl {
     bio: Option<bio::Bio>,
     conn: Option<Connection>,
     verifier: Option<Arc<verifier::ServerVerifier>>,
+    shutdown_flags: ShutdownFlags,
 }
 
 impl Ssl {
@@ -303,6 +304,7 @@ impl Ssl {
             bio: None,
             conn: None,
             verifier: None,
+            shutdown_flags: ShutdownFlags::default(),
         }
     }
 
@@ -439,12 +441,42 @@ impl Ssl {
                         return Err(error::Error::from_io(e));
                     }
                 };
-                conn.process_new_packets()
-                    .map_err(error::Error::from_rustls)
-                    .map(|_| ())
+                let io_state = conn
+                    .process_new_packets()
+                    .map_err(error::Error::from_rustls)?;
+                if io_state.peer_has_closed() {
+                    self.shutdown_flags.set_received();
+                }
+                Ok(())
             }
             None => Ok(()),
         }
+    }
+
+    fn try_shutdown(&mut self) -> Result<ShutdownResult, error::Error> {
+        if !self.shutdown_flags.is_sent() {
+            match &mut self.conn {
+                Some(ref mut conn) => conn.send_close_notify(),
+                None => (),
+            };
+
+            self.shutdown_flags.set_sent();
+        }
+
+        self.try_io()?;
+        Ok(if self.shutdown_flags.is_received() {
+            ShutdownResult::Received
+        } else {
+            ShutdownResult::Sent
+        })
+    }
+
+    fn get_shutdown(&self) -> i32 {
+        self.shutdown_flags.0
+    }
+
+    fn set_shutdown(&mut self, flags: i32) {
+        self.shutdown_flags.set(flags);
     }
 }
 
@@ -453,6 +485,40 @@ enum ConnMode {
     Unknown,
     Client,
     Server,
+}
+
+#[repr(i32)]
+enum ShutdownResult {
+    Sent = 0,
+    Received = 1,
+}
+
+#[derive(Default)]
+struct ShutdownFlags(i32);
+
+impl ShutdownFlags {
+    const SENT: i32 = 1;
+    const RECEIVED: i32 = 2;
+
+    fn is_sent(&self) -> bool {
+        self.0 & ShutdownFlags::SENT == ShutdownFlags::SENT
+    }
+
+    fn is_received(&self) -> bool {
+        self.0 & ShutdownFlags::RECEIVED == ShutdownFlags::RECEIVED
+    }
+
+    fn set_sent(&mut self) {
+        self.0 |= ShutdownFlags::SENT;
+    }
+
+    fn set_received(&mut self) {
+        self.0 |= ShutdownFlags::RECEIVED;
+    }
+
+    fn set(&mut self, flags: i32) {
+        self.0 |= flags & (ShutdownFlags::SENT | ShutdownFlags::RECEIVED);
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]

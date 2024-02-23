@@ -16,6 +16,7 @@ use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr,
     try_slice, try_str, Castable, OwnershipArc, OwnershipRef,
 };
+use crate::ShutdownResult;
 
 /// Makes a entry function definition.
 ///
@@ -511,6 +512,46 @@ entry! {
             Err(e) => e.into(),
             Ok(()) => C_INT_SUCCESS,
         }
+    }
+}
+
+entry! {
+    pub fn _SSL_shutdown(ssl: *mut SSL) -> c_int {
+        const ERROR: c_int = -1;
+        let ssl = try_clone_arc!(ssl, ERROR);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.try_shutdown())
+            .map_err(|err| err.raise())
+        {
+            Err(_e) => ERROR,
+            Ok(result) => match result {
+                ShutdownResult::Sent => 0 as c_int,
+                ShutdownResult::Received => 1 as c_int,
+            },
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_get_shutdown(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        ssl.lock().map(|ssl| ssl.get_shutdown()).unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_set_shutdown(ssl: *mut SSL, flags: c_int) {
+        let ssl = try_clone_arc!(ssl);
+
+        ssl.lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ssl| ssl.set_shutdown(flags))
+            .map_err(|err| err.raise())
+            .unwrap_or_default()
     }
 }
 

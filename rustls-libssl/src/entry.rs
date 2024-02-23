@@ -3,13 +3,16 @@
 //! It should mainly be concerned with mapping these calls up to
 //! the safe APIs implemented elsewhere.
 
-use core::mem;
-use std::os::raw::{c_char, c_int};
+use core::{mem, ptr};
+use std::os::raw::{c_char, c_int, c_uchar};
 use std::sync::Mutex;
+
+use openssl_sys::OPENSSL_malloc;
 
 use crate::error::{ffi_panic_boundary, Error};
 use crate::ffi::{
-    free_arc, to_arc_mut_ptr, try_clone_arc, try_ref_from_ptr, Castable, OwnershipArc, OwnershipRef,
+    free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, Castable,
+    OwnershipArc, OwnershipRef,
 };
 
 /// Makes a entry function definition.
@@ -140,6 +143,109 @@ entry! {
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;
+}
+
+type SSL_CIPHER = crate::SslCipher;
+
+entry! {
+    pub fn _SSL_CIPHER_find(_ssl: *const SSL, ptr: *const c_uchar) -> *const SSL_CIPHER {
+        let slice = try_slice!(ptr, 2);
+        let id = (slice[0] as u16) << 8 | (slice[1] as u16);
+        crate::SslCipher::find_by_id(rustls::CipherSuite::from(id))
+            .map(|cipher| cipher as *const SSL_CIPHER)
+            .unwrap_or_else(ptr::null)
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_get_bits(cipher: *const SSL_CIPHER, alg_bits: *mut c_int) -> c_int {
+        let cipher = try_ref_from_ptr!(cipher);
+        let bits = cipher.bits as c_int;
+        if !alg_bits.is_null() {
+            unsafe { ptr::write(alg_bits, bits) };
+        }
+        bits
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_get_version(cipher: *const SSL_CIPHER) -> *const c_char {
+        match try_from(cipher) {
+            Some(cipher) => cipher.version,
+            None => c"(NONE)",
+        }
+        .as_ptr()
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_get_name(cipher: *const SSL_CIPHER) -> *const c_char {
+        match try_from(cipher) {
+            Some(cipher) => cipher.openssl_name,
+            None => c"(NONE)",
+        }
+        .as_ptr()
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_standard_name(cipher: *const SSL_CIPHER) -> *const c_char {
+        match try_from(cipher) {
+            Some(cipher) => cipher.standard_name,
+            None => c"(NONE)",
+        }
+        .as_ptr()
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_get_id(cipher: *const SSL_CIPHER) -> u32 {
+        let cipher = try_ref_from_ptr!(cipher);
+        cipher.openssl_id()
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_get_protocol_id(cipher: *const SSL_CIPHER) -> u16 {
+        let cipher = try_ref_from_ptr!(cipher);
+        cipher.protocol_id()
+    }
+}
+
+entry! {
+    pub fn _SSL_CIPHER_description(
+        cipher: *const SSL_CIPHER,
+        mut buf: *mut c_char,
+        mut size: c_int,
+    ) -> *mut c_char {
+        let cipher = try_ref_from_ptr!(cipher);
+        let required_len = cipher.description.to_bytes_with_nul().len();
+
+        if buf.is_null() {
+            // safety: `required_len` is a compile-time constant, and is
+            // a reasonable quantity to ask `OPENSSL_malloc` for.
+            // In C cast rules, any `*mut c_void` can be viewed as a
+            // `*mut c_char`.
+            let allocd = unsafe { OPENSSL_malloc(required_len) as *mut c_char };
+            if allocd.is_null() {
+                return allocd;
+            }
+            buf = allocd;
+            size = required_len as i32;
+        } else if size < (required_len as i32) {
+            return ptr::null_mut();
+        }
+
+        unsafe {
+            ptr::copy_nonoverlapping(cipher.description.as_ptr(), buf, required_len as usize);
+        };
+        buf
+    }
+}
+
+impl Castable for SSL_CIPHER {
+    type Ownership = OwnershipRef;
+    type RustType = SSL_CIPHER;
 }
 
 /// Normal OpenSSL return value convention success indicator.

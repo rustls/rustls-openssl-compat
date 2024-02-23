@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use rustls::crypto::ring as provider;
 use rustls::CipherSuite;
 
+mod bio;
 #[macro_use]
 mod constants;
 #[allow(
@@ -218,6 +219,7 @@ pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
     alpn: Vec<Vec<u8>>,
+    bio: Option<bio::Bio>,
 }
 
 impl Ssl {
@@ -225,11 +227,24 @@ impl Ssl {
         Self {
             ctx,
             alpn: inner.alpn.clone(),
+            bio: None,
         }
     }
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
         self.alpn = alpn;
+    }
+
+    fn set_bio(&mut self, bio: bio::Bio) {
+        self.bio = Some(bio);
+    }
+
+    fn set_bio_pair(&mut self, rbio: Option<*mut bio::BIO>, wbio: Option<*mut bio::BIO>) {
+        if let Some(bio) = &mut self.bio {
+            bio.update(rbio, wbio);
+        } else {
+            self.bio = Some(bio::Bio::new_pair(rbio, wbio));
+        }
     }
 }
 

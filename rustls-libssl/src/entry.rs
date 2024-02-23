@@ -9,6 +9,7 @@ use std::sync::Mutex;
 
 use openssl_sys::OPENSSL_malloc;
 
+use crate::bio::{Bio, BIO};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
     free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, Castable,
@@ -199,6 +200,56 @@ entry! {
             Err(e) => e.raise().into(),
             Ok(()) => MysteriouslyOppositeReturnValue::Success,
         }
+    }
+}
+
+entry! {
+    pub fn _SSL_set_fd(ssl: *mut SSL, fd: c_int) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        let bio = Bio::new_fd_no_close(fd);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| {
+                ssl.set_bio(bio);
+                true
+            })
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_set_bio(ssl: *mut SSL, rbio: *mut BIO, wbio: *mut BIO) {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.set_bio_pair(Some(rbio), Some(wbio)))
+            .unwrap_or_default();
+    }
+}
+
+entry! {
+    pub fn _SSL_set0_rbio(ssl: *mut SSL, rbio: *mut BIO) {
+        let ssl = try_clone_arc!(ssl);
+        if rbio.is_null() {
+            return;
+        }
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.set_bio_pair(Some(rbio), None))
+            .unwrap_or_default();
+    }
+}
+
+entry! {
+    pub fn _SSL_set0_wbio(ssl: *mut SSL, wbio: *mut BIO) {
+        let ssl = try_clone_arc!(ssl);
+        if wbio.is_null() {
+            return;
+        }
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.set_bio_pair(None, Some(wbio)))
+            .unwrap_or_default();
     }
 }
 

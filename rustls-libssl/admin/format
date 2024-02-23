@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# rustfmt cannot generally format the inside of macro invocations,
+# because they can invent their own syntax.
+#
+# in the case of the `entry!` macro in src/entry.rs, we specifically
+# try and keep the syntax the same as a rust function definition.
+#
+# that means we can trick rustfmt into formatting it by replacing
+# `entry!` with `mod entry`, and then restore it back afterwards.
+
+sed -i -e 's/^entry! {/mod entry {/g' src/entry.rs
+cargo fmt "$@"
+rc=$?
+sed -i -e 's/^mod entry {/entry! {/g' src/entry.rs
+exit $rc

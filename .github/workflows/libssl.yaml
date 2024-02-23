@@ -1,0 +1,156 @@
+name: rustls-libssl
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: '15 12 * * 3'
+
+defaults:
+  run:
+    working-directory: rustls-libssl
+
+jobs:
+  build:
+    name: Build+test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+
+      - name: Install ${{ matrix.rust }} toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - run: make PROFILE=release test
+
+  valgrind:
+    name: Valgrind
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+      - run: export VALGRIND="valgrind -q"
+      - run: make test
+
+  docs:
+    name: Check for documentation errors
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: cargo doc (all features)
+        run: cargo doc --all-features --no-deps --workspace
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.67.1
+          components: rustfmt
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Check src/entry.rs formatting
+        run: ./admin/format --all -- --check
+      - name: Check C formatting
+        run: make format-check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Check clippy
+        # We allow unknown lints here because sometimes the nightly job
+        # (below) will have a new lint that we want to suppress.
+        # If we suppress (e.g. #![allow(clippy::arc_with_non_send_sync)]),
+        # we would get an unknown-lint error from older clippy versions.
+        run: cargo clippy --locked --workspace -- -D warnings -A unknown-lints
+
+  clippy-nightly-optional:
+    name: Clippy nightly (optional)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - name: Check clippy
+        run: cargo clippy --locked --workspace -- -D warnings
+
+  clang-tidy:
+    name: Clang Tidy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Clang tidy
+        run: clang-tidy tests/*.c -- -I src/
+
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+      - run: rustup override set "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)"
+      - run: rustup component add miri
+      - run: cargo miri test

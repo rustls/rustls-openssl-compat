@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+#[macro_use]
+mod constants;
 #[allow(
     // relax naming convention lints for openssl API
     non_camel_case_types,

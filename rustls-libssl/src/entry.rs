@@ -4,7 +4,7 @@
 //! the safe APIs implemented elsewhere.
 
 use core::mem;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 use std::sync::Mutex;
 
 use crate::error::{ffi_panic_boundary, Error};
@@ -46,6 +46,18 @@ entry! {
         env_logger::init();
         log::trace!("OPENSSL_init_ssl in rustls-libssl {VERSION}");
         C_INT_SUCCESS
+    }
+}
+
+entry! {
+    pub fn _SSL_alert_desc_string_long(value: c_int) -> *const c_char {
+        crate::constants::alert_desc_to_long_string(value).as_ptr() as *const c_char
+    }
+}
+
+entry! {
+    pub fn _SSL_alert_desc_string(value: c_int) -> *const c_char {
+        crate::constants::alert_desc_to_short_string(value).as_ptr() as *const c_char
     }
 }
 

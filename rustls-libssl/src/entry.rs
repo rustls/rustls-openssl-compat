@@ -13,8 +13,8 @@ use openssl_sys::{OPENSSL_malloc, X509_STORE, X509_STORE_CTX};
 use crate::bio::{Bio, BIO};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
-    free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr,
-    try_slice, try_str, Castable, OwnershipArc, OwnershipRef,
+    free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
+    try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
 use crate::ShutdownResult;
 
@@ -516,6 +516,65 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_write(ssl: *mut SSL, buf: *const c_void, num: c_int) -> c_int {
+        const ERROR: c_int = -1;
+        let ssl = try_clone_arc!(ssl, ERROR);
+        let slice = try_slice_int!(buf as *const u8, num, ERROR);
+
+        if slice.is_empty() {
+            return ERROR;
+        }
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.write(slice))
+            .map_err(|err| err.raise())
+        {
+            Err(_e) => ERROR,
+            Ok(written) => written as c_int,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_read(ssl: *mut SSL, buf: *mut c_void, num: c_int) -> c_int {
+        const ERROR: c_int = -1;
+        let ssl = try_clone_arc!(ssl, ERROR);
+        let slice = try_mut_slice_int!(buf as *mut u8, num, ERROR);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.read(slice))
+            .map_err(|err| err.raise())
+        {
+            Err(_e) => ERROR,
+            Ok(read) => read as c_int,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_want(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        let want = ssl.lock().ok().map(|ssl| ssl.want()).unwrap_or_default();
+
+        if want.read {
+            SSL_READING
+        } else if want.write {
+            SSL_WRITING
+        } else {
+            SSL_NOTHING
+        }
+    }
+}
+
+pub const SSL_NOTHING: i32 = 1;
+pub const SSL_WRITING: i32 = 2;
+pub const SSL_READING: i32 = 3;
+
+entry! {
     pub fn _SSL_shutdown(ssl: *mut SSL) -> c_int {
         const ERROR: c_int = -1;
         let ssl = try_clone_arc!(ssl, ERROR);
@@ -552,6 +611,24 @@ entry! {
             .map(|mut ssl| ssl.set_shutdown(flags))
             .map_err(|err| err.raise())
             .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_pending(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        ssl.lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ssl| ssl.get_pending_plaintext() as c_int)
+            .map_err(|err| err.raise())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_has_pending(ssl: *const SSL) -> c_int {
+        (_SSL_pending(ssl) > 0) as c_int
     }
 }
 

@@ -6,14 +6,15 @@
 use core::{mem, ptr};
 use std::os::raw::{c_char, c_int, c_uchar, c_uint};
 use std::sync::Mutex;
+use std::{fs, io, path::PathBuf};
 
-use openssl_sys::OPENSSL_malloc;
+use openssl_sys::{OPENSSL_malloc, X509_STORE, X509_STORE_CTX};
 
 use crate::bio::{Bio, BIO};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::ffi::{
-    free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, Castable,
-    OwnershipArc, OwnershipRef,
+    free_arc, to_arc_mut_ptr, try_clone_arc, try_from, try_ref_from_ptr, try_slice, try_str,
+    Castable, OwnershipArc, OwnershipRef,
 };
 
 /// Makes a entry function definition.
@@ -114,6 +115,121 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_get_options(ctx: *const SSL_CTX) -> u64 {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_options())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_clear_options(ctx: *mut SSL_CTX, op: u64) -> u64 {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|mut ctx| ctx.clear_options(op))
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_options(ctx: *mut SSL_CTX, op: u64) -> u64 {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|mut ctx| ctx.set_options(op))
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_verify(ctx: *mut SSL_CTX, mode: c_int, callback: SSL_verify_cb) {
+        let ctx = try_clone_arc!(ctx);
+
+        if callback.is_some() {
+            // supporting verify callbacks would mean we need to fully use
+            // the openssl certificate verifier, because X509_STORE and
+            // X509_STORE_CTX are both in libcrypto.
+            return Error::not_supported("verify callback").raise().into();
+        }
+
+        ctx.lock()
+            .ok()
+            .map(|mut ctx| ctx.set_verify(crate::VerifyMode::from(mode)))
+            .unwrap_or_default();
+    }
+}
+
+pub type SSL_verify_cb =
+    Option<unsafe extern "C" fn(preverify_ok: c_int, x509_ctx: *mut X509_STORE_CTX) -> c_int>;
+
+entry! {
+    pub fn _SSL_CTX_get_cert_store(ctx: *const SSL_CTX) -> *mut X509_STORE {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_x509_store())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+fn load_verify_files(ctx: &Mutex<SSL_CTX>, file_names: impl Iterator<Item = PathBuf>) -> c_int {
+    let mut certs = Vec::new();
+    for file_name in file_names {
+        let mut file_reader = match fs::File::open(file_name.clone()) {
+            Ok(content) => io::BufReader::new(content),
+            Err(err) => return Error::from_io(err).raise().into(),
+        };
+
+        for cert in rustls_pemfile::certs(&mut file_reader) {
+            match cert {
+                Ok(cert) => certs.push(cert),
+                Err(err) => {
+                    log::trace!("Failed to parse {file_name:?}: {err:?}");
+                    return Error::from_io(err).raise().into();
+                }
+            };
+        }
+    }
+
+    match ctx
+        .lock()
+        .map_err(|_| Error::cannot_lock())
+        .and_then(|mut ctx| ctx.add_trusted_certs(certs))
+    {
+        Err(e) => e.raise().into(),
+        Ok(()) => C_INT_SUCCESS,
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_load_verify_file(ctx: *mut SSL_CTX, ca_file: *const c_char) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        let ca_file = try_str!(ca_file);
+        let path_buf = PathBuf::from(ca_file);
+        load_verify_files(ctx.as_ref(), [path_buf].into_iter())
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_load_verify_dir(ctx: *mut SSL_CTX, ca_dir: *const c_char) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        let ca_dir = try_str!(ca_dir);
+
+        let entries = match fs::read_dir(ca_dir) {
+            Ok(iter) => iter,
+            Err(err) => return Error::from_io(err).raise().into(),
+        }
+        .filter_map(|entry| entry.ok())
+        .map(|dir_entry| dir_entry.path());
+
+        load_verify_files(ctx.as_ref(), entries)
+    }
+}
+
+entry! {
     pub fn _SSL_CTX_set_alpn_protos(
         ctx: *mut SSL_CTX,
         protos: *const c_uchar,
@@ -171,6 +287,36 @@ entry! {
 entry! {
     pub fn _SSL_free(ssl: *mut SSL) {
         free_arc(ssl);
+    }
+}
+
+entry! {
+    pub fn _SSL_get_options(ssl: *const SSL) -> u64 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_options())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_clear_options(ssl: *mut SSL, op: u64) -> u64 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.clear_options(op))
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_set_options(ssl: *mut SSL, op: u64) -> u64 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.set_options(op))
+            .unwrap_or_default()
     }
 }
 

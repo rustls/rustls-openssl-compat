@@ -1,8 +1,10 @@
 use core::ffi::CStr;
 use std::sync::{Arc, Mutex};
 
+use openssl_sys::X509_STORE;
 use rustls::crypto::ring as provider;
-use rustls::CipherSuite;
+use rustls::pki_types::CertificateDer;
+use rustls::{CipherSuite, RootCertStore};
 
 mod bio;
 #[macro_use]
@@ -23,6 +25,7 @@ mod ffi;
 #[cfg(miri)]
 #[allow(non_camel_case_types, dead_code)]
 mod miri;
+mod x509;
 
 /// `SSL_METHOD` underlying type.
 ///
@@ -179,6 +182,10 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 
 pub struct SslContext {
     method: &'static SslMethod,
+    raw_options: u64,
+    verify_mode: VerifyMode,
+    verify_roots: RootCertStore,
+    verify_x509_store: x509::OwnedX509Store,
     alpn: Vec<Vec<u8>>,
 }
 
@@ -186,8 +193,46 @@ impl SslContext {
     fn new(method: &'static SslMethod) -> Self {
         Self {
             method,
+            raw_options: 0,
+            verify_mode: VerifyMode::default(),
+            verify_roots: RootCertStore::empty(),
+            verify_x509_store: x509::OwnedX509Store::new(),
             alpn: vec![],
         }
+    }
+
+    fn get_options(&self) -> u64 {
+        self.raw_options
+    }
+
+    fn set_options(&mut self, set: u64) -> u64 {
+        self.raw_options |= set;
+        self.raw_options
+    }
+
+    fn clear_options(&mut self, clear: u64) -> u64 {
+        self.raw_options &= !clear;
+        self.raw_options
+    }
+
+    fn set_verify(&mut self, mode: VerifyMode) {
+        self.verify_mode = mode;
+    }
+
+    fn add_trusted_certs(
+        &mut self,
+        certs: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
+        for c in certs {
+            self.verify_roots
+                .add(c)
+                .map_err(error::Error::from_rustls)?;
+        }
+        Ok(())
+    }
+
+    fn get_x509_store(&self) -> *mut X509_STORE {
+        self.verify_x509_store.pointer()
     }
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
@@ -218,6 +263,9 @@ pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
 
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
+    raw_options: u64,
+    verify_mode: VerifyMode,
+    verify_roots: RootCertStore,
     alpn: Vec<Vec<u8>>,
     bio: Option<bio::Bio>,
 }
@@ -226,9 +274,26 @@ impl Ssl {
     fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Self {
         Self {
             ctx,
+            raw_options: inner.raw_options,
+            verify_mode: inner.verify_mode,
+            verify_roots: inner.verify_roots.clone(),
             alpn: inner.alpn.clone(),
             bio: None,
         }
+    }
+
+    fn get_options(&self) -> u64 {
+        self.raw_options
+    }
+
+    fn set_options(&mut self, set: u64) -> u64 {
+        self.raw_options |= set;
+        self.raw_options
+    }
+
+    fn clear_options(&mut self, clear: u64) -> u64 {
+        self.raw_options &= !clear;
+        self.raw_options
     }
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
@@ -245,6 +310,35 @@ impl Ssl {
         } else {
             self.bio = Some(bio::Bio::new_pair(rbio, wbio));
         }
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct VerifyMode(i32);
+
+impl VerifyMode {
+    const _NONE: i32 = 0x0;
+    const PEER: i32 = 0x1;
+    const FAIL_IF_NO_PEER_CERT: i32 = 0x2;
+    // other flags not mentioned here are not implemented.
+
+    pub fn client_must_verify_server(&self) -> bool {
+        self.0 & VerifyMode::PEER == VerifyMode::PEER
+    }
+
+    pub fn server_must_verify_client(&self) -> bool {
+        let bitmap = VerifyMode::PEER | VerifyMode::FAIL_IF_NO_PEER_CERT;
+        self.0 & bitmap == bitmap
+    }
+
+    pub fn server_should_verify_client_but_allow_anon(&self) -> bool {
+        self.0 & (VerifyMode::PEER | VerifyMode::FAIL_IF_NO_PEER_CERT) == VerifyMode::PEER
+    }
+}
+
+impl From<i32> for VerifyMode {
+    fn from(i: i32) -> Self {
+        Self(i)
     }
 }
 

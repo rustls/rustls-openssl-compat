@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use openssl_sys::X509_STORE;
 use rustls::crypto::ring as provider;
-use rustls::pki_types::CertificateDer;
+use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::{CipherSuite, RootCertStore};
 
 mod bio;
@@ -266,7 +266,9 @@ struct Ssl {
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_roots: RootCertStore,
+    verify_server_name: Option<ServerName<'static>>,
     alpn: Vec<Vec<u8>>,
+    sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
 }
 
@@ -277,7 +279,9 @@ impl Ssl {
             raw_options: inner.raw_options,
             verify_mode: inner.verify_mode,
             verify_roots: inner.verify_roots.clone(),
+            verify_server_name: None,
             alpn: inner.alpn.clone(),
+            sni_server_name: None,
             bio: None,
         }
     }
@@ -298,6 +302,34 @@ impl Ssl {
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
         self.alpn = alpn;
+    }
+
+    fn set_verify_hostname(&mut self, hostname: Option<&str>) -> bool {
+        match hostname {
+            // If name is NULL or the empty string, the list of hostnames is
+            // cleared and name checks are not performed on the peer certificate.
+            None | Some("") => {
+                self.verify_server_name = None;
+                true
+            }
+            Some(hostname) => match ServerName::try_from(hostname).ok() {
+                Some(server_name) => {
+                    self.verify_server_name = Some(server_name.to_owned());
+                    true
+                }
+                None => false,
+            },
+        }
+    }
+
+    fn set_sni_hostname(&mut self, hostname: &str) -> bool {
+        match ServerName::try_from(hostname).ok() {
+            Some(server_name) => {
+                self.sni_server_name = Some(server_name.to_owned());
+                true
+            }
+            None => false,
+        }
     }
 
     fn set_bio(&mut self, bio: bio::Bio) {

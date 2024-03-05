@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use openssl_probe::ProbeResult;
 use openssl_sys::{
-    SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509_STORE,
-    X509_V_ERR_UNSPECIFIED,
+    EVP_PKEY, SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509,
+    X509_STORE, X509_V_ERR_UNSPECIFIED,
 };
 use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
@@ -26,12 +26,14 @@ mod constants;
 )]
 mod entry;
 mod error;
+mod evp_pkey;
 #[macro_use]
 #[allow(unused_macros, dead_code, unused_imports)]
 mod ffi;
 #[cfg(miri)]
 #[allow(non_camel_case_types, dead_code)]
 mod miri;
+mod sign;
 mod verifier;
 mod x509;
 
@@ -210,6 +212,7 @@ pub struct SslContext {
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
     default_cert_dir: Option<PathBuf>,
+    auth_keys: sign::CertifiedKeySet,
 }
 
 impl SslContext {
@@ -223,6 +226,7 @@ impl SslContext {
             alpn: vec![],
             default_cert_file: None,
             default_cert_dir: None,
+            auth_keys: sign::CertifiedKeySet::default(),
         }
     }
 
@@ -282,6 +286,26 @@ impl SslContext {
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
         self.alpn = alpn;
     }
+
+    fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
+        self.auth_keys.stage_certificate_end_entity(end)
+    }
+
+    fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+        self.auth_keys.stage_certificate_chain(chain)
+    }
+
+    fn commit_private_key(&mut self, key: evp_pkey::EvpPkey) -> Result<(), error::Error> {
+        self.auth_keys.commit_private_key(key)
+    }
+
+    fn get_certificate(&self) -> *mut X509 {
+        self.auth_keys.borrow_current_cert()
+    }
+
+    fn get_privatekey(&self) -> *mut EVP_PKEY {
+        self.auth_keys.borrow_current_key()
+    }
 }
 
 /// Parse the ALPN wire format (which is used in the openssl API)
@@ -320,6 +344,7 @@ struct Ssl {
     peer_cert: Option<x509::OwnedX509>,
     peer_cert_chain: Option<x509::OwnedX509Stack>,
     shutdown_flags: ShutdownFlags,
+    auth_keys: sign::CertifiedKeySet,
 }
 
 impl Ssl {
@@ -339,6 +364,7 @@ impl Ssl {
             peer_cert: None,
             peer_cert_chain: None,
             shutdown_flags: ShutdownFlags::default(),
+            auth_keys: inner.auth_keys.clone(),
         })
     }
 
@@ -373,6 +399,18 @@ impl Ssl {
 
     fn is_server(&self) -> bool {
         self.mode == ConnMode::Server
+    }
+
+    fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
+        self.auth_keys.stage_certificate_end_entity(end)
+    }
+
+    fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+        self.auth_keys.stage_certificate_chain(chain)
+    }
+
+    fn commit_private_key(&mut self, key: evp_pkey::EvpPkey) -> Result<(), error::Error> {
+        self.auth_keys.commit_private_key(key)
     }
 
     fn set_verify_hostname(&mut self, hostname: Option<&str>) -> bool {
@@ -445,12 +483,17 @@ impl Ssl {
         ));
         self.verifier = Some(verifier.clone());
 
-        let mut config = ClientConfig::builder_with_provider(provider)
+        let wants_resolver = ClientConfig::builder_with_provider(provider)
             .with_protocol_versions(method.client_versions)
             .map_err(error::Error::from_rustls)?
             .dangerous()
-            .with_custom_certificate_verifier(verifier)
-            .with_no_client_auth();
+            .with_custom_certificate_verifier(verifier);
+
+        let mut config = if let Some(resolver) = self.auth_keys.resolver() {
+            wants_resolver.with_client_cert_resolver(resolver)
+        } else {
+            wants_resolver.with_no_client_auth()
+        };
 
         config.alpn_protocols.clone_from(&self.alpn);
 
@@ -688,6 +731,14 @@ impl Ssl {
         }
 
         Ok(verify_roots)
+    }
+
+    fn get_certificate(&self) -> *mut X509 {
+        self.auth_keys.borrow_current_cert()
+    }
+
+    fn get_privatekey(&self) -> *mut EVP_PKEY {
+        self.auth_keys.borrow_current_key()
     }
 }
 

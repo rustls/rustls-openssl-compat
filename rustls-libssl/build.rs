@@ -62,6 +62,8 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_clear_options",
     "SSL_CTX_ctrl",
     "SSL_CTX_free",
+    "SSL_CTX_get0_certificate",
+    "SSL_CTX_get0_privatekey",
     "SSL_CTX_get_cert_store",
     "SSL_CTX_get_ex_data",
     "SSL_CTX_get_options",

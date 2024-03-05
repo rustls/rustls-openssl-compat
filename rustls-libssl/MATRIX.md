@@ -68,7 +68,7 @@
 | `SSL_CTX_add_server_custom_ext`  |  |  |  |
 | `SSL_CTX_add_session`  |  |  |  |
 | `SSL_CTX_callback_ctrl`  |  | :white_check_mark: |  |
-| `SSL_CTX_check_private_key`  | :white_check_mark: |  | :exclamation: [^stub] |
+| `SSL_CTX_check_private_key`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_clear_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_config`  |  |  |  |
 | `SSL_CTX_ct_is_enabled` [^ct] |  |  |  |
@@ -81,10 +81,10 @@
 | `SSL_CTX_flush_sessions`  |  |  |  |
 | `SSL_CTX_free`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get0_CA_list`  |  |  |  |
-| `SSL_CTX_get0_certificate`  |  |  |  |
+| `SSL_CTX_get0_certificate`  |  |  | :white_check_mark: |
 | `SSL_CTX_get0_ctlog_store` [^ct] |  |  |  |
 | `SSL_CTX_get0_param`  |  |  |  |
-| `SSL_CTX_get0_privatekey`  |  |  |  |
+| `SSL_CTX_get0_privatekey`  |  |  | :white_check_mark: |
 | `SSL_CTX_get0_security_ex_data`  |  |  |  |
 | `SSL_CTX_get_cert_store`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_ciphers`  |  |  |  |
@@ -200,16 +200,16 @@
 | `SSL_CTX_set_verify`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_verify_depth`  |  | :white_check_mark: |  |
 | `SSL_CTX_up_ref`  |  |  | :white_check_mark: |
-| `SSL_CTX_use_PrivateKey`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_use_PrivateKey`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_use_PrivateKey_ASN1`  |  |  |  |
-| `SSL_CTX_use_PrivateKey_file`  | :white_check_mark: |  | :exclamation: [^stub] |
+| `SSL_CTX_use_PrivateKey_file`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_use_RSAPrivateKey` [^deprecatedin_3_0] |  |  |  |
 | `SSL_CTX_use_RSAPrivateKey_ASN1` [^deprecatedin_3_0] |  |  |  |
 | `SSL_CTX_use_RSAPrivateKey_file` [^deprecatedin_3_0] |  |  |  |
 | `SSL_CTX_use_cert_and_key`  |  |  |  |
-| `SSL_CTX_use_certificate`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_use_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_use_certificate_ASN1`  |  |  |  |
-| `SSL_CTX_use_certificate_chain_file`  | :white_check_mark: |  | :exclamation: [^stub] |
+| `SSL_CTX_use_certificate_chain_file`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_use_certificate_file`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_use_psk_identity_hint` [^psk] |  |  |  |
 | `SSL_CTX_use_serverinfo`  |  |  |  |
@@ -321,7 +321,7 @@
 | `SSL_get_SSL_CTX`  |  |  |  |
 | `SSL_get_all_async_fds`  |  |  |  |
 | `SSL_get_async_status`  |  |  |  |
-| `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_changed_async_fds`  |  |  |  |
 | `SSL_get_cipher_list`  |  |  |  |
 | `SSL_get_ciphers`  |  |  |  |
@@ -349,7 +349,7 @@
 | `SSL_get_peer_finished`  |  |  |  |
 | `SSL_get_peer_signature_type_nid`  |  |  |  |
 | `SSL_get_pending_cipher`  |  |  |  |
-| `SSL_get_privatekey`  | :white_check_mark: |  | :exclamation: [^stub] |
+| `SSL_get_privatekey`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_psk_identity` [^psk] |  |  |  |
 | `SSL_get_psk_identity_hint` [^psk] |  |  |  |
 | `SSL_get_quiet_shutdown`  |  |  |  |

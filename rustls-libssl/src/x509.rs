@@ -1,11 +1,12 @@
 use core::ffi::{c_int, c_long, c_void};
-use core::ptr;
+use core::{ptr, slice};
 use std::path::PathBuf;
 use std::{fs, io};
 
 use openssl_sys::{
-    d2i_X509, stack_st_X509, OPENSSL_sk_new_null, OPENSSL_sk_num, OPENSSL_sk_push,
-    OPENSSL_sk_value, X509_STORE_free, X509_STORE_new, X509_free, OPENSSL_STACK, X509, X509_STORE,
+    d2i_X509, i2d_X509, stack_st_X509, OPENSSL_free, OPENSSL_sk_new_null, OPENSSL_sk_num,
+    OPENSSL_sk_push, OPENSSL_sk_value, X509_STORE_free, X509_STORE_new, X509_free, OPENSSL_STACK,
+    X509, X509_STORE,
 };
 use rustls::pki_types::CertificateDer;
 
@@ -14,17 +15,30 @@ use crate::error::Error;
 /// Safe, owning wrapper around an OpenSSL `STACK_OF(X509)` object.
 ///
 /// The items are owned by the stack.
+#[derive(Debug)]
 pub struct OwnedX509Stack {
     raw: *mut stack_st_X509,
 }
 
 impl OwnedX509Stack {
+    /// Make an empty stack.
     pub fn empty() -> Self {
         Self {
             raw: unsafe { OPENSSL_sk_new_null() as *mut stack_st_X509 },
         }
     }
 
+    pub fn from_rustls(certs: &Vec<CertificateDer<'static>>) -> Result<Self, Error> {
+        let mut r = Self::empty();
+        for c in certs {
+            let item = OwnedX509::parse_der(c.as_ref())
+                .ok_or_else(|| Error::bad_data("cannot parse certificate"))?;
+            r.push(&item);
+        }
+        Ok(r)
+    }
+
+    /// Add the given cert to the top (end) of the stack.
     pub fn push(&mut self, cert: &OwnedX509) {
         unsafe {
             OPENSSL_sk_push(
@@ -41,6 +55,37 @@ impl OwnedX509Stack {
     /// OpenSSL `SSL_get_peer_cert_chain` API.
     pub fn pointer(&self) -> *mut stack_st_X509 {
         self.raw
+    }
+
+    /// Leak the first X509* to the caller.
+    ///
+    /// null is returned if the stack is empty, or itself null.
+    pub fn borrow_top_ref(&self) -> *mut X509 {
+        self.borrowed_item(0)
+    }
+
+    #[allow(dead_code)] // delete me later if unused
+    /// Convert contents to rustls's representation.
+    ///
+    /// This copies the whole chain.
+    pub fn to_rustls(&self) -> Vec<CertificateDer<'static>> {
+        let len = self.len();
+        let mut r = Vec::with_capacity(len);
+
+        for i in 0..len {
+            let item = self.item(i);
+            r.push(CertificateDer::from(item.der_bytes()));
+        }
+
+        r
+    }
+
+    #[allow(dead_code)] // delete me later if unused
+    /// Owned reference of item at `index`.
+    fn item(&self, index: usize) -> OwnedX509 {
+        let donate = self.borrowed_item(index);
+        unsafe { X509_up_ref(donate) };
+        OwnedX509::new(donate)
     }
 
     /// Plain, borrowed pointer to the item at `index`.
@@ -98,6 +143,38 @@ impl OwnedX509 {
         } else {
             Some(Self { raw })
         }
+    }
+
+    /// Create a new one, from a (donated) existing ref.
+    pub fn new(raw: *mut X509) -> Self {
+        Self { raw }
+    }
+
+    /// Create a new one, by incrementing an existing ref.
+    pub fn new_incref(raw: *mut X509) -> Self {
+        debug_assert!(!raw.is_null());
+        unsafe { X509_up_ref(raw) };
+        Self { raw }
+    }
+
+    /// Return the DER-encoded bytes for this object.
+    pub fn der_bytes(&self) -> Vec<u8> {
+        let (ptr, len) = unsafe {
+            let mut ptr = ptr::null_mut();
+            let len = i2d_X509(self.raw, &mut ptr);
+            (ptr, len)
+        };
+
+        if len <= 0 {
+            return vec![];
+        }
+        let len = len as usize;
+
+        let mut v = Vec::with_capacity(len);
+        v.extend_from_slice(unsafe { slice::from_raw_parts(ptr, len) });
+
+        unsafe { OPENSSL_free(ptr as *mut _) };
+        v
     }
 
     /// Give out our reference.

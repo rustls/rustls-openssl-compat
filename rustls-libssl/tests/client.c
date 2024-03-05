@@ -41,12 +41,19 @@ static void dump_openssl_error_stack(void) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 4) {
-    printf("%s <host> <port> <ca-cert>\n\n", argv[0]);
+  if (argc != 4 && argc != 6) {
+    printf("%s <host> <port> <ca-cert>|insecure [<key-file> "
+           "<cert-chain-file>]\n\n",
+           argv[0]);
     return 1;
   }
 
   const char *host = argv[1], *port = argv[2], *cacert = argv[3];
+  const char *keyfile = NULL, *certfile = NULL;
+  if (argc == 6) {
+    keyfile = argv[4];
+    certfile = argv[5];
+  }
 
   struct addrinfo *result = NULL;
   TRACE(getaddrinfo(host, port, NULL, &result));
@@ -72,16 +79,35 @@ int main(int argc, char **argv) {
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
   }
+
+  X509 *client_cert = NULL;
+  EVP_PKEY *client_key = NULL;
+  if (keyfile) {
+    TRACE(SSL_CTX_use_certificate_chain_file(ctx, certfile));
+    TRACE(SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM));
+    client_key = SSL_CTX_get0_privatekey(ctx);
+    client_cert = SSL_CTX_get0_certificate(ctx);
+  }
+
   TRACE(SSL_CTX_set_alpn_protos(ctx, (const uint8_t *)"\x02hi\x05world", 9));
   dump_openssl_error_stack();
+
   SSL *ssl = SSL_new(ctx);
   dump_openssl_error_stack();
+  printf("SSL_new: SSL_get_privatekey %s SSL_CTX_get0_privatekey\n",
+         SSL_get_privatekey(ssl) == client_key ? "same as" : "differs to");
+  printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
+         SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
   TRACE(SSL_set1_host(ssl, host));
   dump_openssl_error_stack();
   TRACE(SSL_set_fd(ssl, sock));
   dump_openssl_error_stack();
   TRACE(SSL_connect(ssl));
   dump_openssl_error_stack();
+  printf("SSL_connect: SSL_get_privatekey %s SSL_CTX_get0_privatekey\n",
+         SSL_get_privatekey(ssl) == client_key ? "same as" : "differs to");
+  printf("SSL_connect: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
+         SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
 
   // check the alpn (also sees that SSL_connect completed handshake)
   const uint8_t *alpn_ptr = NULL;

@@ -4,6 +4,7 @@
 //! the safe APIs implemented elsewhere.
 
 use core::{mem, ptr};
+use std::io::{self, Read};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::sync::Mutex;
 use std::{fs, path::PathBuf};
@@ -12,14 +13,16 @@ use openssl_sys::{
     stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX,
     X509_V_ERR_UNSPECIFIED,
 };
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
+use crate::evp_pkey::EvpPkey;
 use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
     try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
-use crate::x509::load_certs;
+use crate::x509::{load_certs, OwnedX509};
 use crate::ShutdownResult;
 
 /// Makes a entry function definition.
@@ -327,6 +330,183 @@ entry! {
             Err(e) => e.raise().into(),
             Ok(()) => MysteriouslyOppositeReturnValue::Success,
         }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_use_certificate_chain_file(
+        ctx: *mut SSL_CTX,
+        file_name: *const c_char,
+    ) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        let file_name = try_str!(file_name);
+
+        let mut file_reader = match fs::File::open(file_name) {
+            Ok(content) => io::BufReader::new(content),
+            Err(err) => return Error::from_io(err).raise().into(),
+        };
+
+        let mut chain = Vec::new();
+
+        for cert in rustls_pemfile::certs(&mut file_reader) {
+            let cert = match cert {
+                Ok(cert) => cert,
+                Err(err) => {
+                    log::trace!("Failed to parse {file_name:?}: {err:?}");
+                    return Error::from_io(err).raise().into();
+                }
+            };
+
+            match OwnedX509::parse_der(cert.as_ref()) {
+                Some(_) => chain.push(cert),
+                None => {
+                    log::trace!("Failed to parse DER certificate");
+                    return Error::bad_data("certificate").raise().into();
+                }
+            }
+        }
+
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.stage_certificate_chain(chain))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_use_certificate(ctx: *mut SSL_CTX, x: *mut X509) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+
+        if x.is_null() {
+            return Error::null_pointer().raise().into();
+        }
+
+        let chain = vec![CertificateDer::from(OwnedX509::new(x).der_bytes())];
+
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.stage_certificate_chain(chain))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_use_PrivateKey_file(
+        ctx: *mut SSL_CTX,
+        file_name: *const c_char,
+        file_type: c_int,
+    ) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        let file_name = try_str!(file_name);
+
+        let der_data = match file_type {
+            FILETYPE_PEM => {
+                let mut file_reader = match fs::File::open(file_name) {
+                    Ok(content) => io::BufReader::new(content),
+                    Err(err) => return Error::from_io(err).raise().into(),
+                };
+
+                match rustls_pemfile::private_key(&mut file_reader) {
+                    Ok(Some(key)) => key,
+                    Ok(None) => {
+                        log::trace!("No keys found in {file_name:?}");
+                        return Error::bad_data("pem file").raise().into();
+                    }
+                    Err(err) => {
+                        log::trace!("Failed to read {file_name:?}: {err:?}");
+                        return Error::from_io(err).raise().into();
+                    }
+                }
+            }
+            FILETYPE_DER => {
+                let mut data = vec![];
+                match fs::File::open(file_name).and_then(|mut f| f.read_to_end(&mut data)) {
+                    Ok(_) => PrivateKeyDer::from(PrivatePkcs8KeyDer::from(data)),
+                    Err(err) => {
+                        log::trace!("Failed to read {file_name:?}: {err:?}");
+                        return Error::from_io(err).raise().into();
+                    }
+                }
+            }
+            _ => {
+                return Error::not_supported("file_type not in (PEM, DER)")
+                    .raise()
+                    .into();
+            }
+        };
+
+        let key = match EvpPkey::new_from_der_bytes(der_data) {
+            None => return Error::not_supported("invalid key format").raise().into(),
+            Some(key) => key,
+        };
+
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ctx| ctx.commit_private_key(key))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+const FILETYPE_PEM: c_int = 1;
+const FILETYPE_DER: c_int = 2;
+
+entry! {
+    pub fn _SSL_CTX_use_PrivateKey(ctx: *mut SSL_CTX, pkey: *mut EVP_PKEY) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+
+        if pkey.is_null() {
+            return Error::null_pointer().raise().into();
+        }
+
+        let pkey = EvpPkey::new_adopt(pkey);
+
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ctx| ctx.commit_private_key(pkey))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get0_certificate(ctx: *const SSL_CTX) -> *mut X509 {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_certificate())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get0_privatekey(ctx: *const SSL_CTX) -> *mut EVP_PKEY {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_privatekey())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_check_private_key(_ctx: *const SSL_CTX) -> c_int {
+        log::trace!("not implemented: _SSL_CTX_check_private_key, returning success");
+        C_INT_SUCCESS
     }
 }
 
@@ -785,6 +965,26 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_get_certificate(ssl: *const SSL) -> *mut X509 {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_certificate())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+entry! {
+    pub fn _SSL_get_privatekey(ssl: *const SSL) -> *mut EVP_PKEY {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_privatekey())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;
@@ -980,14 +1180,6 @@ entry_stub! {
 }
 
 entry_stub! {
-    pub fn _SSL_get_certificate(_ssl: *const SSL) -> *mut X509;
-}
-
-entry_stub! {
-    pub fn _SSL_get_privatekey(_ssl: *const SSL) -> *mut EVP_PKEY;
-}
-
-entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
 }
 
@@ -1003,10 +1195,6 @@ entry_stub! {
 }
 
 entry_stub! {
-    pub fn _SSL_CTX_check_private_key(_ctx: *const SSL_CTX) -> c_int;
-}
-
-entry_stub! {
     pub fn _SSL_CTX_sess_set_new_cb(_ctx: *mut SSL_CTX, _new_session_cb: SSL_CTX_new_session_cb);
 }
 
@@ -1019,26 +1207,6 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_CTX_set_ciphersuites(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_use_PrivateKey(_ctx: *mut SSL_CTX, _pkey: *mut EVP_PKEY) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_use_PrivateKey_file(
-        _ctx: *mut SSL_CTX,
-        _file: *const c_char,
-        _type: c_int,
-    ) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_use_certificate(_ctx: *mut SSL_CTX, _x: *mut X509) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_use_certificate_chain_file(_ctx: *mut SSL_CTX, _file: *const c_char) -> c_int;
 }
 
 entry_stub! {

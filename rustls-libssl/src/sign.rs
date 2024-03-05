@@ -1,0 +1,198 @@
+use std::ptr;
+use std::sync::Arc;
+
+use openssl_sys::{EVP_PKEY, X509};
+use rustls::client::ResolvesClientCert;
+use rustls::pki_types::CertificateDer;
+use rustls::sign;
+use rustls::{SignatureAlgorithm, SignatureScheme};
+
+use crate::error;
+use crate::evp_pkey::{
+    rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384,
+    rsa_pss_sha512, EvpPkey, EvpScheme,
+};
+use crate::x509::OwnedX509Stack;
+
+/// This matches up to the implied state machine in `SSL_CTX_use_certificate_chain_file`
+/// and `SSL_CTX_use_PrivateKey_file`, and matching man pages.
+#[derive(Clone, Default)]
+pub struct CertifiedKeySet {
+    /// Last `SSL_CTX_use_certificate_chain_file` result, pending a matching
+    /// `SSL_CTX_use_PrivateKey_file`.
+    pending_cert_chain: Option<Vec<CertificateDer<'static>>>,
+
+    /// The key and certificate we're currently using.
+    ///
+    /// TODO: support multiple key types, and demultiplex them by type.
+    current_key: Option<OpenSslCertifiedKey>,
+}
+
+impl CertifiedKeySet {
+    pub fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+        self.pending_cert_chain = Some(chain);
+    }
+
+    pub fn commit_private_key(&mut self, key: EvpPkey) -> Result<(), error::Error> {
+        let chain = match self.pending_cert_chain.take() {
+            Some(chain) => chain,
+            None => {
+                return Err(error::Error::bad_data("no certificate found for key"));
+            }
+        };
+
+        self.current_key = Some(OpenSslCertifiedKey::new(chain, key));
+        Ok(())
+    }
+
+    pub fn resolver(&self) -> Option<Arc<dyn ResolvesClientCert>> {
+        self.current_key.as_ref().map(|ck| ck.resolver())
+    }
+
+    /// For `SSL_get_certificate`
+    pub fn borrow_current_cert(&self) -> *mut X509 {
+        self.current_key
+            .as_ref()
+            .map(|ck| ck.borrow_cert())
+            .unwrap_or(ptr::null_mut())
+    }
+
+    /// For `SSL_get_privatekey`
+    pub fn borrow_current_key(&self) -> *mut EVP_PKEY {
+        self.current_key
+            .as_ref()
+            .map(|ck| ck.borrow_key())
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+#[derive(Clone)]
+struct OpenSslCertifiedKey {
+    key: EvpPkey,
+    openssl_chain: OwnedX509Stack,
+    rustls_chain: Vec<CertificateDer<'static>>,
+}
+
+impl OpenSslCertifiedKey {
+    fn new(chain: Vec<CertificateDer<'static>>, key: EvpPkey) -> Self {
+        let openssl_chain = OwnedX509Stack::from_rustls(&chain);
+        Self {
+            key,
+            openssl_chain,
+            rustls_chain: chain,
+        }
+    }
+
+    fn borrow_cert(&self) -> *mut X509 {
+        self.openssl_chain.borrow_top_ref()
+    }
+
+    fn borrow_key(&self) -> *mut EVP_PKEY {
+        self.key.borrow_ref()
+    }
+
+    fn resolver(&self) -> Arc<dyn ResolvesClientCert> {
+        Arc::new(AlwaysResolvesClientCert(Arc::new(sign::CertifiedKey::new(
+            self.rustls_chain.clone(),
+            Arc::new(OpenSslKey(self.key.clone())),
+        ))))
+    }
+}
+
+#[derive(Debug)]
+struct AlwaysResolvesClientCert(Arc<sign::CertifiedKey>);
+
+impl ResolvesClientCert for AlwaysResolvesClientCert {
+    fn has_certs(&self) -> bool {
+        true
+    }
+
+    fn resolve(
+        &self,
+        _root_hint_subjects: &[&[u8]],
+        _schemes: &[SignatureScheme],
+    ) -> Option<Arc<sign::CertifiedKey>> {
+        Some(Arc::clone(&self.0))
+    }
+}
+
+#[derive(Debug)]
+struct OpenSslKey(EvpPkey);
+
+impl sign::SigningKey for OpenSslKey {
+    fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn sign::Signer>> {
+        match self.0.algorithm() {
+            SignatureAlgorithm::RSA => {
+                if offered.contains(&SignatureScheme::RSA_PSS_SHA512) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pss_sha512(),
+                        scheme: SignatureScheme::RSA_PSS_SHA512,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::RSA_PSS_SHA384) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pss_sha384(),
+                        scheme: SignatureScheme::RSA_PSS_SHA384,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::RSA_PSS_SHA256) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pss_sha256(),
+                        scheme: SignatureScheme::RSA_PSS_SHA256,
+                    }));
+                }
+
+                if offered.contains(&SignatureScheme::RSA_PKCS1_SHA512) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pkcs1_sha512(),
+                        scheme: SignatureScheme::RSA_PKCS1_SHA512,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::RSA_PKCS1_SHA384) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pkcs1_sha384(),
+                        scheme: SignatureScheme::RSA_PKCS1_SHA384,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::RSA_PKCS1_SHA256) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: rsa_pkcs1_sha256(),
+                        scheme: SignatureScheme::RSA_PKCS1_SHA256,
+                    }));
+                }
+
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        self.0.algorithm()
+    }
+}
+
+#[derive(Debug)]
+struct OpenSslSigner {
+    pkey: EvpPkey,
+    pscheme: Box<dyn EvpScheme + Send + Sync>,
+    scheme: SignatureScheme,
+}
+
+impl sign::Signer for OpenSslSigner {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        self.pkey
+            .sign(self.pscheme.as_ref(), message)
+            .map_err(|_| rustls::Error::General("signing failed".to_string()))
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        self.scheme
+    }
+}

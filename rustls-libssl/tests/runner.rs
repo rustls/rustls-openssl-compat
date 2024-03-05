@@ -29,7 +29,7 @@ use std::{net, thread, time};
 
 #[test]
 #[ignore]
-fn client() {
+fn client_unauthenticated() {
     let _server = KillOnDrop(
         Command::new("openssl")
             .args([
@@ -53,6 +53,7 @@ fn client() {
 
     wait_for_port(4443);
 
+    // server is unauthenticated
     let openssl_insecure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
         .args(["target/client", "localhost", "4443", "insecure"])
@@ -70,6 +71,7 @@ fn client() {
 
     assert_eq!(openssl_insecure_output, rustls_insecure_output);
 
+    // server is authenticated, client has no creds
     let openssl_secure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
         .args(["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
@@ -86,6 +88,101 @@ fn client() {
         .unwrap();
 
     assert_eq!(openssl_secure_output, rustls_secure_output);
+
+    // server is authenticated, client has creds but server doesn't ask for them
+    let openssl_offered_output = Command::new("tests/maybe-valgrind.sh")
+        .env("LD_LIBRARY_PATH", "")
+        .args([
+            "target/client",
+            "localhost",
+            "4443",
+            "test-ca/rsa/ca.cert",
+            "test-ca/rsa/client.key",
+            "test-ca/rsa/client.cert",
+        ])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    let rustls_offered_output = Command::new("tests/maybe-valgrind.sh")
+        .args([
+            "target/client",
+            "localhost",
+            "4443",
+            "test-ca/rsa/ca.cert",
+            "test-ca/rsa/client.key",
+            "test-ca/rsa/client.cert",
+        ])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    assert_eq!(openssl_offered_output, rustls_offered_output);
+}
+
+#[test]
+#[ignore]
+fn client_auth() {
+    let _server = KillOnDrop(
+        Command::new("openssl")
+            .args([
+                "s_server",
+                "-cert",
+                "test-ca/rsa/end.cert",
+                "-cert_chain",
+                "test-ca/rsa/inter.cert",
+                "-key",
+                "test-ca/rsa/end.key",
+                "-alpn",
+                "hello,world",
+                "-Verify",
+                "1",
+                "-CAfile",
+                "test-ca/rsa/ca.cert",
+                "-accept",
+                "localhost:4444",
+                "-rev",
+            ])
+            .env("LD_LIBRARY_PATH", "")
+            .spawn()
+            .expect("failed to start openssl s_server"),
+    );
+
+    wait_for_port(4444);
+
+    // mutual auth
+    let openssl_authed_output = Command::new("tests/maybe-valgrind.sh")
+        .env("LD_LIBRARY_PATH", "")
+        .args([
+            "target/client",
+            "localhost",
+            "4444",
+            "test-ca/rsa/ca.cert",
+            "test-ca/rsa/client.key",
+            "test-ca/rsa/client.cert",
+        ])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    let rustls_authed_output = Command::new("tests/maybe-valgrind.sh")
+        .args([
+            "target/client",
+            "localhost",
+            "4444",
+            "test-ca/rsa/ca.cert",
+            "test-ca/rsa/client.key",
+            "test-ca/rsa/client.cert",
+        ])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    assert_eq!(openssl_authed_output, rustls_authed_output);
 }
 
 #[test]

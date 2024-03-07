@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::{fs, io};
 
 use openssl_sys::{
-    d2i_X509, stack_st_X509, OPENSSL_sk_new_null, OPENSSL_sk_push, X509_STORE_free, X509_STORE_new,
-    X509_free, OPENSSL_STACK, X509, X509_STORE,
+    d2i_X509, stack_st_X509, OPENSSL_sk_new_null, OPENSSL_sk_num, OPENSSL_sk_push,
+    OPENSSL_sk_value, X509_STORE_free, X509_STORE_new, X509_free, OPENSSL_STACK, X509, X509_STORE,
 };
 use rustls::pki_types::CertificateDer;
 
@@ -41,6 +41,31 @@ impl OwnedX509Stack {
     /// OpenSSL `SSL_get_peer_cert_chain` API.
     pub fn pointer(&self) -> *mut stack_st_X509 {
         self.raw
+    }
+
+    /// Plain, borrowed pointer to the item at `index`.
+    fn borrowed_item(&self, index: usize) -> *mut X509 {
+        unsafe { OPENSSL_sk_value(self.raw as *const OPENSSL_STACK, index as c_int) as *mut X509 }
+    }
+
+    fn len(&self) -> usize {
+        match unsafe { OPENSSL_sk_num(self.raw as *const OPENSSL_STACK) } {
+            -1 => 0,
+            x => x as usize,
+        }
+    }
+}
+
+impl Clone for OwnedX509Stack {
+    fn clone(&self) -> Self {
+        // up-ref each item
+        for i in 0..self.len() {
+            unsafe { X509_up_ref(self.borrowed_item(i)) };
+        }
+        // then shallow copy the stack
+        Self {
+            raw: unsafe { OPENSSL_sk_dup(self.raw as *const OPENSSL_STACK) as *mut stack_st_X509 },
+        }
     }
 }
 
@@ -156,5 +181,6 @@ extern "C" {
         st: *mut OPENSSL_STACK,
         func: Option<unsafe extern "C" fn(arg1: *mut X509)>,
     );
+    fn OPENSSL_sk_dup(st: *const OPENSSL_STACK) -> *mut OPENSSL_STACK;
     fn X509_up_ref(x: *mut X509) -> c_int;
 }

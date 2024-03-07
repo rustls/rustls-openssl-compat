@@ -7,6 +7,8 @@ use openssl_sys::{
 };
 
 /// Safe, owning wrapper around an OpenSSL `STACK_OF(X509)` object.
+///
+/// The items are owned by the stack.
 pub struct OwnedX509Stack {
     raw: *mut stack_st_X509,
 }
@@ -40,7 +42,7 @@ impl OwnedX509Stack {
 impl Drop for OwnedX509Stack {
     fn drop(&mut self) {
         unsafe {
-            OPENSSL_sk_free(self.raw as *mut OPENSSL_STACK);
+            OPENSSL_sk_pop_free(self.raw as *mut OPENSSL_STACK, Some(X509_free));
         }
     }
 }
@@ -122,6 +124,9 @@ impl Drop for OwnedX509Store {
 
 extern "C" {
     /// XXX: these missing from openssl-sys(?) investigate why that is.
-    fn OPENSSL_sk_free(st: *mut OPENSSL_STACK);
+    fn OPENSSL_sk_pop_free(
+        st: *mut OPENSSL_STACK,
+        func: Option<unsafe extern "C" fn(arg1: *mut X509)>,
+    );
     fn X509_up_ref(x: *mut X509) -> c_int;
 }

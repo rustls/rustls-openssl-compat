@@ -6,7 +6,7 @@ use openssl_sys::{
     SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509_STORE,
     X509_V_ERR_UNSPECIFIED,
 };
-use rustls::crypto::ring as provider;
+use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::{CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore};
 
@@ -109,7 +109,7 @@ impl SslCipher {
     }
 
     pub fn protocol_id(&self) -> u16 {
-        self.rustls.suite().get_u16()
+        u16::from(self.rustls.suite())
     }
 
     pub fn openssl_id(&self) -> u32 {

@@ -35,8 +35,8 @@ static void hexdump(const char *label, const void *buf, int n) {
 
 static void dump_openssl_error_stack(void) {
   if (ERR_peek_error() != 0) {
-    printf("openssl error: ");
-    ERR_print_errors_fp(stdout);
+    printf("openssl error: %08lx\n", ERR_peek_error());
+    ERR_print_errors_fp(stderr);
   }
 }
 
@@ -163,9 +163,13 @@ int main(int argc, char **argv) {
   dump_openssl_error_stack();
   TRACE(SSL_has_pending(ssl));
   dump_openssl_error_stack();
-  int rd2 = TRACE(SSL_read(ssl, buf + 1, sizeof(buf) - 1));
-  hexdump("result", buf, rd + rd2);
-  assert(memcmp(buf, "olleh\n", 6) == 0);
+  if (rd == 0) {
+    printf("nothing read\n");
+  } else {
+    int rd2 = TRACE(SSL_read(ssl, buf + 1, sizeof(buf) - 1));
+    hexdump("result", buf, rd + rd2);
+    assert(memcmp(buf, "olleh\n", 6) == 0);
+  }
 
 cleanup:
   close(sock);

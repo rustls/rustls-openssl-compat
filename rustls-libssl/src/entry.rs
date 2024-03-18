@@ -763,7 +763,7 @@ entry! {
 
 entry! {
     pub fn _SSL_read(ssl: *mut SSL, buf: *mut c_void, num: c_int) -> c_int {
-        const ERROR: c_int = -1;
+        const ERROR: c_int = 0;
         let ssl = try_clone_arc!(ssl, ERROR);
         let slice = try_mut_slice_int!(buf as *mut u8, num, ERROR);
 

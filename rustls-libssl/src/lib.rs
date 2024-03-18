@@ -534,9 +534,10 @@ impl Ssl {
                         // no data available, go around again.
                         continue;
                     }
-                    Err(err) => {
+                    Err(err) if late_err.is_ok() => {
                         return Err(error::Error::from_io(err));
                     }
+                    Err(_) => break (late_err, 0),
                 },
                 None => break (late_err, 0),
             };
@@ -562,6 +563,11 @@ impl Ssl {
                 match conn.complete_io(bio) {
                     Ok(_) => {}
                     Err(e) => {
+                        // obtain underlying TLS protocol error (if any), and let it stamp
+                        // out the one wrapped in io::Error.
+                        if let Some(tls_err) = conn.process_new_packets().err() {
+                            return Err(error::Error::from_rustls(tls_err));
+                        }
                         return Err(error::Error::from_io(e));
                     }
                 };

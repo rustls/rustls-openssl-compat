@@ -183,6 +183,25 @@ fn client_auth() {
         .unwrap();
 
     assert_eq!(openssl_authed_output, rustls_authed_output);
+
+    // failed auth
+    let openssl_failed_output = Command::new("tests/maybe-valgrind.sh")
+        .env("LD_LIBRARY_PATH", "")
+        .args(["target/client", "localhost", "4444", "test-ca/rsa/ca.cert"])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    let rustls_failed_output = Command::new("tests/maybe-valgrind.sh")
+        .args(["target/client", "localhost", "4444", "test-ca/rsa/ca.cert"])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    // nb. only stdout need match; stderr contains full error details (filenames, line numbers, etc.)
+    assert_eq!(openssl_failed_output.stdout, rustls_failed_output.stdout);
 }
 
 #[test]

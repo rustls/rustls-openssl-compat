@@ -52,12 +52,12 @@ clean:
 	rm -rf target
 
 format:
-	find . \
+	find src tests \
 		-name '*.[c|h]' | \
 		xargs clang-format -i
 
 format-check:
-	find . \
+	find src tests \
 		-name '*.[c|h]' | \
 		xargs clang-format --dry-run -Werror -i
 

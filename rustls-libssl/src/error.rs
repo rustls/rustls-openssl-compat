@@ -3,6 +3,7 @@ use core::ptr;
 use std::ffi::{CStr, CString};
 
 use openssl_sys::{ERR_new, ERR_set_error, ERR_RFLAGS_OFFSET, ERR_RFLAG_FATAL};
+use rustls::AlertDescription;
 
 // See openssl/err.h for the source of these magic numbers.
 
@@ -19,13 +20,29 @@ enum Lib {
 const ERR_RFLAG_COMMON: i32 = 0x2i32 << ERR_RFLAGS_OFFSET;
 
 #[derive(Copy, Clone, Debug)]
-#[repr(i32)]
 enum Reason {
-    PassedNullParameter = (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 258,
-    InternalError = (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 259,
-    UnableToGetWriteLock = (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 272,
-    OperationFailed = (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 263,
-    Unsupported = ERR_RFLAG_COMMON | 268,
+    PassedNullParameter,
+    InternalError,
+    UnableToGetWriteLock,
+    OperationFailed,
+    Unsupported,
+    Alert(AlertDescription),
+}
+
+impl From<Reason> for c_int {
+    fn from(r: Reason) -> c_int {
+        use Reason::*;
+        match r {
+            // see `err.h.in` for magic numbers.
+            PassedNullParameter => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 258,
+            InternalError => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 259,
+            UnableToGetWriteLock => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 272,
+            OperationFailed => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 263,
+            Unsupported => ERR_RFLAG_COMMON | 268,
+            // `sslerr.h`
+            Alert(alert) => 1000 + u8::from(alert) as c_int,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -77,10 +94,17 @@ impl Error {
     }
 
     pub fn from_rustls(err: rustls::Error) -> Self {
-        Self {
-            lib: Lib::User,
-            reason: Reason::OperationFailed,
-            string: Some(err.to_string()),
+        match err {
+            rustls::Error::AlertReceived(alert) => Self {
+                lib: Lib::Ssl,
+                reason: Reason::Alert(alert),
+                string: Some(format!("SSL alert number {}", u8::from(alert))),
+            },
+            _ => Self {
+                lib: Lib::User,
+                reason: Reason::OperationFailed,
+                string: Some(err.to_string()),
+            },
         }
     }
 
@@ -109,12 +133,12 @@ impl Error {
             #[cfg(not(miri))]
             ERR_set_error(
                 self.lib as c_int,
-                self.reason as c_int,
+                self.reason.into(),
                 fmt.as_ptr(),
                 cstr.as_ptr(),
             );
             #[cfg(miri)]
-            crate::miri::ERR_set_error(self.lib as c_int, self.reason as c_int, cstr.as_ptr());
+            crate::miri::ERR_set_error(self.lib as c_int, self.reason.into(), cstr.as_ptr());
         }
         self
     }

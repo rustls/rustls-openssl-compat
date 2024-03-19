@@ -40,6 +40,12 @@ static void dump_openssl_error_stack(void) {
   }
 }
 
+static void state(const SSL *s) {
+  OSSL_HANDSHAKE_STATE st = SSL_get_state(s);
+  printf("state: %d (before:%d, init:%d, fin:%d)\n", st, SSL_in_before(s),
+         SSL_in_init(s), SSL_is_init_finished(s));
+}
+
 int main(int argc, char **argv) {
   if (argc != 4 && argc != 6) {
     printf("%s <host> <port> <ca-cert>|insecure [<key-file> "
@@ -98,12 +104,15 @@ int main(int argc, char **argv) {
          SSL_get_privatekey(ssl) == client_key ? "same as" : "differs to");
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
          SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
+  state(ssl);
   TRACE(SSL_set1_host(ssl, host));
   dump_openssl_error_stack();
   TRACE(SSL_set_fd(ssl, sock));
   dump_openssl_error_stack();
+  state(ssl);
   TRACE(SSL_connect(ssl));
   dump_openssl_error_stack();
+  state(ssl);
   printf("SSL_connect: SSL_get_privatekey %s SSL_CTX_get0_privatekey\n",
          SSL_get_privatekey(ssl) == client_key ? "same as" : "differs to");
   printf("SSL_connect: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
@@ -170,6 +179,7 @@ int main(int argc, char **argv) {
     hexdump("result", buf, rd + rd2);
     assert(memcmp(buf, "olleh\n", 6) == 0);
   }
+  state(ssl);
 
 cleanup:
   close(sock);

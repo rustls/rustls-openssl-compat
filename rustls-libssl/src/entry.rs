@@ -985,6 +985,47 @@ entry! {
     }
 }
 
+entry! {
+    // nb. 0 is a reasonable OSSL_HANDSHAKE_STATE, it is OSSL_HANDSHAKE_STATE_TLS_ST_BEFORE
+    pub fn _SSL_get_state(ssl: *const SSL) -> c_uint {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state().into())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_in_init(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state().in_init())
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_in_before(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state() == crate::HandshakeState::Before)
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_is_init_finished(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state() == crate::HandshakeState::Finished)
+            .unwrap_or_default() as c_int
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;

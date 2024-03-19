@@ -1185,6 +1185,62 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_session_reused(_ssl: *const SSL) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get1_session(_ssl: *mut SSL) -> *mut SSL_SESSION;
+}
+
+entry_stub! {
+    pub fn _SSL_get_session(_ssl: *const SSL) -> *mut SSL_SESSION;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_remove_session(_ssl: *const SSL, _session: *mut SSL_SESSION) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_sess_set_get_cb(_ctx: *mut SSL_CTX, _get_session_cb: SSL_CTX_sess_get_cb);
+}
+
+pub type SSL_CTX_sess_get_cb = Option<
+    unsafe extern "C" fn(
+        ssl: *mut SSL,
+        data: *const c_uchar,
+        len: c_int,
+        copy: *mut c_int,
+    ) -> *mut SSL_SESSION,
+>;
+
+entry_stub! {
+    pub fn _SSL_CTX_sess_set_remove_cb(
+        _ctx: *mut SSL_CTX,
+        _remove_session_cb: SSL_CTX_sess_remove_cb,
+    );
+}
+
+pub type SSL_CTX_sess_remove_cb =
+    Option<unsafe extern "C" fn(ctx: *mut SSL_CTX, sess: *mut SSL_SESSION)>;
+
+entry_stub! {
+    pub fn _SSL_CTX_set_session_id_context(
+        _ctx: *mut SSL_CTX,
+        _sid_ctx: *const c_uchar,
+        _sid_ctx_len: c_uint,
+    ) -> c_int;
+}
+
+entry_stub! {
+
+    pub fn _SSL_set_session_id_context(
+        _ssl: *mut SSL,
+        _sid_ctx: *const c_uchar,
+        _sid_ctx_len: c_uint,
+    ) -> c_int;
+}
+
+entry_stub! {
     pub fn _SSL_CTX_set_keylog_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_keylog_cb_func);
 }
 
@@ -1201,6 +1257,26 @@ entry_stub! {
 
 pub type SSL_CTX_new_session_cb =
     Option<unsafe extern "C" fn(_ssl: *mut SSL, _sess: *mut SSL_SESSION) -> c_int>;
+
+entry_stub! {
+    pub fn _SSL_SESSION_get_id(_s: *const SSL_SESSION, _len: *mut c_uint) -> *const c_uchar;
+}
+
+entry_stub! {
+    pub fn _SSL_SESSION_up_ref(_ses: *mut SSL_SESSION) -> c_int;
+}
+
+entry_stub! {
+    pub fn _d2i_SSL_SESSION(
+        _a: *mut *mut SSL_SESSION,
+        _pp: *mut *const c_uchar,
+        _length: c_long,
+    ) -> *mut SSL_SESSION;
+}
+
+entry_stub! {
+    pub fn _i2d_SSL_SESSION(_in: *const SSL_SESSION, _pp: *mut *mut c_uchar) -> c_int;
+}
 
 entry_stub! {
     pub fn _SSL_CTX_set_cipher_list(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;

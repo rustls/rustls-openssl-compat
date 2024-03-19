@@ -1,4 +1,5 @@
 use core::ffi::{c_int, c_uint, CStr};
+use core::ptr;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
@@ -463,6 +464,20 @@ impl Ssl {
         } else {
             self.bio = Some(bio::Bio::new_pair(rbio, wbio));
         }
+    }
+
+    fn get_rbio(&self) -> *mut bio::BIO {
+        self.bio
+            .as_ref()
+            .map(|b| b.borrow_read())
+            .unwrap_or_else(ptr::null_mut)
+    }
+
+    fn get_wbio(&self) -> *mut bio::BIO {
+        self.bio
+            .as_ref()
+            .map(|b| b.borrow_write())
+            .unwrap_or_else(ptr::null_mut)
     }
 
     fn connect(&mut self) -> Result<(), error::Error> {

@@ -166,6 +166,22 @@ impl Bio {
     pub fn write_would_block(&self) -> bool {
         bio_should_retry_write(self.write)
     }
+
+    /// Returns `read`.
+    ///
+    /// See `SSL_get_rbio` docs for semantics, and confirmation
+    /// that this API is const-incorrect.
+    pub fn borrow_read(&self) -> *mut BIO {
+        self.read
+    }
+
+    /// Returns `write`.
+    ///
+    /// See `SSL_get_wbio` docs for semantics, and confirmation
+    /// that this API is const-incorrect.
+    pub fn borrow_write(&self) -> *mut BIO {
+        self.write
+    }
 }
 
 impl io::Read for Bio {

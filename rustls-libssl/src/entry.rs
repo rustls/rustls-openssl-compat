@@ -724,6 +724,26 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get_rbio(ssl: *const SSL) -> *mut BIO {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_rbio())
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_wbio(ssl: *const SSL) -> *mut BIO {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_wbio())
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
     pub fn _SSL_connect(ssl: *mut SSL) -> c_int {
         let ssl = try_clone_arc!(ssl);
 

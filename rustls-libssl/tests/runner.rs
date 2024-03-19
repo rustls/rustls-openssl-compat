@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::process::{Child, Command, Output, Stdio};
 use std::{net, thread, time};
 
@@ -30,7 +31,7 @@ use std::{net, thread, time};
 #[test]
 #[ignore]
 fn client_unauthenticated() {
-    let _server = KillOnDrop(
+    let _server = KillOnDrop(Some(
         Command::new("openssl")
             .args([
                 "s_server",
@@ -49,7 +50,7 @@ fn client_unauthenticated() {
             .env("LD_LIBRARY_PATH", "")
             .spawn()
             .expect("failed to start openssl s_server"),
-    );
+    ));
 
     wait_for_port(4443);
 
@@ -125,7 +126,7 @@ fn client_unauthenticated() {
 #[test]
 #[ignore]
 fn client_auth() {
-    let _server = KillOnDrop(
+    let _server = KillOnDrop(Some(
         Command::new("openssl")
             .args([
                 "s_server",
@@ -148,7 +149,7 @@ fn client_auth() {
             .env("LD_LIBRARY_PATH", "")
             .spawn()
             .expect("failed to start openssl s_server"),
-    );
+    ));
 
     wait_for_port(4444);
 
@@ -269,12 +270,72 @@ fn ciphers() {
     assert_eq!(openssl_output, rustls_output);
 }
 
-struct KillOnDrop(Child);
+#[test]
+#[ignore]
+fn server() {
+    fn curl() {
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args(["-kv", "https://localhost:5555/"])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap();
+    }
+
+    let mut openssl_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "target/server",
+                "5555",
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    curl();
+
+    let openssl_output = openssl_server.take_inner().wait_with_output().unwrap();
+
+    let mut rustls_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "target/server",
+                "5555",
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    curl();
+
+    let rustls_output = rustls_server.take_inner().wait_with_output().unwrap();
+    assert_eq!(openssl_output, rustls_output);
+}
+
+struct KillOnDrop(Option<Child>);
+
+impl KillOnDrop {
+    fn take_inner(&mut self) -> Child {
+        self.0.take().unwrap()
+    }
+}
 
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
-        self.0.kill().expect("failed to kill subprocess");
-        self.0.wait().expect("failed to wait for killed subprocess");
+        if let Some(mut child) = self.0.take() {
+            child.kill().expect("failed to kill subprocess");
+            child.wait().expect("failed to wait for killed subprocess");
+        }
     }
 }
 
@@ -303,6 +364,23 @@ fn wait_for_port(port: u16) -> Option<()> {
         count += 1;
         if count == 10 {
             return None;
+        }
+    }
+}
+
+fn wait_for_stdout(stream: &mut Child, expected: &[u8]) {
+    let stdout = stream.stdout.as_mut().unwrap();
+
+    let mut buffer = Vec::with_capacity(1024);
+
+    loop {
+        let mut input = [0u8];
+        let new = stdout.read(&mut input).unwrap();
+        assert_eq!(new, 1);
+        buffer.push(input[0]);
+
+        if buffer.ends_with(expected) {
+            return;
         }
     }
 }

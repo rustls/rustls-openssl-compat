@@ -115,13 +115,13 @@
 | `SSL_CTX_load_verify_store`  |  |  |  |
 | `SSL_CTX_new`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_new_ex`  |  |  |  |
-| `SSL_CTX_remove_session`  |  | :white_check_mark: |  |
+| `SSL_CTX_remove_session`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_sess_get_get_cb`  |  |  |  |
 | `SSL_CTX_sess_get_new_cb`  |  |  |  |
 | `SSL_CTX_sess_get_remove_cb`  |  |  |  |
-| `SSL_CTX_sess_set_get_cb`  |  | :white_check_mark: |  |
+| `SSL_CTX_sess_set_get_cb`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_sess_set_new_cb`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CTX_sess_set_remove_cb`  |  | :white_check_mark: |  |
+| `SSL_CTX_sess_set_remove_cb`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_sessions`  |  |  |  |
 | `SSL_CTX_set0_CA_list`  |  |  |  |
 | `SSL_CTX_set0_ctlog_store` [^ct] |  |  |  |
@@ -179,7 +179,7 @@
 | `SSL_CTX_set_recv_max_early_data`  |  |  |  |
 | `SSL_CTX_set_security_callback`  |  |  |  |
 | `SSL_CTX_set_security_level`  |  |  |  |
-| `SSL_CTX_set_session_id_context`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_session_id_context`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_session_ticket_cb`  |  |  |  |
 | `SSL_CTX_set_srp_cb_arg` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_set_srp_client_pwd_callback` [^deprecatedin_3_0] [^srp] |  |  |  |
@@ -226,7 +226,7 @@
 | `SSL_SESSION_get0_ticket_appdata`  |  |  |  |
 | `SSL_SESSION_get_compress_id`  |  |  |  |
 | `SSL_SESSION_get_ex_data`  |  |  |  |
-| `SSL_SESSION_get_id`  |  | :white_check_mark: |  |
+| `SSL_SESSION_get_id`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_SESSION_get_master_key`  |  |  |  |
 | `SSL_SESSION_get_max_early_data`  |  |  |  |
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |
@@ -252,7 +252,7 @@
 | `SSL_SESSION_set_protocol_version`  |  |  |  |
 | `SSL_SESSION_set_time`  |  |  |  |
 | `SSL_SESSION_set_timeout`  |  |  |  |
-| `SSL_SESSION_up_ref`  |  | :white_check_mark: |  |
+| `SSL_SESSION_up_ref`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_accept`  |  |  |  |
@@ -316,7 +316,7 @@
 | `SSL_get0_security_ex_data`  |  |  |  |
 | `SSL_get0_verified_chain`  |  |  | :white_check_mark: |
 | `SSL_get1_peer_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get1_session`  |  | :white_check_mark: |  |
+| `SSL_get1_session`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get1_supported_ciphers`  |  |  |  |
 | `SSL_get_SSL_CTX`  |  |  |  |
 | `SSL_get_all_async_fds`  |  |  |  |
@@ -364,7 +364,7 @@
 | `SSL_get_server_random`  |  |  |  |
 | `SSL_get_servername`  |  | :white_check_mark: |  |
 | `SSL_get_servername_type`  |  |  |  |
-| `SSL_get_session`  |  | :white_check_mark: |  |
+| `SSL_get_session`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_shared_ciphers`  |  |  |  |
 | `SSL_get_shared_sigalgs`  |  |  |  |
 | `SSL_get_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -410,7 +410,7 @@
 | `SSL_rstate_string_long`  |  |  |  |
 | `SSL_select_next_proto`  |  | :white_check_mark: |  |
 | `SSL_sendfile`  |  |  |  |
-| `SSL_session_reused`  |  | :white_check_mark: |  |
+| `SSL_session_reused`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_set0_CA_list`  |  |  |  |
 | `SSL_set0_rbio`  |  |  | :white_check_mark: |
 | `SSL_set0_security_ex_data`  |  |  |  |
@@ -461,7 +461,7 @@
 | `SSL_set_security_callback`  |  |  |  |
 | `SSL_set_security_level`  |  |  |  |
 | `SSL_set_session`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_set_session_id_context`  |  |  |  |
+| `SSL_set_session_id_context`  |  |  | :exclamation: [^stub] |
 | `SSL_set_session_secret_cb`  |  |  |  |
 | `SSL_set_session_ticket_ext`  |  |  |  |
 | `SSL_set_session_ticket_ext_cb`  |  |  |  |
@@ -519,8 +519,8 @@
 | `TLSv1_client_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
 | `TLSv1_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
 | `TLSv1_server_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
-| `d2i_SSL_SESSION`  |  | :white_check_mark: |  |
-| `i2d_SSL_SESSION`  |  | :white_check_mark: |  |
+| `d2i_SSL_SESSION`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `i2d_SSL_SESSION`  |  | :white_check_mark: | :exclamation: [^stub] |
 
 [^stub]: symbol exists, but just returns an error.
 [^deprecatedin_1_1_0]: deprecated in openssl 1.1.0

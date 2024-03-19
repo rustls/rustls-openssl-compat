@@ -364,6 +364,18 @@ impl Ssl {
         })
     }
 
+    fn set_ctx(&mut self, ctx: Arc<Mutex<SslContext>>) {
+        // there are no docs for `SSL_set_SSL_CTX`.  it seems the only
+        // meaningful reason to use this is key/certificate switching
+        // (eg, based on SNI).  So only bother updating `auth_keys`
+        self.ctx = ctx.clone();
+        self.auth_keys = ctx
+            .lock()
+            .ok()
+            .map(|ctx| ctx.auth_keys.clone())
+            .unwrap_or_default();
+    }
+
     fn get_options(&self) -> u64 {
         self.raw_options
     }

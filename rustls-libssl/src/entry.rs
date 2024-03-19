@@ -1024,6 +1024,20 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_set_SSL_CTX(ssl: *mut SSL, ctx_ptr: *mut SSL_CTX) -> *mut SSL_CTX {
+        let ssl = try_clone_arc!(ssl);
+        let ctx = try_clone_arc!(ctx_ptr);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| {
+                ssl.set_ctx(ctx);
+                ctx_ptr
+            })
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;

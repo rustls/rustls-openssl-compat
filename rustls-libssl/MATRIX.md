@@ -353,7 +353,7 @@
 | `SSL_get_psk_identity` [^psk] |  |  |  |
 | `SSL_get_psk_identity_hint` [^psk] |  |  |  |
 | `SSL_get_quiet_shutdown`  |  |  |  |
-| `SSL_get_rbio`  |  | :white_check_mark: |  |
+| `SSL_get_rbio`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_read_ahead`  |  |  |  |
 | `SSL_get_record_padding_callback_arg`  |  |  |  |
 | `SSL_get_recv_max_early_data`  |  |  |  |
@@ -382,7 +382,7 @@
 | `SSL_get_verify_mode`  |  |  |  |
 | `SSL_get_verify_result`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_version`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_wbio`  |  | :white_check_mark: |  |
+| `SSL_get_wbio`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_wfd`  |  |  |  |
 | `SSL_group_to_name`  |  |  |  |
 | `SSL_has_matching_session_id`  |  |  |  |

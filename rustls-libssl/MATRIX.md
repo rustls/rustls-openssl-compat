@@ -418,7 +418,7 @@
 | `SSL_set0_wbio`  |  |  | :white_check_mark: |
 | `SSL_set1_host`  |  |  | :white_check_mark: |
 | `SSL_set1_param`  |  |  |  |
-| `SSL_set_SSL_CTX`  |  | :white_check_mark: |  |
+| `SSL_set_SSL_CTX`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_accept_state`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_allow_early_data_cb`  |  |  |  |
 | `SSL_set_alpn_protos`  |  |  | :white_check_mark: |

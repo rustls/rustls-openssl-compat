@@ -19,7 +19,7 @@ ifneq (,$(TARGET))
 	CARGOFLAGS += --target $(TARGET)
 endif
 
-all: target/ciphers target/client target/constants target/$(PROFILE)/libssl.so.3
+all: target/ciphers target/client target/constants target/server target/$(PROFILE)/libssl.so.3
 
 test: all
 	${CARGO} test $(CARGOFLAGS)
@@ -46,6 +46,9 @@ target/client: target/client.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(shell pkg-config --libs openssl)
 
 target/constants: target/constants.o
+	$(CC) -o $@ $^ $(LDFLAGS) $(shell pkg-config --libs openssl)
+
+target/server: target/server.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(shell pkg-config --libs openssl)
 
 clean:

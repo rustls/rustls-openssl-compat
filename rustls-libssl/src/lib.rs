@@ -1,4 +1,4 @@
-use core::ffi::{c_int, CStr};
+use core::ffi::{c_int, c_uint, CStr};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
@@ -746,6 +746,66 @@ impl Ssl {
     fn get_privatekey(&self) -> *mut EVP_PKEY {
         self.auth_keys.borrow_current_key()
     }
+
+    fn handshake_state(&mut self) -> HandshakeState {
+        match &mut self.conn {
+            Some(ref mut conn) => {
+                if conn.process_new_packets().is_err() {
+                    return HandshakeState::Error;
+                }
+
+                match (&self.mode, conn.is_handshaking()) {
+                    (ConnMode::Server, true) => HandshakeState::ServerAwaitingClientHello,
+                    (ConnMode::Client, true) => HandshakeState::ClientAwaitingServerHello,
+                    (ConnMode::Unknown, true) => HandshakeState::Before,
+                    (_, false) => HandshakeState::Finished,
+                }
+            }
+            None => HandshakeState::Before,
+        }
+    }
+}
+
+/// This is a reduced-fidelity version of `OSSL_HANDSHAKE_STATE`.
+///
+/// We don't track all the individual message states (rustls doesn't expose that detail).
+#[derive(Debug, PartialEq)]
+enum HandshakeState {
+    Before,
+    Finished,
+    Error,
+    ClientAwaitingServerHello,
+    ServerAwaitingClientHello,
+}
+
+impl HandshakeState {
+    fn in_init(&self) -> bool {
+        match self {
+            // nb.
+            // 1. openssl 3 behaviour for SSL_in_before or SSL_in_init does not match docs
+            // 2. SSL_in_init becomes 1 on sending a fatal alert
+            HandshakeState::Before
+            | HandshakeState::Error
+            | HandshakeState::ClientAwaitingServerHello
+            | HandshakeState::ServerAwaitingClientHello => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<HandshakeState> for c_uint {
+    fn from(hs: HandshakeState) -> c_uint {
+        match hs {
+            HandshakeState::Before => 0,
+            HandshakeState::Finished => 1,
+            // error resets openssl state machine to the start
+            HandshakeState::Error => 1,
+            // aka OSSL_HANDSHAKE_STATE_TLS_ST_CR_SRVR_HELLO
+            HandshakeState::ClientAwaitingServerHello => 3,
+            // aka OSSL_HANDSHAKE_STATE_TLS_ST_SR_CLNT_HELLO
+            HandshakeState::ServerAwaitingClientHello => 22,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -754,7 +814,7 @@ struct Want {
     write: bool,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum ConnMode {
     Unknown,
     Client,

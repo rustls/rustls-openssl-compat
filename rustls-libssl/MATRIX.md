@@ -376,7 +376,7 @@
 | `SSL_get_srp_username` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_get_srtp_profiles` [^srtp] |  |  |  |
 | `SSL_get_ssl_method`  |  |  |  |
-| `SSL_get_state`  |  |  |  |
+| `SSL_get_state`  |  |  | :white_check_mark: |
 | `SSL_get_verify_callback`  |  |  |  |
 | `SSL_get_verify_depth`  |  |  |  |
 | `SSL_get_verify_mode`  |  |  |  |
@@ -387,10 +387,10 @@
 | `SSL_group_to_name`  |  |  |  |
 | `SSL_has_matching_session_id`  |  |  |  |
 | `SSL_has_pending`  |  |  | :white_check_mark: |
-| `SSL_in_before`  |  |  |  |
-| `SSL_in_init`  |  | :white_check_mark: |  |
+| `SSL_in_before`  |  |  | :white_check_mark: |
+| `SSL_in_init`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_is_dtls`  |  |  |  |
-| `SSL_is_init_finished`  |  | :white_check_mark: |  |
+| `SSL_is_init_finished`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_is_server`  |  |  | :white_check_mark: |
 | `SSL_key_update`  |  |  |  |
 | `SSL_load_client_CA_file`  |  | :white_check_mark: |  |

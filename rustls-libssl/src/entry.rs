@@ -23,7 +23,7 @@ use crate::ffi::{
     try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
 use crate::x509::{load_certs, OwnedX509};
-use crate::ShutdownResult;
+use crate::{HandshakeState, ShutdownResult};
 
 /// Makes a entry function definition.
 ///
@@ -980,6 +980,47 @@ entry! {
             .ok()
             .map(|ssl| ssl.get_privatekey())
             .unwrap_or(ptr::null_mut())
+    }
+}
+
+entry! {
+    // nb. 0 is a reasonable OSSL_HANDSHAKE_STATE, it is OSSL_HANDSHAKE_STATE_TLS_ST_BEFORE
+    pub fn _SSL_get_state(ssl: *const SSL) -> c_uint {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state().into())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_in_init(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state().in_init())
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_in_before(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state() == HandshakeState::Before)
+            .unwrap_or_default() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_is_init_finished(ssl: *const SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|mut ssl| ssl.handshake_state() == HandshakeState::Finished)
+            .unwrap_or_default() as c_int
     }
 }
 

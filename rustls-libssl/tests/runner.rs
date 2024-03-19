@@ -10,6 +10,21 @@ use std::{net, thread, time};
  *
  * We set LD_LIBRARY_PATH="" to disable this where we want
  * to actually use OpenSSL's libssl.
+ *
+ * The test programs called below should use streams according to these rules:
+ *
+ * - **stdout** should contain the same output whether this program is run against
+ *   bona-fide openssl or rustls-libssl.
+ *
+ * - **stderr**: may contain log output for tests that see error conditions.  This output
+ *   need not match between openssl and rustls-libssl and such tests should not assert
+ *   equality between stderr.  Tests that do not expect errors _should_ assert `stderr`
+ *   equality, to ensure there is no noisy log output or spurious error stack usage.
+ *
+ * Note that the content of openssl error stacks is _not_ a stable interface
+ * (file names, line numbers, function names, messages can all change between versions
+ * of upstream openssl).  However, we try to ensure that interesting errors
+ * have the same error code (see `ERR_peek_error`).
  */
 
 #[test]

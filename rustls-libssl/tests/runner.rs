@@ -300,7 +300,7 @@ fn server() {
     wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
     curl();
 
-    let openssl_output = openssl_server.take_inner().wait_with_output().unwrap();
+    let openssl_output = print_output(openssl_server.take_inner().wait_with_output().unwrap());
 
     let mut rustls_server = KillOnDrop(Some(
         Command::new("tests/maybe-valgrind.sh")
@@ -318,7 +318,7 @@ fn server() {
     wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
     curl();
 
-    let rustls_output = rustls_server.take_inner().wait_with_output().unwrap();
+    let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
     assert_eq!(openssl_output, rustls_output);
 }
 

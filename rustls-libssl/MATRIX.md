@@ -255,7 +255,7 @@
 | `SSL_SESSION_up_ref`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
-| `SSL_accept`  |  |  |  |
+| `SSL_accept`  |  |  | :white_check_mark: |
 | `SSL_add1_host`  |  |  |  |
 | `SSL_add1_to_CA_list`  |  |  |  |
 | `SSL_add_client_CA`  |  |  |  |

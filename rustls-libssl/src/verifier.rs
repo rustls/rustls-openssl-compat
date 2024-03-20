@@ -14,8 +14,10 @@ use rustls::{
     },
     crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider},
     pki_types::{CertificateDer, ServerName, UnixTime},
-    server::ParsedCertificate,
-    CertificateError, DigitallySignedStruct, Error, RootCertStore, SignatureScheme,
+    server::danger::{ClientCertVerified, ClientCertVerifier},
+    server::{ParsedCertificate, WebPkiClientVerifier},
+    CertificateError, DigitallySignedStruct, DistinguishedName, Error, RootCertStore,
+    SignatureScheme,
 };
 
 use crate::VerifyMode;
@@ -96,27 +98,7 @@ impl ServerCertVerifier for ServerVerifier {
     ) -> Result<ServerCertVerified, Error> {
         let result = self.verify_server_cert_inner(end_entity, intermediates, now);
 
-        let openssl_rv = match &result {
-            Ok(()) => X509_V_OK,
-            Err(Error::InvalidCertificate(CertificateError::UnknownIssuer)) => {
-                X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
-            }
-            Err(Error::InvalidCertificate(CertificateError::NotValidYet)) => {
-                X509_V_ERR_CERT_NOT_YET_VALID
-            }
-            Err(Error::InvalidCertificate(CertificateError::Expired)) => {
-                X509_V_ERR_CERT_HAS_EXPIRED
-            }
-            Err(Error::InvalidCertificate(CertificateError::Revoked)) => X509_V_ERR_CERT_REVOKED,
-            Err(Error::InvalidCertificate(CertificateError::InvalidPurpose)) => {
-                X509_V_ERR_INVALID_PURPOSE
-            }
-            Err(Error::InvalidCertificate(CertificateError::NotValidForName)) => {
-                X509_V_ERR_HOSTNAME_MISMATCH
-            }
-            // TODO: more mappings can go here
-            Err(_) => X509_V_ERR_UNSPECIFIED,
-        };
+        let openssl_rv = translate_verify_result(&result);
         self.last_result.store(openssl_rv as i64, Ordering::Release);
 
         // Call it success if it succeeded, or the `mode` says not to care.
@@ -159,5 +141,128 @@ impl ServerCertVerifier for ServerVerifier {
         self.provider
             .signature_verification_algorithms
             .supported_schemes()
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientVerifier {
+    parent: Arc<dyn ClientCertVerifier>,
+    mode: VerifyMode,
+    last_result: AtomicI64,
+}
+
+impl ClientVerifier {
+    pub fn new(
+        root_store: Arc<RootCertStore>,
+        provider: Arc<CryptoProvider>,
+        mode: VerifyMode,
+    ) -> Result<Self, Error> {
+        let (parent, initial_result) = if !mode.server_must_attempt_client_auth() {
+            (Ok(WebPkiClientVerifier::no_client_auth()), X509_V_OK)
+        } else {
+            let builder = WebPkiClientVerifier::builder_with_provider(root_store, provider)
+                .allow_unknown_revocation_status();
+
+            if mode.server_must_verify_client() {
+                (builder.build(), X509_V_ERR_UNSPECIFIED)
+            } else {
+                (
+                    builder.allow_unauthenticated().build(),
+                    X509_V_ERR_UNSPECIFIED,
+                )
+            }
+        };
+
+        let parent = parent.map_err(|err| rustls::Error::General(err.to_string()))?;
+
+        Ok(Self {
+            parent,
+            mode,
+            last_result: AtomicI64::new(initial_result as i64),
+        })
+    }
+
+    pub fn last_result(&self) -> i64 {
+        self.last_result.load(Ordering::Acquire)
+    }
+}
+
+impl ClientCertVerifier for ClientVerifier {
+    fn offer_client_auth(&self) -> bool {
+        self.mode.server_must_attempt_client_auth()
+    }
+
+    fn client_auth_mandatory(&self) -> bool {
+        self.mode.server_must_verify_client()
+    }
+
+    fn verify_client_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        intermediates: &[CertificateDer<'_>],
+        now: UnixTime,
+    ) -> Result<ClientCertVerified, Error> {
+        let result = self
+            .parent
+            .verify_client_cert(end_entity, intermediates, now)
+            .map(|_| ());
+
+        let openssl_rv = translate_verify_result(&result);
+        self.last_result.store(openssl_rv as i64, Ordering::Release);
+
+        // Call it success if it succeeded, or the `mode` says not to care.
+        if openssl_rv == X509_V_OK || !self.mode.server_must_verify_client() {
+            Ok(ClientCertVerified::assertion())
+        } else {
+            Err(result.unwrap_err())
+        }
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        self.parent.verify_tls12_signature(message, cert, dss)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        self.parent.verify_tls13_signature(message, cert, dss)
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.parent.supported_verify_schemes()
+    }
+
+    fn root_hint_subjects(&self) -> &[DistinguishedName] {
+        self.parent.root_hint_subjects()
+    }
+}
+
+fn translate_verify_result(result: &Result<(), Error>) -> i32 {
+    match result {
+        Ok(()) => X509_V_OK,
+        Err(Error::InvalidCertificate(CertificateError::UnknownIssuer)) => {
+            X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+        }
+        Err(Error::InvalidCertificate(CertificateError::NotValidYet)) => {
+            X509_V_ERR_CERT_NOT_YET_VALID
+        }
+        Err(Error::InvalidCertificate(CertificateError::Expired)) => X509_V_ERR_CERT_HAS_EXPIRED,
+        Err(Error::InvalidCertificate(CertificateError::Revoked)) => X509_V_ERR_CERT_REVOKED,
+        Err(Error::InvalidCertificate(CertificateError::InvalidPurpose)) => {
+            X509_V_ERR_INVALID_PURPOSE
+        }
+        Err(Error::InvalidCertificate(CertificateError::NotValidForName)) => {
+            X509_V_ERR_HOSTNAME_MISMATCH
+        }
+        // TODO: more mappings can go here
+        Err(_) => X509_V_ERR_UNSPECIFIED,
     }
 }

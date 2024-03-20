@@ -762,6 +762,22 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_accept(ssl: *mut SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.accept())
+            .map_err(|err| err.raise())
+        {
+            Err(e) => e.into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_write(ssl: *mut SSL, buf: *const c_void, num: c_int) -> c_int {
         const ERROR: c_int = -1;
         let ssl = try_clone_arc!(ssl, ERROR);

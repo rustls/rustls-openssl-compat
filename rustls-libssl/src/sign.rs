@@ -4,6 +4,7 @@ use std::sync::Arc;
 use openssl_sys::{EVP_PKEY, X509};
 use rustls::client::ResolvesClientCert;
 use rustls::pki_types::CertificateDer;
+use rustls::server::{ClientHello, ResolvesServerCert};
 use rustls::sign;
 use rustls::{SignatureAlgorithm, SignatureScheme};
 
@@ -61,8 +62,12 @@ impl CertifiedKeySet {
         Ok(())
     }
 
-    pub fn resolver(&self) -> Option<Arc<dyn ResolvesClientCert>> {
-        self.current_key.as_ref().map(|ck| ck.resolver())
+    pub fn client_resolver(&self) -> Option<Arc<dyn ResolvesClientCert>> {
+        self.current_key.as_ref().map(|ck| ck.client_resolver())
+    }
+
+    pub fn server_resolver(&self) -> Option<Arc<dyn ResolvesServerCert>> {
+        self.current_key.as_ref().map(|ck| ck.server_resolver())
     }
 
     /// For `SSL_get_certificate`
@@ -106,8 +111,15 @@ impl OpenSslCertifiedKey {
         self.key.borrow_ref()
     }
 
-    fn resolver(&self) -> Arc<dyn ResolvesClientCert> {
+    fn client_resolver(&self) -> Arc<dyn ResolvesClientCert> {
         Arc::new(AlwaysResolvesClientCert(Arc::new(sign::CertifiedKey::new(
+            self.rustls_chain.clone(),
+            Arc::new(OpenSslKey(self.key.clone())),
+        ))))
+    }
+
+    fn server_resolver(&self) -> Arc<dyn ResolvesServerCert> {
+        Arc::new(AlwaysResolvesServerCert(Arc::new(sign::CertifiedKey::new(
             self.rustls_chain.clone(),
             Arc::new(OpenSslKey(self.key.clone())),
         ))))
@@ -127,6 +139,15 @@ impl ResolvesClientCert for AlwaysResolvesClientCert {
         _root_hint_subjects: &[&[u8]],
         _schemes: &[SignatureScheme],
     ) -> Option<Arc<sign::CertifiedKey>> {
+        Some(Arc::clone(&self.0))
+    }
+}
+
+#[derive(Debug)]
+struct AlwaysResolvesServerCert(Arc<sign::CertifiedKey>);
+
+impl ResolvesServerCert for AlwaysResolvesServerCert {
+    fn resolve(&self, _client_hello: ClientHello) -> Option<Arc<sign::CertifiedKey>> {
         Some(Arc::clone(&self.0))
     }
 }

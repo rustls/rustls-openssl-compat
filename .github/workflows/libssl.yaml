@@ -98,6 +98,8 @@ jobs:
         run: make format-check
       - name: Check ordering of build.rs entrypoints
         run: ./admin/sort-entrypoints.py
+      - name: Check MATRIX.md is up-to-date
+        run: ./admin/matrix.py > MATRIX.md.new && diff -su MATRIX.md MATRIX.md.new
 
   clippy:
     name: Clippy

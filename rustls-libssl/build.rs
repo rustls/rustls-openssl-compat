@@ -46,6 +46,7 @@ const ENTRYPOINTS: &[&str] = &[
     "d2i_SSL_SESSION",
     "i2d_SSL_SESSION",
     "OPENSSL_init_ssl",
+    "SSL_accept",
     "SSL_alert_desc_string",
     "SSL_alert_desc_string_long",
     "SSL_CIPHER_description",

@@ -1,5 +1,5 @@
 use core::ffi::{c_int, c_uint, CStr};
-use core::ptr;
+use core::{mem, ptr};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
@@ -12,7 +12,10 @@ use openssl_sys::{
 };
 use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
-use rustls::{CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore};
+use rustls::server::{Accepted, Acceptor};
+use rustls::{
+    CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore, ServerConfig,
+};
 
 mod bio;
 #[macro_use]
@@ -340,12 +343,20 @@ struct Ssl {
     alpn: Vec<Vec<u8>>,
     sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
-    conn: Option<Connection>,
-    verifier: Option<Arc<verifier::ServerVerifier>>,
+    conn: ConnState,
     peer_cert: Option<x509::OwnedX509>,
     peer_cert_chain: Option<x509::OwnedX509Stack>,
     shutdown_flags: ShutdownFlags,
     auth_keys: sign::CertifiedKeySet,
+}
+
+#[allow(clippy::large_enum_variant)]
+enum ConnState {
+    Nothing,
+    Client(Connection, Arc<verifier::ServerVerifier>),
+    Accepting(Acceptor),
+    Accepted(Accepted),
+    Server(Connection, Arc<verifier::ClientVerifier>),
 }
 
 impl Ssl {
@@ -360,8 +371,7 @@ impl Ssl {
             alpn: inner.alpn.clone(),
             sni_server_name: None,
             bio: None,
-            conn: None,
-            verifier: None,
+            conn: ConnState::Nothing,
             peer_cert: None,
             peer_cert_chain: None,
             shutdown_flags: ShutdownFlags::default(),
@@ -481,10 +491,14 @@ impl Ssl {
     }
 
     fn connect(&mut self) -> Result<(), error::Error> {
-        self.set_client_mode();
-        if self.conn.is_none() {
+        if let ConnMode::Unknown = self.mode {
+            self.set_client_mode();
+        }
+
+        if matches!(self.conn, ConnState::Nothing) {
             self.init_client_conn()?;
         }
+
         self.try_io()
     }
 
@@ -508,15 +522,14 @@ impl Ssl {
             self.verify_mode,
             &self.verify_server_name,
         ));
-        self.verifier = Some(verifier.clone());
 
         let wants_resolver = ClientConfig::builder_with_provider(provider)
             .with_protocol_versions(method.client_versions)
             .map_err(error::Error::from_rustls)?
             .dangerous()
-            .with_custom_certificate_verifier(verifier);
+            .with_custom_certificate_verifier(verifier.clone());
 
-        let mut config = if let Some(resolver) = self.auth_keys.resolver() {
+        let mut config = if let Some(resolver) = self.auth_keys.client_resolver() {
             wants_resolver.with_client_cert_resolver(resolver)
         } else {
             wants_resolver.with_no_client_auth()
@@ -527,23 +540,101 @@ impl Ssl {
         let client_conn = ClientConnection::new(Arc::new(config), sni_server_name.clone())
             .map_err(error::Error::from_rustls)?;
 
-        self.conn = Some(client_conn.into());
+        self.conn = ConnState::Client(client_conn.into(), verifier);
         Ok(())
+    }
+
+    fn accept(&mut self) -> Result<(), error::Error> {
+        if let ConnMode::Unknown = self.mode {
+            self.set_server_mode();
+        }
+
+        if matches!(self.conn, ConnState::Nothing) {
+            self.conn = ConnState::Accepting(Acceptor::default());
+        }
+
+        self.try_io()?;
+
+        if let ConnState::Accepted(_) = self.conn {
+            self.init_server_conn()?;
+        }
+
+        self.try_io()
+    }
+
+    fn init_server_conn(&mut self) -> Result<(), error::Error> {
+        let method = self
+            .ctx
+            .lock()
+            .map(|ctx| ctx.method)
+            .map_err(|_| error::Error::cannot_lock())?;
+
+        let provider = Arc::new(provider::default_provider());
+        let verifier = Arc::new(
+            verifier::ClientVerifier::new(
+                self.verify_roots.clone().into(),
+                provider.clone(),
+                self.verify_mode,
+            )
+            .map_err(error::Error::from_rustls)?,
+        );
+
+        let resolver = self
+            .auth_keys
+            .server_resolver()
+            .ok_or_else(|| error::Error::bad_data("missing server keys"))?;
+
+        let config = ServerConfig::builder_with_provider(provider)
+            .with_protocol_versions(method.server_versions)
+            .map_err(error::Error::from_rustls)?
+            .with_client_cert_verifier(verifier.clone())
+            .with_cert_resolver(resolver);
+
+        let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
+            ConnState::Accepted(accepted) => accepted,
+            _ => unreachable!(),
+        };
+
+        // TODO: send alert
+        let server_conn = accepted
+            .into_connection(Arc::new(config))
+            .map_err(|(err, _alert)| error::Error::from_rustls(err))?;
+
+        self.conn = ConnState::Server(server_conn.into(), verifier);
+        Ok(())
+    }
+
+    fn conn(&self) -> Option<&Connection> {
+        match &self.conn {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Some(conn),
+            _ => None,
+        }
+    }
+
+    fn conn_mut(&mut self) -> Option<&mut Connection> {
+        match &mut self.conn {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Some(conn),
+            _ => None,
+        }
     }
 
     fn want(&self) -> Want {
         match &self.conn {
-            Some(conn) => Want {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Want {
                 read: conn.wants_read(),
                 write: conn.wants_write(),
             },
-            None => Want::default(),
+            ConnState::Accepting(_) => Want {
+                read: true,
+                write: false,
+            },
+            _ => Want::default(),
         }
     }
 
     fn write(&mut self, slice: &[u8]) -> Result<usize, error::Error> {
-        let written = match &mut self.conn {
-            Some(ref mut conn) => conn.writer().write(slice).map_err(error::Error::from_io)?,
+        let written = match self.conn_mut() {
+            Some(conn) => conn.writer().write(slice).map_err(error::Error::from_io)?,
             None => 0,
         };
         self.try_io()?;
@@ -554,8 +645,8 @@ impl Ssl {
         let (late_err, read_count) = loop {
             let late_err = self.try_io();
 
-            match &mut self.conn {
-                Some(ref mut conn) => match conn.reader().read(slice) {
+            match self.conn_mut() {
+                Some(conn) => match conn.reader().read(slice) {
                     Ok(read) => break (late_err, read),
                     Err(err) if err.kind() == ErrorKind::WouldBlock && late_err.is_ok() => {
                         // no data available, go around again.
@@ -586,7 +677,7 @@ impl Ssl {
         };
 
         match &mut self.conn {
-            Some(ref mut conn) => {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _) => {
                 match conn.complete_io(bio) {
                     Ok(_) => {}
                     Err(e) => {
@@ -606,15 +697,31 @@ impl Ssl {
                 }
                 Ok(())
             }
-            None => Ok(()),
+            ConnState::Accepting(acceptor) => {
+                if let Err(e) = acceptor.read_tls(bio) {
+                    return Err(error::Error::from_io(e));
+                };
+
+                match acceptor.accept() {
+                    Ok(None) => Ok(()),
+                    Ok(Some(accepted)) => {
+                        self.conn = ConnState::Accepted(accepted);
+                        Ok(())
+                    }
+                    Err((error, mut alert)) => {
+                        alert.write_all(bio).map_err(error::Error::from_io)?;
+                        Err(error::Error::from_rustls(error))
+                    }
+                }
+            }
+            _ => Ok(()),
         }
     }
 
     fn try_shutdown(&mut self) -> Result<ShutdownResult, error::Error> {
         if !self.shutdown_flags.is_sent() {
-            match &mut self.conn {
-                Some(ref mut conn) => conn.send_close_notify(),
-                None => (),
+            if let Some(conn) = self.conn_mut() {
+                conn.send_close_notify();
             };
 
             self.shutdown_flags.set_sent();
@@ -637,7 +744,7 @@ impl Ssl {
     }
 
     fn get_pending_plaintext(&mut self) -> usize {
-        self.conn
+        self.conn_mut()
             .as_mut()
             .and_then(|conn| {
                 let io_state = conn.process_new_packets().ok()?;
@@ -647,11 +754,11 @@ impl Ssl {
     }
 
     fn get_agreed_alpn(&mut self) -> Option<&[u8]> {
-        self.conn.as_ref().and_then(|conn| conn.alpn_protocol())
+        self.conn().and_then(|conn| conn.alpn_protocol())
     }
 
     fn init_peer_cert(&mut self) {
-        let conn = match &self.conn {
+        let conn = match self.conn() {
             Some(conn) => conn,
             None => return,
         };
@@ -662,6 +769,8 @@ impl Ssl {
         };
 
         let mut stack = x509::OwnedX509Stack::empty();
+        let mut peer_cert = None;
+
         for (i, cert) in certs.iter().enumerate() {
             let converted = match x509::OwnedX509::parse_der(cert.as_ref()) {
                 Some(converted) => converted,
@@ -676,12 +785,13 @@ impl Ssl {
                     // certificate must be obtained separately"
                     stack.push(&converted);
                 }
-                self.peer_cert = Some(converted);
+                peer_cert = Some(converted);
             } else {
                 stack.push(&converted);
             }
         }
 
+        self.peer_cert = peer_cert;
         self.peer_cert_chain = Some(stack);
     }
 
@@ -700,23 +810,22 @@ impl Ssl {
     }
 
     fn get_negotiated_cipher_suite_id(&self) -> Option<CipherSuite> {
-        self.conn
-            .as_ref()
+        self.conn()
             .and_then(|conn| conn.negotiated_cipher_suite())
             .map(|suite| suite.suite())
     }
 
     fn get_last_verification_result(&self) -> i64 {
-        if let Some(verifier) = &self.verifier {
-            verifier.last_result()
-        } else {
-            X509_V_ERR_UNSPECIFIED as i64
+        match &self.conn {
+            ConnState::Client(_, verifier) => verifier.last_result(),
+            ConnState::Server(_, verifier) => verifier.last_result(),
+            _ => X509_V_ERR_UNSPECIFIED as i64,
         }
     }
 
     fn get_error(&mut self) -> c_int {
-        match &mut self.conn {
-            Some(ref mut conn) => {
+        match self.conn_mut() {
+            Some(conn) => {
                 if let Err(e) = conn.process_new_packets() {
                     error::Error::from_rustls(e).raise();
                     return SSL_ERROR_SSL;
@@ -775,13 +884,14 @@ impl Ssl {
     }
 
     fn handshake_state(&mut self) -> HandshakeState {
-        match &mut self.conn {
-            Some(ref mut conn) => {
+        let mode = self.mode;
+        match self.conn_mut() {
+            Some(conn) => {
                 if conn.process_new_packets().is_err() {
                     return HandshakeState::Error;
                 }
 
-                match (&self.mode, conn.is_handshaking()) {
+                match (mode, conn.is_handshaking()) {
                     (ConnMode::Server, true) => HandshakeState::ServerAwaitingClientHello,
                     (ConnMode::Client, true) => HandshakeState::ClientAwaitingServerHello,
                     (ConnMode::Unknown, true) => HandshakeState::Before,
@@ -841,7 +951,7 @@ struct Want {
     write: bool,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum ConnMode {
     Unknown,
     Client,
@@ -892,6 +1002,10 @@ impl VerifyMode {
     // other flags not mentioned here are not implemented.
 
     pub fn client_must_verify_server(&self) -> bool {
+        self.0 & VerifyMode::PEER == VerifyMode::PEER
+    }
+
+    pub fn server_must_attempt_client_auth(&self) -> bool {
         self.0 & VerifyMode::PEER == VerifyMode::PEER
     }
 

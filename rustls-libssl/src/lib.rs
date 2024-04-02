@@ -313,20 +313,41 @@ impl SslContext {
 ///
 /// For an empty `slice`, returns `Some(vec![])`.
 /// For a slice with invalid contents, returns `None`.
-pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
+pub fn parse_alpn(slice: &[u8]) -> Option<Vec<Vec<u8>>> {
     let mut out = vec![];
 
-    while !slice.is_empty() {
-        let len = *slice.first()? as usize;
-        if len == 0 {
-            return None;
-        }
-        let body = slice.get(1..1 + len)?;
-        out.push(body.to_vec());
-        slice = &slice[1 + len..];
+    for item in iter_alpn(slice) {
+        out.push(item?.to_vec());
     }
 
     Some(out)
+}
+
+pub fn iter_alpn(mut slice: &[u8]) -> impl Iterator<Item = Option<&[u8]>> {
+    std::iter::from_fn(move || {
+        // None => end iteration
+        // Some(None) => error
+        // Some(_) => an item
+
+        let len = match slice.first() {
+            None => {
+                return None;
+            }
+            Some(len) => *len as usize,
+        };
+
+        if len == 0 {
+            return Some(None);
+        }
+
+        match slice.get(1..1 + len) {
+            None => Some(None),
+            Some(body) => {
+                slice = &slice[1 + len..];
+                Some(Some(body))
+            }
+        }
+    })
 }
 
 struct Ssl {

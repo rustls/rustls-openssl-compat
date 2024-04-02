@@ -408,7 +408,7 @@
 | `SSL_renegotiate_pending`  |  |  |  |
 | `SSL_rstate_string`  |  |  |  |
 | `SSL_rstate_string_long`  |  |  |  |
-| `SSL_select_next_proto`  |  | :white_check_mark: |  |
+| `SSL_select_next_proto`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_sendfile`  |  |  |  |
 | `SSL_session_reused`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_set0_CA_list`  |  |  |  |

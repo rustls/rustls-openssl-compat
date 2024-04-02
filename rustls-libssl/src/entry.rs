@@ -8,7 +8,10 @@ use std::io::{self, Read};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::{fs, path::PathBuf};
 
-use openssl_sys::{stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX};
+use openssl_sys::{
+    stack_st_X509, OPENSSL_malloc, EVP_PKEY, OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509,
+    X509_STORE, X509_STORE_CTX,
+};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
@@ -1024,6 +1027,71 @@ impl Castable for SSL_CIPHER {
     type RustType = SSL_CIPHER;
 }
 
+entry! {
+    pub fn _SSL_select_next_proto(
+        out: *mut *mut c_uchar,
+        out_len: *mut c_uchar,
+        server: *const c_uchar,
+        server_len: c_uint,
+        client: *const c_uchar,
+        client_len: c_uint,
+    ) -> c_int {
+        let server = try_slice!(server, server_len);
+        let client = try_slice!(client, client_len);
+
+        if out.is_null() || out_len.is_null() {
+            return 0;
+        }
+
+        // ensure `out` and `out_len` are written even on error.
+        unsafe {
+            ptr::write(out, ptr::null_mut());
+            ptr::write(out_len, 0);
+        }
+
+        // ensure `client` is fully validated irrespective of `server` value
+        for offer in crate::iter_alpn(client) {
+            if offer.is_none() {
+                return OPENSSL_NPN_NO_OVERLAP;
+            }
+        }
+
+        for supported in crate::iter_alpn(server) {
+            match supported {
+                None => {
+                    return OPENSSL_NPN_NO_OVERLAP;
+                }
+
+                Some(supported)
+                    if crate::iter_alpn(client).any(|offer| offer == Some(supported)) =>
+                {
+                    unsafe {
+                        // safety:
+                        // 1) the openssl API is const-incorrect, we must slice the const from `supported`
+                        // 2) supported.len() must fit inside c_uchar; it was decoded from that
+                        ptr::write(out, supported.as_ptr() as *mut c_uchar);
+                        ptr::write(out_len, supported.len() as c_uchar);
+                        return OPENSSL_NPN_NEGOTIATED;
+                    }
+                }
+
+                Some(_) => {
+                    continue;
+                }
+            }
+        }
+
+        // fallback: "If no match is found, the first item in client, client_len is returned"
+        if let Some(Some(fallback)) = crate::iter_alpn(client).next() {
+            unsafe {
+                ptr::write(out, fallback.as_ptr() as *mut c_uchar);
+                ptr::write(out_len, fallback.len() as c_uchar);
+            }
+        }
+        OPENSSL_NPN_NO_OVERLAP
+    }
+}
+
 /// Normal OpenSSL return value convention success indicator.
 ///
 /// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
@@ -1434,5 +1502,125 @@ mod tests {
         );
         _SSL_free(ssl);
         _SSL_CTX_free(ctx);
+    }
+
+    #[test]
+    fn test_SSL_select_next_proto_match() {
+        let mut output = ptr::null_mut();
+        let mut output_len = 0u8;
+        let client = b"\x05hello\x05world";
+        let server = b"\x05uhoh!\x05world";
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                &mut output_len as *mut u8,
+                server.as_ptr(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            1i32
+        );
+        assert_eq!(b"world", &server[7..]);
+        assert_eq!(output as *const u8, server[7..].as_ptr());
+        assert_eq!(output_len, 5);
+    }
+
+    #[test]
+    fn test_SSL_select_next_proto_no_overlap() {
+        let mut output = ptr::null_mut();
+        let mut output_len = 0u8;
+        let client = b"\x05hello\x05world";
+        let server = b"\x05uhoh!\x05what!";
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                &mut output_len as *mut u8,
+                server.as_ptr(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            2i32
+        );
+        assert_eq!(b"hello", &client[1..6]);
+        assert_eq!(output as *const u8, client[1..].as_ptr());
+        assert_eq!(output_len, 5);
+    }
+
+    #[test]
+    fn test_SSL_select_next_proto_illegal_client() {
+        let mut output = ptr::null_mut();
+        let mut output_len = 0u8;
+        let client = b"\x09hello";
+        let server = b"\x05uhoh!\x05world";
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                &mut output_len as *mut u8,
+                server.as_ptr(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            2i32
+        );
+        assert_eq!(output as *const u8, ptr::null_mut());
+    }
+
+    #[test]
+    fn test_SSL_select_next_proto_null() {
+        let mut output = ptr::null_mut();
+        let mut output_len = 0u8;
+        let client = b"\x05hello\x05world";
+        let server = b"\x05uhoh!\x05world";
+
+        assert_eq!(
+            _SSL_select_next_proto(
+                ptr::null_mut(),
+                &mut output_len as *mut u8,
+                server.as_ptr(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            0
+        );
+
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                ptr::null_mut(),
+                server.as_ptr(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            0
+        );
+
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                &mut output_len as *mut u8,
+                ptr::null(),
+                server.len() as c_uint,
+                client.as_ptr(),
+                client.len() as c_uint
+            ),
+            0
+        );
+
+        assert_eq!(
+            _SSL_select_next_proto(
+                &mut output as *mut *mut u8,
+                &mut output_len as *mut u8,
+                server.as_ptr(),
+                server.len() as c_uint,
+                ptr::null(),
+                client.len() as c_uint
+            ),
+            0
+        );
     }
 }

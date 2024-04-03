@@ -235,6 +235,48 @@ fn load_verify_files(ctx: &Mutex<SSL_CTX>, file_names: impl Iterator<Item = Path
 }
 
 entry! {
+    pub fn _SSL_CTX_set_default_verify_paths(ctx: *mut SSL_CTX) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.set_default_verify_paths())
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_default_verify_dir(ctx: *mut SSL_CTX) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.set_default_verify_dir())
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_default_verify_file(ctx: *mut SSL_CTX) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        match ctx
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ctx| ctx.set_default_verify_file())
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_CTX_load_verify_file(ctx: *mut SSL_CTX, ca_file: *const c_char) -> c_int {
         let ctx = try_clone_arc!(ctx);
         let ca_file = try_str!(ca_file);
@@ -1005,6 +1047,11 @@ entry_stub! {
         _file: *const c_char,
         _type_: c_int,
     ) -> c_int;
+}
+
+// The SSL_CTX X509_STORE isn't being meaningfully used yet.
+entry_stub! {
+    pub fn _SSL_CTX_set_default_verify_store(_ctx: *mut SSL_CTX) -> c_int;
 }
 
 pub struct SSL_SESSION;

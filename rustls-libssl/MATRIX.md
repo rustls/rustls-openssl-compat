@@ -152,10 +152,10 @@
 | `SSL_CTX_set_default_passwd_cb`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_default_passwd_cb_userdata`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_default_read_buffer_len`  |  |  |  |
-| `SSL_CTX_set_default_verify_dir`  |  |  |  |
-| `SSL_CTX_set_default_verify_file`  |  |  |  |
-| `SSL_CTX_set_default_verify_paths`  |  |  |  |
-| `SSL_CTX_set_default_verify_store`  |  |  |  |
+| `SSL_CTX_set_default_verify_dir`  |  |  | :white_check_mark: |
+| `SSL_CTX_set_default_verify_file`  |  |  | :white_check_mark: |
+| `SSL_CTX_set_default_verify_paths`  |  |  | :white_check_mark: |
+| `SSL_CTX_set_default_verify_store`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_ex_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_generate_session_id`  |  |  |  |
 | `SSL_CTX_set_info_callback`  |  | :white_check_mark: |  |

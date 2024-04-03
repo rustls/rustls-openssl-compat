@@ -1,7 +1,10 @@
 use core::ffi::{c_int, CStr};
+use std::fs;
 use std::io::{ErrorKind, Read, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use openssl_probe::ProbeResult;
 use openssl_sys::{
     SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509_STORE,
     X509_V_ERR_UNSPECIFIED,
@@ -205,6 +208,8 @@ pub struct SslContext {
     verify_roots: RootCertStore,
     verify_x509_store: x509::OwnedX509Store,
     alpn: Vec<Vec<u8>>,
+    default_cert_file: Option<PathBuf>,
+    default_cert_dir: Option<PathBuf>,
 }
 
 impl SslContext {
@@ -216,6 +221,8 @@ impl SslContext {
             verify_roots: RootCertStore::empty(),
             verify_x509_store: x509::OwnedX509Store::new(),
             alpn: vec![],
+            default_cert_file: None,
+            default_cert_dir: None,
         }
     }
 
@@ -235,6 +242,25 @@ impl SslContext {
 
     fn set_verify(&mut self, mode: VerifyMode) {
         self.verify_mode = mode;
+    }
+
+    fn set_default_verify_paths(&mut self) {
+        let ProbeResult {
+            cert_file,
+            cert_dir,
+        } = openssl_probe::probe();
+        self.default_cert_file = cert_file;
+        self.default_cert_dir = cert_dir;
+    }
+
+    fn set_default_verify_dir(&mut self) {
+        let ProbeResult { cert_dir, .. } = openssl_probe::probe();
+        self.default_cert_dir = cert_dir;
+    }
+
+    fn set_default_verify_file(&mut self) {
+        let ProbeResult { cert_file, .. } = openssl_probe::probe();
+        self.default_cert_file = cert_file;
     }
 
     fn add_trusted_certs(
@@ -303,7 +329,7 @@ impl Ssl {
             raw_options: inner.raw_options,
             mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
-            verify_roots: inner.verify_roots.clone(),
+            verify_roots: Self::load_verify_certs(inner)?,
             verify_server_name: None,
             alpn: inner.alpn.clone(),
             sni_server_name: None,
@@ -632,6 +658,34 @@ impl Ssl {
             }
             None => SSL_ERROR_SSL,
         }
+    }
+
+    fn load_verify_certs(ctx: &SslContext) -> Result<RootCertStore, error::Error> {
+        let mut verify_roots = ctx.verify_roots.clone();
+
+        // If verify_roots isn't empty then it was configured with `SSL_CTX_load_verify_file`
+        // or `SSL_CTX_load_verify_dir` and we should use it as-is.
+        if !ctx.verify_roots.is_empty() {
+            return Ok(verify_roots);
+        }
+
+        // Otherwise, try to load the default cert file or cert dir.
+        if let Some(default_cert_file) = &ctx.default_cert_file {
+            verify_roots.add_parsable_certificates(x509::load_certs(
+                vec![default_cert_file.to_path_buf()].into_iter(),
+            )?);
+        } else if let Some(default_cert_dir) = &ctx.default_cert_dir {
+            let entries = match fs::read_dir(default_cert_dir) {
+                Ok(iter) => iter,
+                Err(err) => return Err(error::Error::from_io(err).raise()),
+            }
+            .filter_map(|entry| entry.ok())
+            .map(|dir_entry| dir_entry.path());
+
+            verify_roots.add_parsable_certificates(x509::load_certs(entries)?);
+        }
+
+        Ok(verify_roots)
     }
 }
 

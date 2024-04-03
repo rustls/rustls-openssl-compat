@@ -1382,6 +1382,31 @@ pub type SSL_CTX_npn_select_cb_func = Option<
     ) -> c_int,
 >;
 
+entry_stub! {
+    pub fn _SSL_get0_next_proto_negotiated(
+        _ssl: *const SSL,
+        _data: *mut *const c_uchar,
+        _len: *mut c_uint,
+    );
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_next_protos_advertised_cb(
+        _ctx: *mut SSL_CTX,
+        _cb: SSL_CTX_npn_advertised_cb_func,
+        _arg: *mut c_void,
+    );
+}
+
+pub type SSL_CTX_npn_advertised_cb_func = Option<
+    unsafe extern "C" fn(
+        ssl: *mut SSL,
+        out: *mut *const c_uchar,
+        outlen: *mut c_uint,
+        arg: *mut c_void,
+    ) -> c_int,
+>;
+
 // no password-protected key loading
 
 entry_stub! {

@@ -19,6 +19,25 @@
 
 #include "helpers.h"
 
+static int alpn_cookie = 12345;
+
+static int alpn_callback(SSL *ssl, const uint8_t **out, uint8_t *outlen,
+                         const uint8_t *in, unsigned int inlen, void *arg) {
+  printf("in alpn_callback:\n");
+  assert(ssl != NULL);
+  assert(arg == &alpn_cookie);
+  hexdump("  in", in, (int)inlen);
+  if (SSL_select_next_proto((uint8_t **)out, outlen,
+                            (const uint8_t *)"\x08http/1.1", 9, in,
+                            inlen) == OPENSSL_NPN_NEGOTIATED) {
+    hexdump("  select", *out, (int)*outlen);
+    return SSL_TLSEXT_ERR_OK;
+  } else {
+    printf("  alpn failed\n");
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 5) {
     printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth\n\n",
@@ -55,15 +74,15 @@ int main(int argc, char **argv) {
     printf("client auth disabled\n");
   }
 
+  SSL_CTX_set_alpn_select_cb(ctx, alpn_callback, &alpn_cookie);
+  dump_openssl_error_stack();
+
   X509 *server_cert = NULL;
   EVP_PKEY *server_key = NULL;
   TRACE(SSL_CTX_use_certificate_chain_file(ctx, certfile));
   TRACE(SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM));
   server_key = SSL_CTX_get0_privatekey(ctx);
   server_cert = SSL_CTX_get0_certificate(ctx);
-
-  TRACE(SSL_CTX_set_alpn_protos(ctx, (const uint8_t *)"\x08http/1.1", 9));
-  dump_openssl_error_stack();
 
   SSL *ssl = SSL_new(ctx);
   dump_openssl_error_stack();

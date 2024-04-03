@@ -1,4 +1,4 @@
-use core::ffi::{c_int, c_uint, CStr};
+use core::ffi::{c_int, c_uint, c_void, CStr};
 use core::{mem, ptr};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
@@ -20,6 +20,7 @@ use rustls::{
 use not_thread_safe::NotThreadSafe;
 
 mod bio;
+mod callbacks;
 #[macro_use]
 mod constants;
 #[allow(
@@ -219,6 +220,7 @@ pub struct SslContext {
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
     default_cert_dir: Option<PathBuf>,
+    alpn_callback: callbacks::AlpnCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
 }
 
@@ -233,6 +235,7 @@ impl SslContext {
             alpn: vec![],
             default_cert_file: None,
             default_cert_dir: None,
+            alpn_callback: callbacks::AlpnCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
         }
     }
@@ -292,6 +295,10 @@ impl SslContext {
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
         self.alpn = alpn;
+    }
+
+    fn set_alpn_select_cb(&mut self, cb: entry::SSL_CTX_alpn_select_cb_func, context: *mut c_void) {
+        self.alpn_callback = callbacks::AlpnCallbackConfig { cb, context };
     }
 
     fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
@@ -365,6 +372,7 @@ struct Ssl {
     verify_roots: RootCertStore,
     verify_server_name: Option<ServerName<'static>>,
     alpn: Vec<Vec<u8>>,
+    alpn_callback: callbacks::AlpnCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
     conn: ConnState,
@@ -393,6 +401,7 @@ impl Ssl {
             verify_roots: Self::load_verify_certs(inner)?,
             verify_server_name: None,
             alpn: inner.alpn.clone(),
+            alpn_callback: inner.alpn_callback.clone(),
             sni_server_name: None,
             bio: None,
             conn: ConnState::Nothing,
@@ -569,8 +578,30 @@ impl Ssl {
             self.conn = ConnState::Accepting(Acceptor::default());
         }
 
-        self.try_io()?;
+        self.try_io()
+    }
 
+    fn invoke_accepted_callbacks(&mut self) -> Result<(), error::Error> {
+        // called on transition from `Accepting` -> `Accepted`
+        let accepted = match &self.conn {
+            ConnState::Accepted(accepted) => accepted,
+            _ => unreachable!(),
+        };
+
+        if let Some(alpn_iter) = accepted.client_hello().alpn() {
+            let offer = encode_alpn(alpn_iter);
+
+            let choice = self.alpn_callback.invoke(&offer)?;
+
+            if let Some(choice) = choice {
+                self.alpn = vec![choice];
+            }
+        }
+
+        self.complete_accept()
+    }
+
+    fn complete_accept(&mut self) -> Result<(), error::Error> {
         if let ConnState::Accepted(_) = self.conn {
             self.init_server_conn()?;
         }
@@ -596,11 +627,13 @@ impl Ssl {
             .server_resolver()
             .ok_or_else(|| error::Error::bad_data("missing server keys"))?;
 
-        let config = ServerConfig::builder_with_provider(provider)
+        let mut config = ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(method.server_versions)
             .map_err(error::Error::from_rustls)?
             .with_client_cert_verifier(verifier.clone())
             .with_cert_resolver(resolver);
+
+        config.alpn_protocols = mem::take(&mut self.alpn);
 
         let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
             ConnState::Accepted(accepted) => accepted,
@@ -718,7 +751,7 @@ impl Ssl {
                     Ok(None) => Ok(()),
                     Ok(Some(accepted)) => {
                         self.conn = ConnState::Accepted(accepted);
-                        Ok(())
+                        self.invoke_accepted_callbacks()
                     }
                     Err((error, mut alert)) => {
                         alert.write_all(bio).map_err(error::Error::from_io)?;
@@ -913,6 +946,18 @@ impl Ssl {
             None => HandshakeState::Before,
         }
     }
+}
+
+/// Encode rustls's internal representation in the wire format.
+fn encode_alpn<'a>(iter: impl Iterator<Item = &'a [u8]>) -> Vec<u8> {
+    let mut out = vec![];
+
+    for item in iter {
+        out.push(item.len() as u8);
+        out.extend_from_slice(item);
+    }
+
+    out
 }
 
 /// This is a reduced-fidelity version of `OSSL_HANDSHAKE_STATE`.

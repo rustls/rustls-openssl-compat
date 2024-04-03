@@ -685,6 +685,18 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_do_handshake(ssl: *mut SSL) -> c_int {
+        let _callbacks = SslCallbackContext::new(ssl);
+        let ssl = try_clone_arc!(ssl);
+
+        match ssl.get_mut().handshake() {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_write(ssl: *mut SSL, buf: *const c_void, num: c_int) -> c_int {
         const ERROR: c_int = -1;
         let ssl = try_clone_arc!(ssl, ERROR);

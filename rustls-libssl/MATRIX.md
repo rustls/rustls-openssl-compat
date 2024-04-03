@@ -293,7 +293,7 @@
 | `SSL_dane_enable`  |  |  |  |
 | `SSL_dane_set_flags`  |  |  |  |
 | `SSL_dane_tlsa_add`  |  |  |  |
-| `SSL_do_handshake`  |  | :white_check_mark: |  |
+| `SSL_do_handshake`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_dup`  |  |  |  |
 | `SSL_dup_CA_list`  |  |  |  |
 | `SSL_enable_ct` [^ct] |  |  |  |

@@ -1,10 +1,15 @@
 use core::ffi::{c_int, c_long, c_void};
 use core::ptr;
+use std::path::PathBuf;
+use std::{fs, io};
 
 use openssl_sys::{
     d2i_X509, stack_st_X509, OPENSSL_sk_new_null, OPENSSL_sk_push, X509_STORE_free, X509_STORE_new,
     X509_free, OPENSSL_STACK, X509, X509_STORE,
 };
+use rustls::pki_types::CertificateDer;
+
+use crate::error::Error;
 
 /// Safe, owning wrapper around an OpenSSL `STACK_OF(X509)` object.
 ///
@@ -120,6 +125,29 @@ impl Drop for OwnedX509Store {
             X509_STORE_free(self.raw);
         }
     }
+}
+
+pub(crate) fn load_certs<'a>(
+    file_names: impl Iterator<Item = PathBuf>,
+) -> Result<Vec<CertificateDer<'a>>, Error> {
+    let mut certs = Vec::new();
+    for file_name in file_names {
+        let mut file_reader = match fs::File::open(file_name.clone()) {
+            Ok(content) => io::BufReader::new(content),
+            Err(err) => return Err(Error::from_io(err).raise()),
+        };
+
+        for cert in rustls_pemfile::certs(&mut file_reader) {
+            match cert {
+                Ok(cert) => certs.push(cert),
+                Err(err) => {
+                    log::trace!("Failed to parse {file_name:?}: {err:?}");
+                    return Err(Error::from_io(err).raise());
+                }
+            };
+        }
+    }
+    Ok(certs)
 }
 
 extern "C" {

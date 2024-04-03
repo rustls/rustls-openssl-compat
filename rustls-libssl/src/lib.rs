@@ -297,8 +297,8 @@ struct Ssl {
 }
 
 impl Ssl {
-    fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Self {
-        Self {
+    fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Result<Self, error::Error> {
+        Ok(Self {
             ctx,
             raw_options: inner.raw_options,
             mode: inner.method.mode(),
@@ -313,7 +313,7 @@ impl Ssl {
             peer_cert: None,
             peer_cert_chain: None,
             shutdown_flags: ShutdownFlags::default(),
-        }
+        })
     }
 
     fn get_options(&self) -> u64 {

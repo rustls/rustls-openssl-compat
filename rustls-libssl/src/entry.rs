@@ -299,10 +299,17 @@ entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
         let ctx = try_clone_arc!(ctx);
 
-        ctx.lock()
-            .ok()
-            .map(|c| to_arc_mut_ptr(Mutex::new(crate::Ssl::new(ctx.clone(), &c))))
-            .unwrap_or_else(ptr::null_mut)
+        let ssl_ctx = match ctx.lock().ok() {
+            Some(ssl_ctx) => ssl_ctx,
+            None => return ptr::null_mut(),
+        };
+
+        let ssl = match crate::Ssl::new(ctx.clone(), &ssl_ctx).ok() {
+            Some(ssl) => ssl,
+            None => return ptr::null_mut(),
+        };
+
+        to_arc_mut_ptr(Mutex::new(ssl))
     }
 }
 

@@ -1,4 +1,4 @@
-use core::ffi::{c_int, c_uint, CStr};
+use core::ffi::{c_int, c_uint, c_void, CStr};
 use core::{mem, ptr};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
@@ -18,6 +18,7 @@ use rustls::{
 };
 
 mod bio;
+mod callbacks;
 #[macro_use]
 mod constants;
 #[allow(
@@ -216,6 +217,7 @@ pub struct SslContext {
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
     default_cert_dir: Option<PathBuf>,
+    alpn_callback: callbacks::AlpnCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
 }
 
@@ -230,6 +232,7 @@ impl SslContext {
             alpn: vec![],
             default_cert_file: None,
             default_cert_dir: None,
+            alpn_callback: callbacks::AlpnCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
         }
     }
@@ -291,6 +294,10 @@ impl SslContext {
         self.alpn = alpn;
     }
 
+    fn set_alpn_select_cb(&mut self, cb: entry::SSL_CTX_alpn_select_cb_func, context: *mut c_void) {
+        self.alpn_callback = callbacks::AlpnCallbackConfig { cb, context };
+    }
+
     fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
         self.auth_keys.stage_certificate_chain(chain)
     }
@@ -350,6 +357,18 @@ pub fn iter_alpn(mut slice: &[u8]) -> impl Iterator<Item = Option<&[u8]>> {
     })
 }
 
+/// Encode rustls's internal representation in the wire format.
+fn encode_alpn<'a>(iter: impl Iterator<Item = &'a [u8]>) -> Vec<u8> {
+    let mut out = vec![];
+
+    for item in iter {
+        out.push(item.len() as u8);
+        out.extend_from_slice(item);
+    }
+
+    out
+}
+
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
     raw_options: u64,
@@ -358,6 +377,7 @@ struct Ssl {
     verify_roots: RootCertStore,
     verify_server_name: Option<ServerName<'static>>,
     alpn: Vec<Vec<u8>>,
+    alpn_callback: callbacks::AlpnCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
     conn: ConnState,
@@ -386,6 +406,7 @@ impl Ssl {
             verify_roots: Self::load_verify_certs(inner)?,
             verify_server_name: None,
             alpn: inner.alpn.clone(),
+            alpn_callback: inner.alpn_callback.clone(),
             sni_server_name: None,
             bio: None,
             conn: ConnState::Nothing,
@@ -500,7 +521,7 @@ impl Ssl {
         if matches!(self.conn, ConnState::Nothing) {
             self.init_client_conn()?;
         }
-        self.try_io()
+        self.try_io(None)
     }
 
     fn init_client_conn(&mut self) -> Result<(), error::Error> {
@@ -545,21 +566,44 @@ impl Ssl {
         Ok(())
     }
 
-    fn accept(&mut self) -> Result<(), error::Error> {
+    fn accept(&mut self, callbacks: &mut callbacks::Callbacks) -> Result<(), error::Error> {
         self.set_server_mode();
 
         if matches!(self.conn, ConnState::Nothing) {
             self.conn = ConnState::Accepting(Acceptor::default());
         }
 
-        self.try_io()?;
+        self.try_io(Some(callbacks))
+    }
 
-        match self.conn {
-            ConnState::Accepted(_) => self.init_server_conn()?,
-            _ => {}
+    fn prepare_accepted_callbacks(&mut self, callbacks: &mut callbacks::Callbacks) {
+        // called on transition from `Accepting` -> `Accepted`
+        let accepted = match &self.conn {
+            ConnState::Accepted(accepted) => accepted,
+            _ => unreachable!(),
         };
 
-        self.try_io()
+        if let Some(alpn_iter) = accepted.client_hello().alpn() {
+            let offer = encode_alpn(alpn_iter);
+            callbacks.add(Box::new(callbacks::AlpnPendingCallback {
+                config: self.alpn_callback.clone(),
+                ssl: callbacks.ssl_ptr(),
+                offer,
+            }));
+        }
+
+        // must be last: trigger the transition `Accepted` -> `Server`
+        callbacks.add(Box::new(callbacks::CompleteAcceptPendingCallback {
+            ssl: callbacks.ssl_ptr(),
+        }));
+    }
+
+    fn complete_accept(&mut self) -> Result<(), error::Error> {
+        if let ConnState::Accepted(_) = self.conn {
+            self.init_server_conn()?;
+        }
+
+        self.try_io(None)
     }
 
     fn init_server_conn(&mut self) -> Result<(), error::Error> {
@@ -584,11 +628,13 @@ impl Ssl {
             .server_resolver()
             .ok_or_else(|| error::Error::bad_data("missing server keys"))?;
 
-        let config = ServerConfig::builder_with_provider(provider)
+        let mut config = ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(method.server_versions)
             .map_err(error::Error::from_rustls)?
             .with_client_cert_verifier(verifier.clone())
             .with_cert_resolver(resolver);
+
+        config.alpn_protocols = mem::take(&mut self.alpn);
 
         let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
             ConnState::Accepted(accepted) => accepted,
@@ -637,13 +683,13 @@ impl Ssl {
             Some(conn) => conn.writer().write(slice).map_err(error::Error::from_io)?,
             None => 0,
         };
-        self.try_io()?;
+        self.try_io(None)?;
         Ok(written)
     }
 
     fn read(&mut self, slice: &mut [u8]) -> Result<usize, error::Error> {
         let (late_err, read_count) = loop {
-            let late_err = self.try_io();
+            let late_err = self.try_io(None);
 
             match self.conn_mut() {
                 Some(conn) => match conn.reader().read(slice) {
@@ -670,7 +716,7 @@ impl Ssl {
         }
     }
 
-    fn try_io(&mut self) -> Result<(), error::Error> {
+    fn try_io(&mut self, callbacks: Option<&mut callbacks::Callbacks>) -> Result<(), error::Error> {
         let bio = match self.bio.as_mut() {
             Some(bio) => bio,
             None => return Ok(()), // investigate OpenSSL behaviour without a BIO
@@ -709,6 +755,7 @@ impl Ssl {
                     Ok(None) => Ok(()),
                     Ok(Some(accepted)) => {
                         self.conn = ConnState::Accepted(accepted);
+                        self.prepare_accepted_callbacks(callbacks.unwrap());
                         Ok(())
                     }
                     Err((error, mut alert)) => {
@@ -730,7 +777,7 @@ impl Ssl {
             self.shutdown_flags.set_sent();
         }
 
-        self.try_io()?;
+        self.try_io(None)?;
         Ok(if self.shutdown_flags.is_received() {
             ShutdownResult::Received
         } else {

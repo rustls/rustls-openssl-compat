@@ -16,11 +16,13 @@ use openssl_sys::{
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
+use crate::callbacks::Callbacks;
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ffi::{
-    free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
-    try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
+    clone_arc, free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from,
+    try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc,
+    OwnershipRef,
 };
 use crate::x509::{load_certs, OwnedX509};
 use crate::ShutdownResult;
@@ -510,12 +512,36 @@ entry! {
     }
 }
 
+pub type SSL_CTX_alpn_select_cb_func = Option<
+    unsafe extern "C" fn(
+        ssl: *mut SSL,
+        out: *mut *const c_uchar,
+        outlen: *mut c_uchar,
+        in_: *const c_uchar,
+        inlen: c_uint,
+        arg: *mut c_void,
+    ) -> c_int,
+>;
+
+entry! {
+    pub fn _SSL_CTX_set_alpn_select_cb(
+        ctx: *mut SSL_CTX,
+        cb: SSL_CTX_alpn_select_cb_func,
+        arg: *mut c_void,
+    ) {
+        let ctx = try_clone_arc!(ctx);
+        if let Ok(mut inner) = ctx.lock() {
+            inner.set_alpn_select_cb(cb, arg);
+        };
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL_CTX>;
 }
 
-type SSL = crate::Ssl;
+pub type SSL = crate::Ssl;
 
 entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
@@ -638,6 +664,25 @@ entry! {
             Ok(()) => MysteriouslyOppositeReturnValue::Success,
         }
     }
+}
+
+/// Tail end of ALPN selection callback
+pub fn _internal_SSL_set_alpn_choice(ssl: *mut SSL, proto: *const c_uchar, len: c_uchar) {
+    let ssl = try_clone_arc!(ssl);
+    let slice = try_slice!(proto, len as usize);
+
+    if let Ok(mut inner) = ssl.lock() {
+        inner.set_alpn_offer(vec![slice.to_vec()]);
+    };
+}
+
+/// Tail end of server acceptance callbacks
+pub fn _internal_SSL_complete_accept(ssl: *mut SSL) -> Result<(), Error> {
+    // called by ourselves, `ssl` is known to be non-NULL
+    let ssl = clone_arc(ssl).unwrap();
+    ssl.lock()
+        .map_err(|_| Error::cannot_lock())
+        .and_then(|mut ssl| ssl.complete_accept())
 }
 
 entry! {
@@ -763,13 +808,15 @@ entry! {
 
 entry! {
     pub fn _SSL_accept(ssl: *mut SSL) -> c_int {
+        let mut callbacks = Callbacks::new().with_ssl(ssl);
         let ssl = try_clone_arc!(ssl);
 
         match ssl
             .lock()
             .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.accept())
+            .and_then(|mut ssl| ssl.accept(&mut callbacks))
             .map_err(|err| err.raise())
+            .and_then(|()| callbacks.dispatch())
         {
             Err(e) => e.into(),
             Ok(()) => C_INT_SUCCESS,

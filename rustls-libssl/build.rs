@@ -103,6 +103,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_use_certificate_file",
     "SSL_CTX_use_PrivateKey",
     "SSL_CTX_use_PrivateKey_file",
+    "SSL_do_handshake",
     "SSL_free",
     "SSL_get0_alpn_selected",
     "SSL_get0_peer_certificate",

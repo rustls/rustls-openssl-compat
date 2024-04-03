@@ -516,6 +516,14 @@ impl Ssl {
             .unwrap_or_else(ptr::null_mut)
     }
 
+    fn handshake(&mut self, callbacks: &mut callbacks::Callbacks) -> Result<(), error::Error> {
+        match self.mode {
+            ConnMode::Client => self.connect(),
+            ConnMode::Server => self.accept(callbacks),
+            ConnMode::Unknown => Err(error::Error::bad_data("connection mode required")),
+        }
+    }
+
     fn connect(&mut self) -> Result<(), error::Error> {
         self.set_client_mode();
         if matches!(self.conn, ConnState::Nothing) {

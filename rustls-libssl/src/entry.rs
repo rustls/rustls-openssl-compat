@@ -825,6 +825,24 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_do_handshake(ssl: *mut SSL) -> c_int {
+        let mut callbacks = Callbacks::new().with_ssl(ssl);
+        let ssl = try_clone_arc!(ssl);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.handshake(&mut callbacks))
+            .map_err(|err| err.raise())
+            .and_then(|()| callbacks.dispatch())
+        {
+            Err(e) => e.into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_write(ssl: *mut SSL, buf: *const c_void, num: c_int) -> c_int {
         const ERROR: c_int = -1;
         let ssl = try_clone_arc!(ssl, ERROR);

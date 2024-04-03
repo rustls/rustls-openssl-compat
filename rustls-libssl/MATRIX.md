@@ -163,7 +163,7 @@
 | `SSL_CTX_set_max_early_data`  |  | :white_check_mark: |  |
 | `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_next_proto_select_cb` [^nextprotoneg] | :white_check_mark: |  | :exclamation: [^stub] |
-| `SSL_CTX_set_next_protos_advertised_cb` [^nextprotoneg] |  | :white_check_mark: |  |
+| `SSL_CTX_set_next_protos_advertised_cb` [^nextprotoneg] |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_not_resumable_session_callback`  |  |  |  |
 | `SSL_CTX_set_num_tickets`  |  |  |  |
 | `SSL_CTX_set_options`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -307,7 +307,7 @@
 | `SSL_get0_dane`  |  |  |  |
 | `SSL_get0_dane_authority`  |  |  |  |
 | `SSL_get0_dane_tlsa`  |  |  |  |
-| `SSL_get0_next_proto_negotiated` [^nextprotoneg] |  | :white_check_mark: |  |
+| `SSL_get0_next_proto_negotiated` [^nextprotoneg] |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get0_param`  |  |  |  |
 | `SSL_get0_peer_CA_list`  |  |  |  |
 | `SSL_get0_peer_certificate`  |  |  | :white_check_mark: |

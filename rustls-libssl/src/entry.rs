@@ -6,7 +6,7 @@
 use core::{mem, ptr};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::sync::Mutex;
-use std::{fs, io, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use openssl_sys::{
     stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX,
@@ -19,6 +19,7 @@ use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
     try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
+use crate::x509::load_certs;
 use crate::ShutdownResult;
 
 /// Makes a entry function definition.
@@ -218,23 +219,10 @@ entry! {
 }
 
 fn load_verify_files(ctx: &Mutex<SSL_CTX>, file_names: impl Iterator<Item = PathBuf>) -> c_int {
-    let mut certs = Vec::new();
-    for file_name in file_names {
-        let mut file_reader = match fs::File::open(file_name.clone()) {
-            Ok(content) => io::BufReader::new(content),
-            Err(err) => return Error::from_io(err).raise().into(),
-        };
-
-        for cert in rustls_pemfile::certs(&mut file_reader) {
-            match cert {
-                Ok(cert) => certs.push(cert),
-                Err(err) => {
-                    log::trace!("Failed to parse {file_name:?}: {err:?}");
-                    return Error::from_io(err).raise().into();
-                }
-            };
-        }
-    }
+    let certs = match load_certs(file_names) {
+        Err(e) => return e.into(),
+        Ok(certs) => certs,
+    };
 
     match ctx
         .lock()

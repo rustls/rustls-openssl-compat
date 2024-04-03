@@ -15,6 +15,7 @@ use openssl_sys::{
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
+use crate::callbacks::SslCallbackContext;
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ffi::{
@@ -447,12 +448,34 @@ entry! {
     }
 }
 
+pub type SSL_CTX_alpn_select_cb_func = Option<
+    unsafe extern "C" fn(
+        ssl: *mut SSL,
+        out: *mut *const c_uchar,
+        outlen: *mut c_uchar,
+        in_: *const c_uchar,
+        inlen: c_uint,
+        arg: *mut c_void,
+    ) -> c_int,
+>;
+
+entry! {
+    pub fn _SSL_CTX_set_alpn_select_cb(
+        ctx: *mut SSL_CTX,
+        cb: SSL_CTX_alpn_select_cb_func,
+        arg: *mut c_void,
+    ) {
+        let ctx = try_clone_arc!(ctx);
+        ctx.get_mut().set_alpn_select_cb(cb, arg);
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;
 }
 
-type SSL = crate::Ssl;
+pub type SSL = crate::Ssl;
 
 entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
@@ -653,6 +676,7 @@ entry! {
 
 entry! {
     pub fn _SSL_accept(ssl: *mut SSL) -> c_int {
+        let _callbacks = SslCallbackContext::new(ssl);
         match try_clone_arc!(ssl).get_mut().accept() {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,

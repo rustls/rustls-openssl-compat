@@ -131,7 +131,7 @@
 | `SSL_CTX_set1_param`  |  |  |  |
 | `SSL_CTX_set_allow_early_data_cb`  |  |  |  |
 | `SSL_CTX_set_alpn_protos`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_set_alpn_select_cb`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_alpn_select_cb`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_async_callback`  |  |  |  |
 | `SSL_CTX_set_async_callback_arg`  |  |  |  |
 | `SSL_CTX_set_block_padding`  |  |  |  |

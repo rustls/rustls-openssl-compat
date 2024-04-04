@@ -1,10 +1,13 @@
 use core::cell::RefCell;
-use core::ffi::{c_uchar, c_void};
+use core::ffi::{c_int, c_uchar, c_void};
 use core::{ptr, slice};
 
 use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
+use rustls::AlertDescription;
 
-use crate::entry::{SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL};
+use crate::entry::{
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_servername_callback_func, SSL,
+};
 use crate::error::Error;
 
 /// Smuggling SSL* pointers from the outer entrypoint into the
@@ -125,6 +128,50 @@ impl CertCallbackConfig {
 }
 
 impl Default for CertCallbackConfig {
+    fn default() -> Self {
+        Self {
+            cb: None,
+            context: ptr::null_mut(),
+        }
+    }
+}
+
+/// Configuration needed to call [`invoke_servername_callback`] later
+#[derive(Debug, Clone)]
+pub struct ServerNameCallbackConfig {
+    pub cb: SSL_CTX_servername_callback_func,
+    pub context: *mut c_void,
+}
+
+impl ServerNameCallbackConfig {
+    pub fn invoke(&self) -> Result<(), Error> {
+        let callback = match self.cb {
+            Some(callback) => callback,
+            None => {
+                return Ok(());
+            }
+        };
+
+        let ssl = SslCallbackContext::ssl_ptr();
+
+        let unrecognised_name = u8::from(AlertDescription::UnrecognisedName) as c_int;
+        let mut alert = unrecognised_name;
+        let result = unsafe { callback(ssl, &mut alert as *mut c_int, self.context) };
+
+        if alert != unrecognised_name {
+            log::trace!("NYI: customised alert during servername callback");
+        }
+
+        match result {
+            SSL_TLSEXT_ERR_OK => Ok(()),
+            _ => Err(Error::not_supported(
+                "SSL_CTX_servername_callback_func return error",
+            )),
+        }
+    }
+}
+
+impl Default for ServerNameCallbackConfig {
     fn default() -> Self {
         Self {
             cb: None,

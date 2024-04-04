@@ -1018,6 +1018,21 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_set_verify(ssl: *mut SSL, mode: c_int, callback: SSL_verify_cb) {
+        let ssl = try_clone_arc!(ssl);
+
+        if callback.is_some() {
+            // supporting verify callbacks would mean we need to fully use
+            // the openssl certificate verifier, because X509_STORE and
+            // X509_STORE_CTX are both in libcrypto.
+            return Error::not_supported("verify callback").raise().into();
+        }
+
+        ssl.get_mut().set_verify(crate::VerifyMode::from(mode));
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL>;

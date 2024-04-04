@@ -216,6 +216,25 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_verify_depth(ctx: *mut SSL_CTX, depth: c_int) {
+        let ctx = try_clone_arc!(ctx);
+        if let Ok(mut inner) = ctx.lock() {
+            inner.set_verify_depth(depth);
+        };
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_verify_depth(ctx: *mut SSL_CTX) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_verify_depth())
+            .unwrap_or_default()
+    }
+}
+
 pub type SSL_verify_cb =
     Option<unsafe extern "C" fn(preverify_ok: c_int, x509_ctx: *mut X509_STORE_CTX) -> c_int>;
 
@@ -1233,6 +1252,26 @@ entry! {
             .ok()
             .map(|mut ssl| ssl.set_verify(crate::VerifyMode::from(mode)))
             .unwrap_or_default();
+    }
+}
+
+entry! {
+    pub fn _SSL_set_verify_depth(ssl: *mut SSL, depth: c_int) {
+        let ssl = try_clone_arc!(ssl);
+
+        if let Ok(mut inner) = ssl.lock() {
+            inner.set_verify_depth(depth);
+        };
+    }
+}
+
+entry! {
+    pub fn _SSL_get_verify_depth(ssl: *mut SSL) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        ssl.lock()
+            .ok()
+            .map(|ssl| ssl.get_verify_depth())
+            .unwrap_or_default()
     }
 }
 

@@ -213,6 +213,7 @@ pub struct SslContext {
     method: &'static SslMethod,
     raw_options: u64,
     verify_mode: VerifyMode,
+    verify_depth: c_int,
     verify_roots: RootCertStore,
     verify_x509_store: x509::OwnedX509Store,
     alpn: Vec<Vec<u8>>,
@@ -230,6 +231,7 @@ impl SslContext {
             method,
             raw_options: 0,
             verify_mode: VerifyMode::default(),
+            verify_depth: -1,
             verify_roots: RootCertStore::empty(),
             verify_x509_store: x509::OwnedX509Store::new(),
             alpn: vec![],
@@ -277,6 +279,14 @@ impl SslContext {
     fn set_default_verify_file(&mut self) {
         let ProbeResult { cert_file, .. } = openssl_probe::probe();
         self.default_cert_file = cert_file;
+    }
+
+    fn set_verify_depth(&mut self, depth: c_int) {
+        self.verify_depth = depth;
+    }
+
+    fn get_verify_depth(&self) -> c_int {
+        self.verify_depth
     }
 
     fn add_trusted_certs(
@@ -391,6 +401,7 @@ struct Ssl {
     raw_options: u64,
     mode: ConnMode,
     verify_mode: VerifyMode,
+    verify_depth: c_int,
     verify_roots: RootCertStore,
     verify_server_name: Option<ServerName<'static>>,
     alpn: Vec<Vec<u8>>,
@@ -423,6 +434,7 @@ impl Ssl {
             raw_options: inner.raw_options,
             mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
+            verify_depth: inner.verify_depth,
             verify_roots: Self::load_verify_certs(inner)?,
             verify_server_name: None,
             alpn: inner.alpn.clone(),
@@ -505,6 +517,14 @@ impl Ssl {
 
     fn set_verify(&mut self, mode: VerifyMode) {
         self.verify_mode = mode;
+    }
+
+    fn set_verify_depth(&mut self, depth: c_int) {
+        self.verify_depth = depth;
+    }
+
+    fn get_verify_depth(&self) -> c_int {
+        self.verify_depth
     }
 
     fn set_sni_hostname(&mut self, hostname: &str) -> bool {

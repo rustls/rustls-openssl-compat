@@ -106,7 +106,7 @@
 | `SSL_CTX_get_ssl_method`  |  |  |  |
 | `SSL_CTX_get_timeout`  |  | :white_check_mark: |  |
 | `SSL_CTX_get_verify_callback`  |  | :white_check_mark: |  |
-| `SSL_CTX_get_verify_depth`  |  | :white_check_mark: |  |
+| `SSL_CTX_get_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_mode`  |  | :white_check_mark: |  |
 | `SSL_CTX_has_client_custom_ext`  |  |  |  |
 | `SSL_CTX_load_verify_dir`  | :white_check_mark: |  | :white_check_mark: |
@@ -198,7 +198,7 @@
 | `SSL_CTX_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  |
 | `SSL_CTX_set_trust`  |  |  |  |
 | `SSL_CTX_set_verify`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_set_verify_depth`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_up_ref`  |  |  | :white_check_mark: |
 | `SSL_CTX_use_PrivateKey`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_use_PrivateKey_ASN1`  |  |  |  |
@@ -378,7 +378,7 @@
 | `SSL_get_ssl_method`  |  |  |  |
 | `SSL_get_state`  |  |  | :white_check_mark: |
 | `SSL_get_verify_callback`  |  |  |  |
-| `SSL_get_verify_depth`  |  |  |  |
+| `SSL_get_verify_depth`  |  |  | :white_check_mark: |
 | `SSL_get_verify_mode`  |  |  |  |
 | `SSL_get_verify_result`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_version`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -474,7 +474,7 @@
 | `SSL_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  |
 | `SSL_set_trust`  |  |  |  |
 | `SSL_set_verify`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_set_verify_depth`  |  | :white_check_mark: |  |
+| `SSL_set_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_verify_result`  |  |  |  |
 | `SSL_set_wfd` [^sock] |  |  |  |
 | `SSL_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

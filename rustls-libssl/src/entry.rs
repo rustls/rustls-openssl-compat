@@ -211,6 +211,18 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_verify_depth(ctx: *mut SSL_CTX, depth: c_int) {
+        try_clone_arc!(ctx).get_mut().set_verify_depth(depth)
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_verify_depth(ctx: *mut SSL_CTX) -> c_int {
+        try_clone_arc!(ctx).get().get_verify_depth()
+    }
+}
+
 pub type SSL_verify_cb =
     Option<unsafe extern "C" fn(preverify_ok: c_int, x509_ctx: *mut X509_STORE_CTX) -> c_int>;
 
@@ -1030,6 +1042,18 @@ entry! {
         }
 
         ssl.get_mut().set_verify(crate::VerifyMode::from(mode));
+    }
+}
+
+entry! {
+    pub fn _SSL_set_verify_depth(ssl: *mut SSL, depth: c_int) {
+        try_clone_arc!(ssl).get_mut().set_verify_depth(depth)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_verify_depth(ssl: *mut SSL) -> c_int {
+        try_clone_arc!(ssl).get().get_verify_depth()
     }
 }
 

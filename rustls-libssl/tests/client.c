@@ -57,6 +57,8 @@ int main(int argc, char **argv) {
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
   }
+  printf("SSL_CTX_get_verify_depth default %d\n",
+         SSL_CTX_get_verify_depth(ctx));
 
   X509 *client_cert = NULL;
   EVP_PKEY *client_key = NULL;
@@ -77,6 +79,7 @@ int main(int argc, char **argv) {
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
          SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
   state(ssl);
+  printf("SSL_get_verify_depth default %d\n", SSL_get_verify_depth(ssl));
   printf("SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
          SSL_get_servername_type(ssl));

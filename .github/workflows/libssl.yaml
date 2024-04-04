@@ -96,6 +96,8 @@ jobs:
         run: ./admin/format --all -- --check
       - name: Check C formatting
         run: make format-check
+      - name: Check ordering of build.rs entrypoints
+        run: ./admin/sort-entrypoints.py
 
   clippy:
     name: Clippy

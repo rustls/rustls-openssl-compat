@@ -117,6 +117,11 @@ int main(int argc, char **argv) {
     printf("server cert chain absent\n");
   }
 
+  if (getenv("NO_ECHO")) {
+    printf("NO_ECHO set, skipping echo test\n");
+    goto cleanup;
+  }
+
   // write some data and close
   int wr = TRACE(SSL_write(ssl, "hello", 5));
   dump_openssl_error_stack();
@@ -136,6 +141,7 @@ int main(int argc, char **argv) {
   hexdump("result", buf, rd + rd2);
   assert(memcmp(buf, "olleh\n", 6) == 0);
 
+cleanup:
   close(sock);
   SSL_free(ssl);
   SSL_CTX_free(ctx);

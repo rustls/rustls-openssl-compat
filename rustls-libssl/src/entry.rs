@@ -161,34 +161,40 @@ entry! {
 }
 
 entry! {
-    pub fn _SSL_CTX_ctrl(
-        _ctx: *mut SSL_CTX,
-        cmd: c_int,
-        larg: c_long,
-        _parg: *mut c_void,
-    ) -> c_long {
-        match SslCtrl::try_from(cmd) {
-            Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_CTX_set_mode()");
-                0
+    pub fn _SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
+        let ctx = try_clone_arc!(ctx);
+
+        let result = if let Ok(mut inner) = ctx.lock() {
+            match SslCtrl::try_from(cmd) {
+                Ok(SslCtrl::Mode) => {
+                    log::warn!("unimplemented SSL_CTX_set_mode()");
+                    0
+                }
+                Ok(SslCtrl::SetMsgCallbackArg) => {
+                    log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
+                    0
+                }
+                Ok(SslCtrl::SetMaxProtoVersion) => {
+                    log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
+                    1
+                }
+                Ok(SslCtrl::SetTlsExtHostname) | Ok(SslCtrl::SetTlsExtServerNameCallback) => {
+                    // not a defined operation in the OpenSSL API
+                    0
+                }
+                Ok(SslCtrl::SetTlsExtServerNameArg) => {
+                    inner.set_servername_callback_context(parg);
+                    C_INT_SUCCESS as c_long
+                }
+                Err(()) => {
+                    log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
+                    0
+                }
             }
-            Ok(SslCtrl::SetMsgCallbackArg) => {
-                log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
-                0
-            }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
-                1
-            }
-            Ok(SslCtrl::SetTlsExtHostname) => {
-                // not a defined operation in the OpenSSL API
-                0
-            }
-            Err(()) => {
-                log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
-                0
-            }
-        }
+        } else {
+            0
+        };
+        result
     }
 }
 
@@ -548,6 +554,36 @@ entry! {
     }
 }
 
+// nb. calls into SSL_CTX_callback_ctrl cast away the real function pointer type,
+// and then cast back to the real type based on `cmd`.
+pub type SSL_CTX_any_func = Option<unsafe extern "C" fn()>;
+
+pub type SSL_CTX_servername_callback_func =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, ad: *mut c_int, arg: *mut c_void) -> c_int>;
+
+entry! {
+    pub fn _SSL_CTX_callback_ctrl(ctx: *mut SSL_CTX, cmd: c_int, fp: SSL_CTX_any_func) -> c_long {
+        let ctx = try_clone_arc!(ctx);
+
+        let result = if let Ok(mut inner) = ctx.lock() {
+            match SslCtrl::try_from(cmd) {
+                Ok(SslCtrl::SetTlsExtServerNameCallback) => {
+                    // safety: same layout
+                    let fp = unsafe {
+                        mem::transmute::<SSL_CTX_any_func, SSL_CTX_servername_callback_func>(fp)
+                    };
+                    inner.set_servername_callback(fp);
+                    C_INT_SUCCESS as c_long
+                }
+                _ => 0,
+            }
+        } else {
+            0
+        };
+        result
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL_CTX>;
@@ -611,6 +647,8 @@ entry! {
                     .map(|mut ssl| ssl.set_sni_hostname(hostname))
                     .unwrap_or_default() as c_long
             }
+            // not a defined operation in the OpenSSL API
+            Ok(SslCtrl::SetTlsExtServerNameCallback) | Ok(SslCtrl::SetTlsExtServerNameArg) => 0,
             Err(()) => {
                 log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
                 0
@@ -1390,6 +1428,8 @@ num_enum! {
     enum SslCtrl {
         Mode = 33,
         SetMsgCallbackArg = 16,
+        SetTlsExtServerNameCallback = 53,
+        SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
         SetMaxProtoVersion = 124,
     }

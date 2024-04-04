@@ -1,12 +1,13 @@
-use core::ffi::{c_uchar, c_void};
+use core::ffi::{c_int, c_uchar, c_void};
 use core::ptr;
 use std::collections::VecDeque;
 
 use openssl_sys::SSL_TLSEXT_ERR_OK;
+use rustls::AlertDescription;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, _internal_SSL_complete_accept,
-    _internal_SSL_set_alpn_choice, SSL,
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_servername_callback_func,
+    _internal_SSL_complete_accept, _internal_SSL_set_alpn_choice, SSL,
 };
 use crate::error::Error;
 
@@ -172,5 +173,52 @@ pub struct CompleteAcceptPendingCallback {
 impl PendingCallback for CompleteAcceptPendingCallback {
     fn call(self: Box<Self>) -> Result<(), Error> {
         _internal_SSL_complete_accept(self.ssl)
+    }
+}
+
+/// Configuration needed to create a `ServerNamePendingCallback` later
+#[derive(Debug, Clone)]
+pub struct ServerNameCallbackConfig {
+    pub cb: SSL_CTX_servername_callback_func,
+    pub context: *mut c_void,
+}
+
+impl Default for ServerNameCallbackConfig {
+    fn default() -> Self {
+        Self {
+            cb: None,
+            context: ptr::null_mut(),
+        }
+    }
+}
+
+pub struct ServerNamePendingCallback {
+    pub config: ServerNameCallbackConfig,
+    pub ssl: *mut SSL,
+}
+
+impl PendingCallback for ServerNamePendingCallback {
+    fn call(self: Box<Self>) -> Result<(), Error> {
+        let callback = match self.config.cb {
+            Some(callback) => callback,
+            None => {
+                return Ok(());
+            }
+        };
+
+        let unrecognised_name = u8::from(AlertDescription::UnrecognisedName) as c_int;
+        let mut alert = unrecognised_name;
+        let result = unsafe { callback(self.ssl, &mut alert as *mut c_int, self.config.context) };
+
+        if alert != unrecognised_name {
+            log::trace!("NYI: customised alert during servername callback");
+        }
+
+        match result {
+            SSL_TLSEXT_ERR_OK => Ok(()),
+            _ => Err(Error::not_supported(
+                "SSL_CTX_servername_callback_func return error",
+            )),
+        }
     }
 }

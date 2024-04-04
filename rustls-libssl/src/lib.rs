@@ -503,6 +503,10 @@ impl Ssl {
         }
     }
 
+    fn set_verify(&mut self, mode: VerifyMode) {
+        self.verify_mode = mode;
+    }
+
     fn set_sni_hostname(&mut self, hostname: &str) -> bool {
         match ServerName::try_from(hostname).ok() {
             Some(server_name) => {

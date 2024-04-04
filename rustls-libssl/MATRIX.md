@@ -473,7 +473,7 @@
 | `SSL_set_tlsext_use_srtp` [^srtp] |  |  |  |
 | `SSL_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  |
 | `SSL_set_trust`  |  |  |  |
-| `SSL_set_verify`  |  | :white_check_mark: |  |
+| `SSL_set_verify`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_verify_depth`  |  | :white_check_mark: |  |
 | `SSL_set_verify_result`  |  |  |  |
 | `SSL_set_wfd` [^sock] |  |  |  |

@@ -60,13 +60,17 @@ int main(int argc, char **argv) {
   dump_openssl_error_stack();
   SSL_CTX *ctx = SSL_CTX_new(TLS_method());
   dump_openssl_error_stack();
-  if (strcmp(cacert, "insecure") != 0) {
+  if (strcmp(cacert, "insecure") == 0) {
+    printf("certificate verification disabled\n");
+  } else if (strcmp(cacert, "default") == 0) {
+    printf("using system default CA certs\n");
+    SSL_CTX_set_default_verify_paths(ctx);
+    dump_openssl_error_stack();
+  } else {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
     dump_openssl_error_stack();
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
-  } else {
-    printf("certificate verification disabled\n");
   }
   TRACE(SSL_CTX_set_alpn_protos(ctx, (const uint8_t *)"\x02hi\x05world", 9));
   dump_openssl_error_stack();

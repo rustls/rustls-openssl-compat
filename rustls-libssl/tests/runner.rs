@@ -53,16 +53,16 @@ fn client() {
 
     wait_for_port(4443);
 
-    let openssl_insecure_output = Command::new("target/client")
+    let openssl_insecure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
-        .args(&["localhost", "4443", "insecure"])
+        .args(&["target/client", "localhost", "4443", "insecure"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
-    let rustls_insecure_output = Command::new("target/client")
-        .args(&["localhost", "4443", "insecure"])
+    let rustls_insecure_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/client", "localhost", "4443", "insecure"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -70,16 +70,16 @@ fn client() {
 
     assert_eq!(openssl_insecure_output, rustls_insecure_output);
 
-    let openssl_secure_output = Command::new("target/client")
+    let openssl_secure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
-        .args(&["localhost", "4443", "test-ca/rsa/ca.cert"])
+        .args(&["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
-    let rustls_secure_output = Command::new("target/client")
-        .args(&["localhost", "4443", "test-ca/rsa/ca.cert"])
+    let rustls_secure_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -91,14 +91,16 @@ fn client() {
 #[test]
 #[ignore]
 fn constants() {
-    let openssl_output = Command::new("target/constants")
+    let openssl_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/constants"])
         .env("LD_LIBRARY_PATH", "")
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
-    let rustls_output = Command::new("target/constants")
+    let rustls_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/constants"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -110,14 +112,16 @@ fn constants() {
 #[test]
 #[ignore]
 fn ciphers() {
-    let openssl_output = Command::new("target/ciphers")
+    let openssl_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/ciphers"])
         .env("LD_LIBRARY_PATH", "")
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
-    let rustls_output = Command::new("target/ciphers")
+    let rustls_output = Command::new("tests/maybe-valgrind.sh")
+        .args(&["target/ciphers"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)

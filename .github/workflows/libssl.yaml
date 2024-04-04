@@ -55,8 +55,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
-      - run: export VALGRIND="valgrind -q"
-      - run: make test
+      - run: VALGRIND="valgrind -q" make test integration
 
   docs:
     name: Check for documentation errors

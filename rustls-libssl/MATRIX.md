@@ -67,7 +67,7 @@
 | `SSL_CTX_add_custom_ext`  |  |  |  |
 | `SSL_CTX_add_server_custom_ext`  |  |  |  |
 | `SSL_CTX_add_session`  |  |  |  |
-| `SSL_CTX_callback_ctrl`  |  | :white_check_mark: |  |
+| `SSL_CTX_callback_ctrl`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_check_private_key`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_clear_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_config`  |  |  |  |

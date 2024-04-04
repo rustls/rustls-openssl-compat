@@ -164,7 +164,7 @@ entry! {
                 log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
                 1
             }
-            Ok(SslCtrl::SetTlsExtHostname) => {
+            Ok(SslCtrl::SetTlsExtHostname) | Ok(SslCtrl::SetTlsExtServerNameCallback) => {
                 // not a defined operation in the OpenSSL API
                 0
             }
@@ -184,7 +184,10 @@ entry! {
                 ctx.get_mut().stage_certificate_chain(chain);
                 C_INT_SUCCESS as i64
             }
-
+            Ok(SslCtrl::SetTlsExtServerNameArg) => {
+                ctx.get_mut().set_servername_callback_context(parg);
+                C_INT_SUCCESS as c_long
+            }
             Err(()) => {
                 log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
                 0
@@ -480,6 +483,31 @@ entry! {
     }
 }
 
+// nb. calls into SSL_CTX_callback_ctrl cast away the real function pointer type,
+// and then cast back to the real type based on `cmd`.
+pub type SSL_CTX_any_func = Option<unsafe extern "C" fn()>;
+
+pub type SSL_CTX_servername_callback_func =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, ad: *mut c_int, arg: *mut c_void) -> c_int>;
+
+entry! {
+    pub fn _SSL_CTX_callback_ctrl(ctx: *mut SSL_CTX, cmd: c_int, fp: SSL_CTX_any_func) -> c_long {
+        let ctx = try_clone_arc!(ctx);
+
+        match SslCtrl::try_from(cmd) {
+            Ok(SslCtrl::SetTlsExtServerNameCallback) => {
+                // safety: same layout
+                let fp = unsafe {
+                    mem::transmute::<SSL_CTX_any_func, SSL_CTX_servername_callback_func>(fp)
+                };
+                ctx.get_mut().set_servername_callback(fp);
+                C_INT_SUCCESS as c_long
+            }
+            _ => 0,
+        }
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;
@@ -551,6 +579,8 @@ entry! {
                 ssl.get_mut().stage_certificate_chain(chain);
                 C_INT_SUCCESS as i64
             }
+            // not a defined operation in the OpenSSL API
+            Ok(SslCtrl::SetTlsExtServerNameCallback) | Ok(SslCtrl::SetTlsExtServerNameArg) => 0,
             Err(()) => {
                 log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
                 0
@@ -1202,6 +1232,8 @@ num_enum! {
     enum SslCtrl {
         Mode = 33,
         SetMsgCallbackArg = 16,
+        SetTlsExtServerNameCallback = 53,
+        SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
         SetChain = 88,
         SetMaxProtoVersion = 124,

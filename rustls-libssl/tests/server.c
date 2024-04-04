@@ -47,6 +47,19 @@ static int cert_callback(SSL *ssl, void *arg) {
   return 1;
 }
 
+static int sni_cookie = 12345;
+
+static int sni_callback(SSL *ssl, int *al, void *arg) {
+  printf("in sni_callback\n");
+  assert(ssl != NULL);
+  assert(arg == &sni_cookie);
+  assert(*al == SSL_AD_UNRECOGNIZED_NAME);
+  printf("  SSL_get_servername: %s (%d)\n",
+         SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
+         SSL_get_servername_type(ssl));
+  return SSL_TLSEXT_ERR_OK;
+}
+
 int main(int argc, char **argv) {
   if (argc != 5) {
     printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth\n\n",
@@ -87,6 +100,11 @@ int main(int argc, char **argv) {
   dump_openssl_error_stack();
 
   SSL_CTX_set_cert_cb(ctx, cert_callback, &cert_cookie);
+  dump_openssl_error_stack();
+
+  SSL_CTX_set_tlsext_servername_callback(ctx, sni_callback);
+  dump_openssl_error_stack();
+  SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
   dump_openssl_error_stack();
 
   X509 *server_cert = NULL;

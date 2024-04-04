@@ -223,6 +223,7 @@ pub struct SslContext {
     default_cert_dir: Option<PathBuf>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
+    servername_callback: callbacks::ServerNameCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
 }
 
@@ -239,6 +240,7 @@ impl SslContext {
             default_cert_dir: None,
             alpn_callback: callbacks::AlpnCallbackConfig::default(),
             cert_callback: callbacks::CertCallbackConfig::default(),
+            servername_callback: callbacks::ServerNameCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
         }
     }
@@ -327,6 +329,14 @@ impl SslContext {
     fn get_privatekey(&self) -> *mut EVP_PKEY {
         self.auth_keys.borrow_current_key()
     }
+
+    fn set_servername_callback(&mut self, cb: entry::SSL_CTX_servername_callback_func) {
+        self.servername_callback.cb = cb;
+    }
+
+    fn set_servername_callback_context(&mut self, context: *mut c_void) {
+        self.servername_callback.context = context;
+    }
 }
 
 /// Parse the ALPN wire format (which is used in the openssl API)
@@ -381,6 +391,7 @@ struct Ssl {
     alpn: Vec<Vec<u8>>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
+    servername_callback: callbacks::ServerNameCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     server_name: Option<CString>,
     bio: Option<bio::Bio>,
@@ -412,6 +423,7 @@ impl Ssl {
             alpn: inner.alpn.clone(),
             alpn_callback: inner.alpn_callback.clone(),
             cert_callback: inner.cert_callback.clone(),
+            servername_callback: inner.servername_callback.clone(),
             sni_server_name: None,
             server_name: None,
             bio: None,
@@ -638,6 +650,8 @@ impl Ssl {
             .client_hello()
             .server_name()
             .and_then(|sni| CString::new(sni.as_bytes()).ok());
+
+        self.servername_callback.invoke()?;
 
         if let Some(alpn_iter) = accepted.client_hello().alpn() {
             let offer = encode_alpn(alpn_iter);

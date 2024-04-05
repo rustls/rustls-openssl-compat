@@ -1467,6 +1467,10 @@ macro_rules! entry_stub {
 // some extent:
 
 entry_stub! {
+    pub fn _SSL_get_ex_data_X509_STORE_CTX_idx() -> c_int;
+}
+
+entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
 }
 

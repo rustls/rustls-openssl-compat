@@ -82,6 +82,8 @@ int main(int argc, char **argv) {
   } else {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
     dump_openssl_error_stack();
+    assert(SSL_CTX_get_verify_mode(ctx) == SSL_VERIFY_PEER);
+    assert(SSL_CTX_get_verify_callback(ctx) == NULL);
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
   }

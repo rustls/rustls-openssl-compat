@@ -217,6 +217,27 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_get_verify_callback(ctx: *const SSL_CTX) -> SSL_verify_cb {
+        let ctx = try_clone_arc!(ctx);
+
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_verify_callback())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_verify_mode(ctx: *const SSL_CTX) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+        ctx.lock()
+            .ok()
+            .map(|ctx| ctx.get_verify_mode().into())
+            .unwrap_or_default()
+    }
+}
+
+entry! {
     pub fn _SSL_CTX_set_verify_depth(ctx: *mut SSL_CTX, depth: c_int) {
         let ctx = try_clone_arc!(ctx);
         if let Ok(mut inner) = ctx.lock() {

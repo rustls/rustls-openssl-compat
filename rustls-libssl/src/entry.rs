@@ -1765,6 +1765,14 @@ entry_stub! {
     ) -> c_int;
 }
 
+entry_stub! {
+    pub fn _SSL_CTX_get_timeout(_ctx: *const SSL_CTX) -> c_long;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_timeout(_ctx: *mut SSL_CTX, _t: c_long) -> c_long;
+}
+
 // no individual message logging
 
 entry_stub! {

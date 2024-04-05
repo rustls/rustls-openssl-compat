@@ -473,6 +473,14 @@ impl Ssl {
             .unwrap_or_default();
     }
 
+    fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+        self.auth_keys.stage_certificate_chain(chain)
+    }
+
+    fn commit_private_key(&mut self, key: evp_pkey::EvpPkey) -> Result<(), error::Error> {
+        self.auth_keys.commit_private_key(key)
+    }
+
     fn get_options(&self) -> u64 {
         self.raw_options
     }

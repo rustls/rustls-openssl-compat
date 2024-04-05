@@ -1296,6 +1296,48 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_use_certificate(ssl: *mut SSL, x: *mut X509) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        if x.is_null() {
+            return Error::null_pointer().raise().into();
+        }
+
+        let chain = vec![CertificateDer::from(OwnedX509::new(x).der_bytes())];
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .map(|mut ssl| ssl.stage_certificate_chain(chain))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_use_PrivateKey(ssl: *mut SSL, pkey: *mut EVP_PKEY) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+
+        if pkey.is_null() {
+            return Error::null_pointer().raise().into();
+        }
+
+        let pkey = EvpPkey::new_adopt(pkey);
+
+        match ssl
+            .lock()
+            .map_err(|_| Error::cannot_lock())
+            .and_then(|mut ssl| ssl.commit_private_key(pkey))
+        {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL>;

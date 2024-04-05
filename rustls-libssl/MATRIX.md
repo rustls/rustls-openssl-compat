@@ -401,7 +401,7 @@
 | `SSL_peek_ex`  |  |  |  |
 | `SSL_pending`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_read`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_read_early_data`  |  | :white_check_mark: |  |
+| `SSL_read_early_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_read_ex`  |  |  |  |
 | `SSL_renegotiate`  |  |  |  |
 | `SSL_renegotiate_abbreviated`  |  |  |  |
@@ -502,7 +502,7 @@
 | `SSL_waiting_for_async`  |  |  |  |
 | `SSL_want`  |  |  | :white_check_mark: |
 | `SSL_write`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_write_early_data`  |  | :white_check_mark: |  |
+| `SSL_write_early_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_write_ex`  |  |  |  |
 | `SSLv3_client_method` [^deprecatedin_1_1_0] [^ssl3_method] |  |  |  |
 | `SSLv3_method` [^deprecatedin_1_1_0] [^ssl3_method] |  |  |  |

@@ -4,7 +4,7 @@ use core::{ptr, slice};
 
 use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
 
-use crate::entry::{SSL_CTX_alpn_select_cb_func, SSL};
+use crate::entry::{SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL};
 use crate::error::Error;
 
 /// Smuggling SSL* pointers from the outer entrypoint into the
@@ -90,6 +90,41 @@ impl AlpnCallbackConfig {
 }
 
 impl Default for AlpnCallbackConfig {
+    fn default() -> Self {
+        Self {
+            cb: None,
+            context: ptr::null_mut(),
+        }
+    }
+}
+
+/// Configuration needed to call [`invoke_cert_callback`] later
+#[derive(Debug, Clone)]
+pub struct CertCallbackConfig {
+    pub cb: SSL_CTX_cert_cb_func,
+    pub context: *mut c_void,
+}
+
+impl CertCallbackConfig {
+    pub fn invoke(&self) -> Result<(), Error> {
+        let callback = match self.cb {
+            Some(callback) => callback,
+            None => {
+                return Ok(());
+            }
+        };
+        let ssl = SslCallbackContext::ssl_ptr();
+
+        let result = unsafe { callback(ssl, self.context) };
+
+        match result {
+            1 => Ok(()),
+            _ => Err(Error::not_supported("SSL_CTX_cert_cb_func returned != 1")),
+        }
+    }
+}
+
+impl Default for CertCallbackConfig {
     fn default() -> Self {
         Self {
             cb: None,

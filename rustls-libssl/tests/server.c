@@ -38,6 +38,15 @@ static int alpn_callback(SSL *ssl, const uint8_t **out, uint8_t *outlen,
   }
 }
 
+static int cert_cookie = 12345;
+
+static int cert_callback(SSL *ssl, void *arg) {
+  printf("in cert_callback\n");
+  assert(ssl != NULL);
+  assert(arg == &cert_cookie);
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc != 5) {
     printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth\n\n",
@@ -75,6 +84,9 @@ int main(int argc, char **argv) {
   }
 
   SSL_CTX_set_alpn_select_cb(ctx, alpn_callback, &alpn_cookie);
+  dump_openssl_error_stack();
+
+  SSL_CTX_set_cert_cb(ctx, cert_callback, &cert_cookie);
   dump_openssl_error_stack();
 
   X509 *server_cert = NULL;

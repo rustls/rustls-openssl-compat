@@ -470,6 +470,16 @@ entry! {
     }
 }
 
+pub type SSL_CTX_cert_cb_func =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, arg: *mut c_void) -> c_int>;
+
+entry! {
+    pub fn _SSL_CTX_set_cert_cb(ctx: *mut SSL_CTX, cb: SSL_CTX_cert_cb_func, arg: *mut c_void) {
+        let ctx = try_clone_arc!(ctx);
+        ctx.get_mut().set_cert_cb(cb, arg);
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;

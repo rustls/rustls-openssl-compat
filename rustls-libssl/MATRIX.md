@@ -135,7 +135,7 @@
 | `SSL_CTX_set_async_callback`  |  |  |  |
 | `SSL_CTX_set_async_callback_arg`  |  |  |  |
 | `SSL_CTX_set_block_padding`  |  |  |  |
-| `SSL_CTX_set_cert_cb`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_cert_cb`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_cert_store`  |  |  |  |
 | `SSL_CTX_set_cert_verify_callback`  |  |  |  |
 | `SSL_CTX_set_cipher_list`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |

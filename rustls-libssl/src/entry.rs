@@ -1143,7 +1143,6 @@ entry_stub! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::ptr;
 
     #[test]
     fn test_SSL_CTX_new_null() {

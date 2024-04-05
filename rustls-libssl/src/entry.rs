@@ -9,8 +9,8 @@ use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, OPENSSL_malloc, EVP_PKEY, OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509,
-    X509_STORE, X509_STORE_CTX,
+    stack_st_X509, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, EVP_PKEY, OPENSSL_NPN_NEGOTIATED,
+    OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
 };
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
@@ -964,6 +964,26 @@ entry! {
         match ssl.get_mut().commit_private_key(pkey) {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_get_servername(ssl: *const SSL, ty: c_int) -> *const c_char {
+        if ty != TLSEXT_NAMETYPE_host_name {
+            return ptr::null();
+        }
+
+        try_clone_arc!(ssl).get_mut().server_name_pointer()
+    }
+}
+
+entry! {
+    pub fn _SSL_get_servername_type(ssl: *const SSL) -> c_int {
+        if _SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name).is_null() {
+            -1
+        } else {
+            TLSEXT_NAMETYPE_host_name
         }
     }
 }

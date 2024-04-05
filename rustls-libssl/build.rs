@@ -121,6 +121,8 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_get_peer_cert_chain",
     "SSL_get_privatekey",
     "SSL_get_rbio",
+    "SSL_get_servername",
+    "SSL_get_servername_type",
     "SSL_get_session",
     "SSL_get_shutdown",
     "SSL_get_state",

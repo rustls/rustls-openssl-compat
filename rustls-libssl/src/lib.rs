@@ -284,6 +284,15 @@ impl SslContext {
         self.default_cert_file = cert_file;
     }
 
+    fn get_verify_mode(&self) -> VerifyMode {
+        self.verify_mode
+    }
+
+    fn get_verify_callback(&self) -> entry::SSL_verify_cb {
+        // TODO: `SSL_CTX_set_verify` currently rejects non-NULL callback
+        None
+    }
+
     fn set_verify_depth(&mut self, depth: c_int) {
         self.verify_depth = depth;
     }
@@ -1170,6 +1179,12 @@ impl VerifyMode {
 impl From<i32> for VerifyMode {
     fn from(i: i32) -> Self {
         Self(i)
+    }
+}
+
+impl From<VerifyMode> for i32 {
+    fn from(v: VerifyMode) -> Self {
+        v.0
     }
 }
 

@@ -532,6 +532,21 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32 {
+        try_clone_arc!(ctx).get().get_max_early_data()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_max_early_data(ctx: *mut SSL_CTX, max_early_data: u32) -> c_int {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_max_early_data(max_early_data);
+        C_INT_SUCCESS
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;

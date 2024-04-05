@@ -114,6 +114,9 @@ int main(int argc, char **argv) {
   server_key = SSL_CTX_get0_privatekey(ctx);
   server_cert = SSL_CTX_get0_certificate(ctx);
 
+  printf("SSL_CTX_get_max_early_data default %lu\n",
+         (unsigned long)SSL_CTX_get_max_early_data(ctx));
+
   SSL *ssl = SSL_new(ctx);
   dump_openssl_error_stack();
   printf("SSL_new: SSL_get_privatekey %s SSL_CTX_get0_privatekey\n",

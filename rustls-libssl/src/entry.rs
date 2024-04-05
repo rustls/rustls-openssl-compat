@@ -624,6 +624,33 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32 {
+        let ctx = try_clone_arc!(ctx);
+
+        let result = if let Ok(inner) = ctx.lock() {
+            inner.get_max_early_data()
+        } else {
+            0
+        };
+        result
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_max_early_data(ctx: *mut SSL_CTX, max_early_data: u32) -> c_int {
+        let ctx = try_clone_arc!(ctx);
+
+        let result = if let Ok(mut inner) = ctx.lock() {
+            inner.set_max_early_data(max_early_data);
+            C_INT_SUCCESS
+        } else {
+            0
+        };
+        result
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = Mutex<SSL_CTX>;

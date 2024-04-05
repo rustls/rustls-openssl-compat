@@ -223,6 +223,7 @@ pub struct SslContext {
     cert_callback: callbacks::CertCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
+    max_early_data: u32,
 }
 
 impl SslContext {
@@ -241,6 +242,7 @@ impl SslContext {
             cert_callback: callbacks::CertCallbackConfig::default(),
             servername_callback: callbacks::ServerNameCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
+            max_early_data: 0,
         }
     }
 
@@ -256,6 +258,14 @@ impl SslContext {
     fn clear_options(&mut self, clear: u64) -> u64 {
         self.raw_options &= !clear;
         self.raw_options
+    }
+
+    fn set_max_early_data(&mut self, max: u32) {
+        self.max_early_data = max;
+    }
+
+    fn get_max_early_data(&self) -> u32 {
+        self.max_early_data
     }
 
     fn set_verify(&mut self, mode: VerifyMode) {
@@ -425,6 +435,7 @@ struct Ssl {
     peer_cert_chain: Option<x509::OwnedX509Stack>,
     shutdown_flags: ShutdownFlags,
     auth_keys: sign::CertifiedKeySet,
+    max_early_data: u32,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -458,6 +469,7 @@ impl Ssl {
             peer_cert_chain: None,
             shutdown_flags: ShutdownFlags::default(),
             auth_keys: inner.auth_keys.clone(),
+            max_early_data: inner.max_early_data,
         })
     }
 
@@ -749,6 +761,7 @@ impl Ssl {
             .with_cert_resolver(resolver);
 
         config.alpn_protocols = mem::take(&mut self.alpn);
+        config.max_early_data_size = self.max_early_data;
 
         let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
             ConnState::Accepted(accepted) => accepted,

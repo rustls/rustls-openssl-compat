@@ -5,7 +5,8 @@ use std::collections::VecDeque;
 use openssl_sys::SSL_TLSEXT_ERR_OK;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, _internal_SSL_complete_accept, _internal_SSL_set_alpn_choice, SSL,
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, _internal_SSL_complete_accept,
+    _internal_SSL_set_alpn_choice, SSL,
 };
 use crate::error::Error;
 
@@ -116,6 +117,45 @@ impl PendingCallback for AlpnPendingCallback {
         }
 
         Ok(())
+    }
+}
+
+/// Configuration needed to create a `CertPendingCallback` later
+#[derive(Debug, Clone)]
+pub struct CertCallbackConfig {
+    pub cb: SSL_CTX_cert_cb_func,
+    pub context: *mut c_void,
+}
+
+impl Default for CertCallbackConfig {
+    fn default() -> Self {
+        Self {
+            cb: None,
+            context: ptr::null_mut(),
+        }
+    }
+}
+
+pub struct CertPendingCallback {
+    pub config: CertCallbackConfig,
+    pub ssl: *mut SSL,
+}
+
+impl PendingCallback for CertPendingCallback {
+    fn call(self: Box<Self>) -> Result<(), Error> {
+        let callback = match self.config.cb {
+            Some(callback) => callback,
+            None => {
+                return Ok(());
+            }
+        };
+
+        let result = unsafe { callback(self.ssl, self.config.context) };
+
+        match result {
+            1 => Ok(()),
+            _ => Err(Error::not_supported("SSL_CTX_cert_cb_func returned != 1")),
+        }
     }
 }
 

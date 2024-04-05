@@ -218,6 +218,7 @@ pub struct SslContext {
     default_cert_file: Option<PathBuf>,
     default_cert_dir: Option<PathBuf>,
     alpn_callback: callbacks::AlpnCallbackConfig,
+    cert_callback: callbacks::CertCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
 }
 
@@ -233,6 +234,7 @@ impl SslContext {
             default_cert_file: None,
             default_cert_dir: None,
             alpn_callback: callbacks::AlpnCallbackConfig::default(),
+            cert_callback: callbacks::CertCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
         }
     }
@@ -296,6 +298,10 @@ impl SslContext {
 
     fn set_alpn_select_cb(&mut self, cb: entry::SSL_CTX_alpn_select_cb_func, context: *mut c_void) {
         self.alpn_callback = callbacks::AlpnCallbackConfig { cb, context };
+    }
+
+    fn set_cert_cb(&mut self, cb: entry::SSL_CTX_cert_cb_func, context: *mut c_void) {
+        self.cert_callback = callbacks::CertCallbackConfig { cb, context };
     }
 
     fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
@@ -378,6 +384,7 @@ struct Ssl {
     verify_server_name: Option<ServerName<'static>>,
     alpn: Vec<Vec<u8>>,
     alpn_callback: callbacks::AlpnCallbackConfig,
+    cert_callback: callbacks::CertCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     bio: Option<bio::Bio>,
     conn: ConnState,
@@ -407,6 +414,7 @@ impl Ssl {
             verify_server_name: None,
             alpn: inner.alpn.clone(),
             alpn_callback: inner.alpn_callback.clone(),
+            cert_callback: inner.cert_callback.clone(),
             sni_server_name: None,
             bio: None,
             conn: ConnState::Nothing,
@@ -599,6 +607,11 @@ impl Ssl {
                 offer,
             }));
         }
+
+        callbacks.add(Box::new(callbacks::CertPendingCallback {
+            config: self.cert_callback.clone(),
+            ssl: callbacks.ssl_ptr(),
+        }));
 
         // must be last: trigger the transition `Accepted` -> `Server`
         callbacks.add(Box::new(callbacks::CompleteAcceptPendingCallback {

@@ -95,7 +95,7 @@
 | `SSL_CTX_get_ex_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_get_info_callback`  |  |  |  |
 | `SSL_CTX_get_keylog_callback`  |  |  |  |
-| `SSL_CTX_get_max_early_data`  |  | :white_check_mark: |  |
+| `SSL_CTX_get_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_num_tickets`  |  |  |  |
 | `SSL_CTX_get_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_quiet_shutdown`  |  |  |  |
@@ -160,7 +160,7 @@
 | `SSL_CTX_set_generate_session_id`  |  |  |  |
 | `SSL_CTX_set_info_callback`  |  | :white_check_mark: |  |
 | `SSL_CTX_set_keylog_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
-| `SSL_CTX_set_max_early_data`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_next_proto_select_cb` [^nextprotoneg] | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_next_protos_advertised_cb` [^nextprotoneg] |  | :white_check_mark: | :exclamation: [^stub] |

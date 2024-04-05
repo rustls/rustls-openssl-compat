@@ -215,6 +215,12 @@ impl From<Error> for () {
     }
 }
 
+impl From<Error> for crate::entry::SSL_verify_cb {
+    fn from(_: Error) -> crate::entry::SSL_verify_cb {
+        None
+    }
+}
+
 #[macro_export]
 macro_rules! ffi_panic_boundary {
     ( $($tt:tt)* ) => {

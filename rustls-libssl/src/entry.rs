@@ -212,6 +212,18 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_get_verify_callback(ctx: *const SSL_CTX) -> SSL_verify_cb {
+        try_clone_arc!(ctx).get().get_verify_callback()
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_verify_mode(ctx: *const SSL_CTX) -> c_int {
+        try_clone_arc!(ctx).get().get_verify_mode().into()
+    }
+}
+
+entry! {
     pub fn _SSL_CTX_set_verify_depth(ctx: *mut SSL_CTX, depth: c_int) {
         try_clone_arc!(ctx).get_mut().set_verify_depth(depth)
     }

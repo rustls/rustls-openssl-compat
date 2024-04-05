@@ -393,7 +393,7 @@
 | `SSL_is_init_finished`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_is_server`  |  |  | :white_check_mark: |
 | `SSL_key_update`  |  |  |  |
-| `SSL_load_client_CA_file`  |  | :white_check_mark: |  |
+| `SSL_load_client_CA_file`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_load_client_CA_file_ex`  |  |  |  |
 | `SSL_new`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_new_session_ticket`  |  |  |  |

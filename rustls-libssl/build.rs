@@ -79,6 +79,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_get_verify_mode",
     "SSL_CTX_load_verify_dir",
     "SSL_CTX_load_verify_file",
+    "SSL_CTX_load_verify_locations",
     "SSL_CTX_new",
     "SSL_CTX_remove_session",
     "SSL_CTX_sess_set_get_cb",

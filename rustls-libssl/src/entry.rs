@@ -1747,6 +1747,24 @@ entry_stub! {
     pub fn _SSL_SESSION_free(_sess: *mut SSL_SESSION);
 }
 
+entry_stub! {
+    pub fn _SSL_write_early_data(
+        _ssl: *mut SSL,
+        _buf: *const c_void,
+        _num: usize,
+        _written: *mut usize,
+    ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_read_early_data(
+        _ssl: *mut SSL,
+        _buf: *mut c_void,
+        _num: usize,
+        _readbytes: *mut usize,
+    ) -> c_int;
+}
+
 // no individual message logging
 
 entry_stub! {

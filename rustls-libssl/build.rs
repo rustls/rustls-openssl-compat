@@ -148,6 +148,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_in_init",
     "SSL_is_init_finished",
     "SSL_is_server",
+    "SSL_load_client_CA_file",
     "SSL_new",
     "SSL_pending",
     "SSL_read",

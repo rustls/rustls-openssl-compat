@@ -1804,6 +1804,10 @@ entry_stub! {
     pub fn _SSL_CTX_set_client_CA_list(_ctx: *mut SSL_CTX, _name_list: *mut stack_st_X509_NAME);
 }
 
+entry_stub! {
+    pub fn _SSL_load_client_CA_file(_file: *const c_char) -> *mut stack_st_X509_NAME;
+}
+
 // no individual message logging
 
 entry_stub! {

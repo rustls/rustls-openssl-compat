@@ -32,7 +32,7 @@ use std::{net, thread, time};
 fn client() {
     let _server = KillOnDrop(
         Command::new("openssl")
-            .args(&[
+            .args([
                 "s_server",
                 "-cert",
                 "test-ca/rsa/end.cert",
@@ -55,14 +55,14 @@ fn client() {
 
     let openssl_insecure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
-        .args(&["target/client", "localhost", "4443", "insecure"])
+        .args(["target/client", "localhost", "4443", "insecure"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
     let rustls_insecure_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/client", "localhost", "4443", "insecure"])
+        .args(["target/client", "localhost", "4443", "insecure"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -72,14 +72,14 @@ fn client() {
 
     let openssl_secure_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
-        .args(&["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
+        .args(["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
         .unwrap();
 
     let rustls_secure_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
+        .args(["target/client", "localhost", "4443", "test-ca/rsa/ca.cert"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -94,7 +94,7 @@ fn client_real_world() {
     let openssl_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
         .env("NO_ECHO", "1")
-        .args(&["target/client", "example.com", "443", "default"])
+        .args(["target/client", "example.com", "443", "default"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -102,7 +102,7 @@ fn client_real_world() {
 
     let rustls_output = Command::new("tests/maybe-valgrind.sh")
         .env("NO_ECHO", "1")
-        .args(&["target/client", "example.com", "443", "default"])
+        .args(["target/client", "example.com", "443", "default"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -115,7 +115,7 @@ fn client_real_world() {
 #[ignore]
 fn constants() {
     let openssl_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/constants"])
+        .args(["target/constants"])
         .env("LD_LIBRARY_PATH", "")
         .stdout(Stdio::piped())
         .output()
@@ -123,7 +123,7 @@ fn constants() {
         .unwrap();
 
     let rustls_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/constants"])
+        .args(["target/constants"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -136,7 +136,7 @@ fn constants() {
 #[ignore]
 fn ciphers() {
     let openssl_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/ciphers"])
+        .args(["target/ciphers"])
         .env("LD_LIBRARY_PATH", "")
         .stdout(Stdio::piped())
         .output()
@@ -144,7 +144,7 @@ fn ciphers() {
         .unwrap();
 
     let rustls_output = Command::new("tests/maybe-valgrind.sh")
-        .args(&["target/ciphers"])
+        .args(["target/ciphers"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)

@@ -337,7 +337,7 @@
 | `SSL_get_early_data_status`  |  |  |  |
 | `SSL_get_error`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_ex_data`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_get_ex_data_X509_STORE_CTX_idx`  |  | :white_check_mark: |  |
+| `SSL_get_ex_data_X509_STORE_CTX_idx`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_fd`  |  |  |  |
 | `SSL_get_finished`  |  |  |  |
 | `SSL_get_info_callback`  |  |  |  |
@@ -452,7 +452,7 @@
 | `SSL_set_psk_server_callback` [^psk] |  |  |  |
 | `SSL_set_psk_use_session_callback`  |  |  |  |
 | `SSL_set_purpose`  |  |  |  |
-| `SSL_set_quiet_shutdown`  |  | :white_check_mark: |  |
+| `SSL_set_quiet_shutdown`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_set_read_ahead`  |  |  |  |
 | `SSL_set_record_padding_callback`  |  |  |  |
 | `SSL_set_record_padding_callback_arg`  |  |  |  |

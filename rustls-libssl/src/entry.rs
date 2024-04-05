@@ -1646,6 +1646,10 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_get_ex_data_X509_STORE_CTX_idx() -> c_int;
+}
+
+entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
 }
 
@@ -1806,6 +1810,10 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_load_client_CA_file(_file: *const c_char) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
+    pub fn _SSL_set_quiet_shutdown(_ssl: *mut SSL, _mode: c_int);
 }
 
 // no individual message logging

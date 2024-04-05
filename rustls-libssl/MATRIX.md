@@ -111,7 +111,7 @@
 | `SSL_CTX_has_client_custom_ext`  |  |  |  |
 | `SSL_CTX_load_verify_dir`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_load_verify_file`  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_CTX_load_verify_locations`  |  | :white_check_mark: |  |
+| `SSL_CTX_load_verify_locations`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_load_verify_store`  |  |  |  |
 | `SSL_CTX_new`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_new_ex`  |  |  |  |

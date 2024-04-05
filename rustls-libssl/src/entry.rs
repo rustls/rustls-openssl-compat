@@ -1800,6 +1800,15 @@ pub type SSL_CTX_msg_cb_func = Option<
     ),
 >;
 
+// no state machine observation
+
+entry_stub! {
+    pub fn _SSL_CTX_set_info_callback(
+        _ctx: *mut SSL_CTX,
+        _cb: Option<unsafe extern "C" fn(ssl: *const SSL, type_: c_int, val: c_int)>,
+    );
+}
+
 // no NPN (obsolete precursor to ALPN)
 
 entry_stub! {

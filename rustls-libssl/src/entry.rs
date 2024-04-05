@@ -10,8 +10,9 @@ use std::sync::Mutex;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, EVP_PKEY, OPENSSL_NPN_NEGOTIATED,
-    OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
+    stack_st_X509, stack_st_X509_NAME, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, EVP_PKEY,
+    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
+    X509_V_ERR_UNSPECIFIED,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
@@ -1771,6 +1772,14 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_CTX_set_timeout(_ctx: *mut SSL_CTX, _t: c_long) -> c_long;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_get_client_CA_list(_ctx: *const SSL_CTX) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_client_CA_list(_ctx: *mut SSL_CTX, _name_list: *mut stack_st_X509_NAME);
 }
 
 // no individual message logging

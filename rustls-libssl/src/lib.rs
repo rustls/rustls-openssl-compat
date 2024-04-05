@@ -1,5 +1,6 @@
-use core::ffi::{c_int, c_uint, c_void, CStr};
+use core::ffi::{c_char, c_int, c_uint, c_void, CStr};
 use core::{mem, ptr};
+use std::ffi::CString;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
@@ -386,6 +387,7 @@ struct Ssl {
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
+    server_name: Option<CString>,
     bio: Option<bio::Bio>,
     conn: ConnState,
     peer_cert: Option<x509::OwnedX509>,
@@ -416,6 +418,7 @@ impl Ssl {
             alpn_callback: inner.alpn_callback.clone(),
             cert_callback: inner.cert_callback.clone(),
             sni_server_name: None,
+            server_name: None,
             bio: None,
             conn: ConnState::Nothing,
             peer_cert: None,
@@ -496,6 +499,33 @@ impl Ssl {
             }
             None => false,
         }
+    }
+
+    fn server_name_pointer(&mut self) -> *const c_char {
+        // This does double duty (see `SSL_get_servername`):
+        //
+        // for clients, it is just `sni_server_name`
+        //   (filled in here, lazily)
+        //
+        // for servers, it is the client's offered SNI name
+        //   (filled in below in `prepare_accepted_callbacks`)
+        //
+        // the remaining annoyance is that the returned pointer has to NUL-terminated.
+
+        match self.mode {
+            ConnMode::Server => self.server_name.as_ref().map(|cstr| cstr.as_ptr()),
+            ConnMode::Client | ConnMode::Unknown => match &self.server_name {
+                Some(existing) => Some(existing.as_ptr()),
+                None => {
+                    self.server_name = self
+                        .sni_server_name
+                        .as_ref()
+                        .and_then(|name| CString::new(name.to_str().as_bytes()).ok());
+                    self.server_name.as_ref().map(|cstr| cstr.as_ptr())
+                }
+            },
+        }
+        .unwrap_or_else(ptr::null)
     }
 
     fn set_bio(&mut self, bio: bio::Bio) {
@@ -598,6 +628,11 @@ impl Ssl {
             ConnState::Accepted(accepted) => accepted,
             _ => unreachable!(),
         };
+
+        self.server_name = accepted
+            .client_hello()
+            .server_name()
+            .and_then(|sni| CString::new(sni.as_bytes()).ok());
 
         if let Some(alpn_iter) = accepted.client_hello().alpn() {
             let offer = encode_alpn(alpn_iter);

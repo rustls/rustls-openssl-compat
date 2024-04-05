@@ -105,6 +105,14 @@ int main(int argc, char **argv) {
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
          SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
   state(ssl);
+  printf("SSL_get_servername: %s (%d)\n",
+         SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
+         SSL_get_servername_type(ssl));
+  TRACE(SSL_set_tlsext_host_name(ssl, "localhost"));
+  dump_openssl_error_stack();
+  printf("SSL_get_servername: %s (%d)\n",
+         SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
+         SSL_get_servername_type(ssl));
   TRACE(SSL_set1_host(ssl, host));
   dump_openssl_error_stack();
   TRACE(SSL_set_fd(ssl, sock));

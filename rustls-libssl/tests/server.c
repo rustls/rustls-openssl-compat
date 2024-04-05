@@ -151,6 +151,9 @@ int main(int argc, char **argv) {
   printf("version: %s\n", SSL_get_version(ssl));
   printf("verify-result: %ld\n", SSL_get_verify_result(ssl));
   printf("cipher: %s\n", SSL_CIPHER_standard_name(SSL_get_current_cipher(ssl)));
+  printf("SSL_get_servername: %s (%d)\n",
+         SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
+         SSL_get_servername_type(ssl));
 
   // check the peer certificate and chain
   X509 *cert = SSL_get1_peer_certificate(ssl);

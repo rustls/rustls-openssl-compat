@@ -10,8 +10,8 @@ use std::sync::Mutex;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, OPENSSL_malloc, EVP_PKEY, OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509,
-    X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
+    stack_st_X509, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, EVP_PKEY, OPENSSL_NPN_NEGOTIATED,
+    OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX, X509_V_ERR_UNSPECIFIED,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
@@ -1150,6 +1150,33 @@ entry! {
                 ctx_ptr
             })
             .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_servername(ssl: *const SSL, ty: c_int) -> *const c_char {
+        let ssl = try_clone_arc!(ssl);
+
+        if ty != TLSEXT_NAMETYPE_host_name {
+            return ptr::null();
+        }
+
+        let ret = if let Ok(mut inner) = ssl.lock() {
+            inner.server_name_pointer()
+        } else {
+            ptr::null()
+        };
+        ret
+    }
+}
+
+entry! {
+    pub fn _SSL_get_servername_type(ssl: *const SSL) -> c_int {
+        if _SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name).is_null() {
+            -1
+        } else {
+            TLSEXT_NAMETYPE_host_name
+        }
     }
 }
 

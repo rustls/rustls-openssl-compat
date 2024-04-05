@@ -362,8 +362,8 @@
 | `SSL_get_security_level`  |  |  |  |
 | `SSL_get_selected_srtp_profile` [^srtp] |  |  |  |
 | `SSL_get_server_random`  |  |  |  |
-| `SSL_get_servername`  |  | :white_check_mark: |  |
-| `SSL_get_servername_type`  |  |  |  |
+| `SSL_get_servername`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_get_servername_type`  |  |  | :white_check_mark: |
 | `SSL_get_session`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_shared_ciphers`  |  |  |  |
 | `SSL_get_shared_sigalgs`  |  |  |  |

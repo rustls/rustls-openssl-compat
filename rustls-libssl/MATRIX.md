@@ -158,7 +158,7 @@
 | `SSL_CTX_set_default_verify_store`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_ex_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_generate_session_id`  |  |  |  |
-| `SSL_CTX_set_info_callback`  |  | :white_check_mark: |  |
+| `SSL_CTX_set_info_callback`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_keylog_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :exclamation: [^stub] |

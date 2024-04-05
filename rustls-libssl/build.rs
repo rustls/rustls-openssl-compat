@@ -97,6 +97,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_set_default_verify_paths",
     "SSL_CTX_set_default_verify_store",
     "SSL_CTX_set_ex_data",
+    "SSL_CTX_set_info_callback",
     "SSL_CTX_set_keylog_callback",
     "SSL_CTX_set_max_early_data",
     "SSL_CTX_set_msg_callback",

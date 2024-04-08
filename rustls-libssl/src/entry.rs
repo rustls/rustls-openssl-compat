@@ -597,6 +597,17 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_cipher_list(_ctx: *mut SSL_CTX, s: *const c_char) -> c_int {
+        match try_str!(s) {
+            "HIGH:!aNULL:!MD5" => C_INT_SUCCESS,
+            _ => Error::not_supported("SSL_CTX_set_cipher_list")
+                .raise()
+                .into(),
+        }
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;
@@ -1508,10 +1519,6 @@ entry_stub! {
 
 entry_stub! {
     pub fn _i2d_SSL_SESSION(_in: *const SSL_SESSION, _pp: *mut *mut c_uchar) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_set_cipher_list(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;
 }
 
 entry_stub! {

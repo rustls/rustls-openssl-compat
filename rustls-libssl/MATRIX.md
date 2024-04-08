@@ -92,7 +92,7 @@
 | `SSL_CTX_get_client_cert_cb`  |  |  |  |
 | `SSL_CTX_get_default_passwd_cb`  |  |  |  |
 | `SSL_CTX_get_default_passwd_cb_userdata`  |  |  |  |
-| `SSL_CTX_get_ex_data`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_get_ex_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_info_callback`  |  |  |  |
 | `SSL_CTX_get_keylog_callback`  |  |  |  |
 | `SSL_CTX_get_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
@@ -156,7 +156,7 @@
 | `SSL_CTX_set_default_verify_file`  |  |  | :white_check_mark: |
 | `SSL_CTX_set_default_verify_paths`  |  |  | :white_check_mark: |
 | `SSL_CTX_set_default_verify_store`  |  |  | :exclamation: [^stub] |
-| `SSL_CTX_set_ex_data`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_set_ex_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_generate_session_id`  |  |  |  |
 | `SSL_CTX_set_info_callback`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_keylog_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
@@ -336,7 +336,7 @@
 | `SSL_get_default_timeout`  |  |  |  |
 | `SSL_get_early_data_status`  |  |  |  |
 | `SSL_get_error`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_ex_data`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_get_ex_data`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_ex_data_X509_STORE_CTX_idx`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_fd`  |  |  |  |
 | `SSL_get_finished`  |  |  |  |
@@ -436,7 +436,7 @@
 | `SSL_set_default_passwd_cb`  |  |  |  |
 | `SSL_set_default_passwd_cb_userdata`  |  |  |  |
 | `SSL_set_default_read_buffer_len`  |  |  |  |
-| `SSL_set_ex_data`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_set_ex_data`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_fd` [^sock] | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_generate_session_id`  |  |  |  |
 | `SSL_set_hostflags`  |  |  |  |

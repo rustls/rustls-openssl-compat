@@ -33,6 +33,7 @@ mod constants;
 mod entry;
 mod error;
 mod evp_pkey;
+mod ex_data;
 #[macro_use]
 #[allow(unused_macros, dead_code, unused_imports)]
 mod ffi;
@@ -211,6 +212,7 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 
 pub struct SslContext {
     method: &'static SslMethod,
+    ex_data: ex_data::ExData,
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_depth: c_int,
@@ -230,6 +232,7 @@ impl SslContext {
     fn new(method: &'static SslMethod) -> Self {
         Self {
             method,
+            ex_data: ex_data::ExData::default(),
             raw_options: 0,
             verify_mode: VerifyMode::default(),
             verify_depth: -1,
@@ -244,6 +247,18 @@ impl SslContext {
             auth_keys: sign::CertifiedKeySet::default(),
             max_early_data: 0,
         }
+    }
+
+    fn install_ex_data(&mut self, ex_data: ex_data::ExData) {
+        self.ex_data = ex_data;
+    }
+
+    fn set_ex_data(&mut self, idx: c_int, data: *mut c_void) -> Result<(), error::Error> {
+        self.ex_data.set(idx, data)
+    }
+
+    fn get_ex_data(&mut self, idx: c_int) -> *mut c_void {
+        self.ex_data.get(idx)
     }
 
     fn get_options(&self) -> u64 {
@@ -417,6 +432,7 @@ fn encode_alpn<'a>(iter: impl Iterator<Item = &'a [u8]>) -> Vec<u8> {
 
 struct Ssl {
     ctx: Arc<Mutex<SslContext>>,
+    ex_data: ex_data::ExData,
     raw_options: u64,
     mode: ConnMode,
     verify_mode: VerifyMode,
@@ -451,6 +467,7 @@ impl Ssl {
     fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Result<Self, error::Error> {
         Ok(Self {
             ctx,
+            ex_data: ex_data::ExData::default(),
             raw_options: inner.raw_options,
             mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
@@ -471,6 +488,18 @@ impl Ssl {
             auth_keys: inner.auth_keys.clone(),
             max_early_data: inner.max_early_data,
         })
+    }
+
+    fn install_ex_data(&mut self, ex_data: ex_data::ExData) {
+        self.ex_data = ex_data;
+    }
+
+    fn set_ex_data(&mut self, idx: c_int, data: *mut c_void) -> Result<(), error::Error> {
+        self.ex_data.set(idx, data)
+    }
+
+    fn get_ex_data(&mut self, idx: c_int) -> *mut c_void {
+        self.ex_data.get(idx)
     }
 
     fn set_ctx(&mut self, ctx: Arc<Mutex<SslContext>>) {

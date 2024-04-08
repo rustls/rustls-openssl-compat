@@ -1,5 +1,6 @@
+use core::ptr;
 /// Shims for functions we call, written in rust so they are visible to miri.
-use std::ffi::{c_char, c_int, CStr};
+use std::ffi::{c_char, c_int, c_void, CStr};
 
 pub struct X509_STORE(());
 
@@ -26,4 +27,25 @@ pub extern "C" fn ERR_set_error(lib: c_int, reason: c_int, message: *const c_cha
     eprintln!("ERR_set_error(0x{lib:x}, 0x{reason:x}, {:?})", unsafe {
         CStr::from_ptr(message)
     });
+}
+
+#[no_mangle]
+pub extern "C" fn CRYPTO_new_ex_data(
+    ty: c_int,
+    owner: *mut c_void,
+    out: *mut [*mut c_void; 2],
+) -> c_int {
+    eprintln!("CRYPTO_new_ex_data({ty}, {owner:?});");
+    let marker = [owner, owner];
+    unsafe {
+        ptr::write(out, marker);
+    };
+    1
+}
+
+#[no_mangle]
+pub extern "C" fn CRYPTO_free_ex_data(ty: c_int, owner: *mut c_void, ed: *mut [*mut c_void; 2]) {
+    let marker: [*mut c_void; 2] = unsafe { ptr::read(ed) };
+    assert!(marker[0] == owner);
+    assert!(marker[1] == owner);
 }

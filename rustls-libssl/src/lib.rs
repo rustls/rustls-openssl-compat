@@ -518,6 +518,10 @@ impl Ssl {
             .unwrap_or_default();
     }
 
+    fn stage_certificate_end(&mut self, end: CertificateDer<'static>) {
+        self.auth_keys.stage_certificate_end(end)
+    }
+
     fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
         self.auth_keys.stage_certificate_chain(chain)
     }

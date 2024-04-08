@@ -516,7 +516,10 @@ entry! {
             return Error::null_pointer().raise().into();
         }
 
-        let ee = CertificateDer::from(OwnedX509::new(x).der_bytes());
+        let x509 = OwnedX509::new(x);
+        // `x` belongs to caller.
+        x509.up_ref();
+        let ee = CertificateDer::from(x509.der_bytes());
 
         match ctx
             .lock()
@@ -1487,12 +1490,15 @@ entry! {
             return Error::null_pointer().raise().into();
         }
 
-        let chain = vec![CertificateDer::from(OwnedX509::new(x).der_bytes())];
+        let x509 = OwnedX509::new(x);
+        // `x` belongs to caller.
+        x509.up_ref();
+        let ee = CertificateDer::from(x509.der_bytes());
 
         match ssl
             .lock()
             .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.stage_certificate_chain(chain))
+            .map(|mut ssl| ssl.stage_certificate_end(ee))
         {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,

@@ -17,9 +17,12 @@ pub struct EvpPkey {
 }
 
 impl EvpPkey {
-    /// Use a pre-existing private key, adopting ownership.
-    pub fn new_adopt(pkey: *mut EVP_PKEY) -> Self {
+    /// Use a pre-existing private key, incrementing ownership.
+    ///
+    /// `pkey` continues to belong to the caller.
+    pub fn new_incref(pkey: *mut EVP_PKEY) -> Self {
         debug_assert!(!pkey.is_null());
+        unsafe { EVP_PKEY_up_ref(pkey) };
         Self { pkey }
     }
 

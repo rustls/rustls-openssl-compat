@@ -604,7 +604,7 @@ entry! {
             return Error::null_pointer().raise().into();
         }
 
-        let pkey = EvpPkey::new_adopt(pkey);
+        let pkey = EvpPkey::new_incref(pkey);
 
         match ctx
             .lock()
@@ -1514,7 +1514,7 @@ entry! {
             return Error::null_pointer().raise().into();
         }
 
-        let pkey = EvpPkey::new_adopt(pkey);
+        let pkey = EvpPkey::new_incref(pkey);
 
         match ssl
             .lock()

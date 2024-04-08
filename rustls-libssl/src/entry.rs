@@ -18,9 +18,11 @@ use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
+use crate::ex_data::ExData;
 use crate::ffi::{
-    free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
-    try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
+    clone_arc, free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from,
+    try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc,
+    OwnershipRef,
 };
 use crate::not_thread_safe::NotThreadSafe;
 use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
@@ -106,12 +108,23 @@ impl Castable for SSL_METHOD {
     type RustType = SSL_METHOD;
 }
 
-type SSL_CTX = crate::SslContext;
+pub type SSL_CTX = crate::SslContext;
 
 entry! {
     pub fn _SSL_CTX_new(meth: *const SSL_METHOD) -> *mut SSL_CTX {
         let method = try_ref_from_ptr!(meth);
-        to_arc_mut_ptr(NotThreadSafe::new(crate::SslContext::new(method)))
+        let out = to_arc_mut_ptr(NotThreadSafe::new(crate::SslContext::new(method)));
+        let ex_data = match ExData::new_ssl_ctx(out) {
+            None => {
+                _SSL_CTX_free(out);
+                return ptr::null_mut();
+            }
+            Some(ex_data) => ex_data,
+        };
+
+        // safety: we just made this object, the pointer must be valid
+        clone_arc(out).unwrap().get_mut().install_ex_data(ex_data);
+        out
     }
 }
 
@@ -126,6 +139,21 @@ entry! {
 entry! {
     pub fn _SSL_CTX_free(ctx: *mut SSL_CTX) {
         free_arc(ctx);
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_ex_data(ctx: *mut SSL_CTX, idx: c_int, data: *mut c_void) -> c_int {
+        match try_clone_arc!(ctx).get_mut().set_ex_data(idx, data) {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_ex_data(ctx: *const SSL_CTX, idx: c_int) -> *mut c_void {
+        try_clone_arc!(ctx).get().get_ex_data(idx)
     }
 }
 
@@ -585,7 +613,18 @@ entry! {
             None => return ptr::null_mut(),
         };
 
-        to_arc_mut_ptr(NotThreadSafe::new(ssl))
+        let out = to_arc_mut_ptr(NotThreadSafe::new(ssl));
+        let ex_data = match ExData::new_ssl(out) {
+            None => {
+                _SSL_free(out);
+                return ptr::null_mut();
+            }
+            Some(ex_data) => ex_data,
+        };
+
+        // safety: we just made this object, the pointer must be valid.
+        clone_arc(out).unwrap().get_mut().install_ex_data(ex_data);
+        out
     }
 }
 
@@ -600,6 +639,21 @@ entry! {
 entry! {
     pub fn _SSL_free(ssl: *mut SSL) {
         free_arc(ssl);
+    }
+}
+
+entry! {
+    pub fn _SSL_set_ex_data(ssl: *mut SSL, idx: c_int, data: *mut c_void) -> c_int {
+        match try_clone_arc!(ssl).get_mut().set_ex_data(idx, data) {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_get_ex_data(ssl: *const SSL, idx: c_int) -> *mut c_void {
+        try_clone_arc!(ssl).get().get_ex_data(idx)
     }
 }
 
@@ -1357,22 +1411,6 @@ macro_rules! entry_stub {
 
 // things we support and should be able to implement to
 // some extent:
-
-entry_stub! {
-    pub fn _SSL_CTX_set_ex_data(_ssl: *mut SSL_CTX, _idx: c_int, _data: *mut c_void) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_get_ex_data(_ssl: *const SSL_CTX, _idx: c_int) -> *mut c_void;
-}
-
-entry_stub! {
-    pub fn _SSL_set_ex_data(_ssl: *mut SSL, _idx: c_int, _data: *mut c_void) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_get_ex_data(_ssl: *const SSL, _idx: c_int) -> *mut c_void;
-}
 
 entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;

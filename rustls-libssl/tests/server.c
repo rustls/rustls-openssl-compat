@@ -19,6 +19,9 @@
 
 #include "helpers.h"
 
+static int ssl_ctx_ex_data_idx_message;
+static int ssl_ex_data_idx_message;
+
 static int alpn_cookie = 12345;
 
 static int alpn_callback(SSL *ssl, const uint8_t **out, uint8_t *outlen,
@@ -26,6 +29,8 @@ static int alpn_callback(SSL *ssl, const uint8_t **out, uint8_t *outlen,
   printf("in alpn_callback:\n");
   assert(ssl != NULL);
   assert(arg == &alpn_cookie);
+  printf("  ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
   hexdump("  in", in, (int)inlen);
   if (SSL_select_next_proto((uint8_t **)out, outlen,
                             (const uint8_t *)"\x08http/1.1", 9, in,
@@ -44,6 +49,8 @@ static int cert_callback(SSL *ssl, void *arg) {
   printf("in cert_callback\n");
   assert(ssl != NULL);
   assert(arg == &cert_cookie);
+  printf("  ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
   return 1;
 }
 
@@ -57,6 +64,8 @@ static int sni_callback(SSL *ssl, int *al, void *arg) {
   printf("  SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
          SSL_get_servername_type(ssl));
+  printf("  ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -96,6 +105,13 @@ int main(int argc, char **argv) {
     printf("client auth disabled\n");
   }
 
+  ssl_ctx_ex_data_idx_message =
+      SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+  TRACE(SSL_CTX_set_ex_data(ctx, ssl_ctx_ex_data_idx_message,
+                            "hello from SSL_CTX!"));
+  printf("ssl_ctx_ex_data_idx_message: %s\n",
+         (const char *)SSL_CTX_get_ex_data(ctx, ssl_ctx_ex_data_idx_message));
+
   SSL_CTX_set_alpn_select_cb(ctx, alpn_callback, &alpn_cookie);
   dump_openssl_error_stack();
 
@@ -123,6 +139,12 @@ int main(int argc, char **argv) {
          SSL_get_privatekey(ssl) == server_key ? "same as" : "differs to");
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
          SSL_get_certificate(ssl) == server_cert ? "same as" : "differs to");
+
+  ssl_ex_data_idx_message = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+  TRACE(SSL_set_ex_data(ssl, ssl_ex_data_idx_message, "hello from SSL!"));
+  printf("ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
+
   state(ssl);
   TRACE(SSL_set_fd(ssl, sock));
   dump_openssl_error_stack();
@@ -180,6 +202,10 @@ int main(int argc, char **argv) {
   TRACE(SSL_shutdown(ssl));
   dump_openssl_error_stack();
 
+  printf("ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
+  printf("ssl_ctx_ex_data_idx_message: %s\n",
+         (const char *)SSL_CTX_get_ex_data(ctx, ssl_ctx_ex_data_idx_message));
   close(sock);
   close(listener);
   SSL_free(ssl);

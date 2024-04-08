@@ -23,6 +23,10 @@ pub struct CertifiedKeySet {
     /// `SSL_CTX_use_PrivateKey_file`.
     pending_cert_chain: Option<Vec<CertificateDer<'static>>>,
 
+    /// Last `SSL_CTX_use_certificate` result, prepended to chain during commit.
+    /// May be absent.
+    pending_cert_end: Option<CertificateDer<'static>>,
+
     /// The key and certificate we're currently using.
     ///
     /// TODO: support multiple key types, and demultiplex them by type.
@@ -34,10 +38,19 @@ impl CertifiedKeySet {
         self.pending_cert_chain = Some(chain);
     }
 
+    pub fn stage_certificate_end(&mut self, end: CertificateDer<'static>) {
+        self.pending_cert_end = Some(end);
+    }
+
     pub fn commit_private_key(&mut self, key: EvpPkey) -> Result<(), error::Error> {
-        let chain = match self.pending_cert_chain.take() {
-            Some(chain) => chain,
-            None => {
+        let chain = match (self.pending_cert_end.take(), self.pending_cert_chain.take()) {
+            (Some(end), Some(mut chain)) => {
+                chain.insert(0, end);
+                chain
+            }
+            (None, Some(chain)) => chain,
+            (Some(end), None) => vec![end],
+            (None, None) => {
                 return Err(error::Error::bad_data("no certificate found for key"));
             }
         };

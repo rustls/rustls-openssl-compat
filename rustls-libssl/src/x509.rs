@@ -27,6 +27,35 @@ impl OwnedX509Stack {
         }
     }
 
+    /// Make one by adopting ownership of an existing pointer.
+    pub fn new(raw: *mut stack_st_X509) -> Self {
+        Self { raw }
+    }
+
+    /// Make one by copying existing stack.
+    pub fn new_copy(other: *const stack_st_X509) -> Self {
+        let mut ret = Self::empty();
+
+        let len = match unsafe { OPENSSL_sk_num(other as *const OPENSSL_STACK) } {
+            -1 => 0,
+            x => x as usize,
+        };
+
+        for index in 0..len {
+            let item_ptr = unsafe {
+                OPENSSL_sk_value(other as *const OPENSSL_STACK, index as c_int) as *mut X509
+            };
+            // item_ptr belongs to caller.
+            let item = OwnedX509::new(item_ptr);
+            // item belongs to `OwnedX509` -- ensure caller's ref is not stolen
+            item.up_ref();
+            // `ret` takes its own ref
+            ret.push(&item);
+        }
+
+        ret
+    }
+
     pub fn from_rustls(certs: &Vec<CertificateDer<'static>>) -> Self {
         let mut r = Self::empty();
         for c in certs {

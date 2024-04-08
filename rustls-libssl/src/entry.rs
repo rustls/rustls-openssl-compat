@@ -26,7 +26,7 @@ use crate::ffi::{
     try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc,
     OwnershipRef,
 };
-use crate::x509::{load_certs, OwnedX509};
+use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
 use crate::ShutdownResult;
 
 /// Makes a entry function definition.
@@ -230,6 +230,23 @@ entry! {
                     inner.set_servername_callback_context(parg);
                     C_INT_SUCCESS as c_long
                 }
+                Ok(SslCtrl::SetChain) => {
+                    let chain = if parg.is_null() {
+                        // this is `SSL_CTX_clear_chain_certs`
+                        vec![]
+                    } else {
+                        match larg {
+                            // this is `SSL_CTX_set1_chain` (incs ref)
+                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                            // this is `SSL_CTX_set0_chain` (retain ref)
+                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                        }
+                    };
+
+                    inner.stage_certificate_chain(chain);
+                    C_INT_SUCCESS as i64
+                }
+
                 Err(()) => {
                     log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
                     0
@@ -499,12 +516,12 @@ entry! {
             return Error::null_pointer().raise().into();
         }
 
-        let chain = vec![CertificateDer::from(OwnedX509::new(x).der_bytes())];
+        let ee = CertificateDer::from(OwnedX509::new(x).der_bytes());
 
         match ctx
             .lock()
             .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.stage_certificate_chain(chain))
+            .map(|mut ctx| ctx.stage_certificate_end(ee))
         {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
@@ -802,33 +819,51 @@ entry! {
     pub fn _SSL_ctrl(ssl: *mut SSL, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ssl = try_clone_arc!(ssl);
 
-        match SslCtrl::try_from(cmd) {
-            Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_set_mode()");
-                0
+        let result = if let Ok(mut inner) = ssl.lock() {
+            match SslCtrl::try_from(cmd) {
+                Ok(SslCtrl::Mode) => {
+                    log::warn!("unimplemented SSL_set_mode()");
+                    0
+                }
+                Ok(SslCtrl::SetMsgCallbackArg) => {
+                    log::warn!("unimplemented SSL_set_msg_callback_arg()");
+                    0
+                }
+                Ok(SslCtrl::SetMaxProtoVersion) => {
+                    log::warn!("unimplemented SSL_set_max_proto_version()");
+                    1
+                }
+                Ok(SslCtrl::SetTlsExtHostname) => {
+                    let hostname = try_str!(parg as *const c_char);
+                    inner.set_sni_hostname(hostname) as c_long
+                }
+                Ok(SslCtrl::SetChain) => {
+                    let chain = if parg.is_null() {
+                        // this is `SSL_clear_chain_certs`
+                        vec![]
+                    } else {
+                        match larg {
+                            // this is `SSL_set1_chain` (incs ref)
+                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                            // this is `SSL_set0_chain` (retain ref)
+                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                        }
+                    };
+
+                    inner.stage_certificate_chain(chain);
+                    C_INT_SUCCESS as i64
+                }
+                // not a defined operation in the OpenSSL API
+                Ok(SslCtrl::SetTlsExtServerNameCallback) | Ok(SslCtrl::SetTlsExtServerNameArg) => 0,
+                Err(()) => {
+                    log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
+                    0
+                }
             }
-            Ok(SslCtrl::SetMsgCallbackArg) => {
-                log::warn!("unimplemented SSL_set_msg_callback_arg()");
-                0
-            }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_set_max_proto_version()");
-                1
-            }
-            Ok(SslCtrl::SetTlsExtHostname) => {
-                let hostname = try_str!(parg as *const c_char);
-                ssl.lock()
-                    .ok()
-                    .map(|mut ssl| ssl.set_sni_hostname(hostname))
-                    .unwrap_or_default() as c_long
-            }
-            // not a defined operation in the OpenSSL API
-            Ok(SslCtrl::SetTlsExtServerNameCallback) | Ok(SslCtrl::SetTlsExtServerNameArg) => 0,
-            Err(()) => {
-                log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
-                0
-            }
-        }
+        } else {
+            0
+        };
+        result
     }
 }
 
@@ -1686,6 +1721,7 @@ num_enum! {
         SetTlsExtServerNameCallback = 53,
         SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
+        SetChain = 88,
         SetMaxProtoVersion = 124,
     }
 }

@@ -179,7 +179,7 @@
 | `SSL_CTX_set_recv_max_early_data`  |  |  |  |
 | `SSL_CTX_set_security_callback`  |  |  |  |
 | `SSL_CTX_set_security_level`  |  |  |  |
-| `SSL_CTX_set_session_id_context`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_set_session_id_context`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_session_ticket_cb`  |  |  |  |
 | `SSL_CTX_set_srp_cb_arg` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_set_srp_client_pwd_callback` [^deprecatedin_3_0] [^srp] |  |  |  |
@@ -461,7 +461,7 @@
 | `SSL_set_security_callback`  |  |  |  |
 | `SSL_set_security_level`  |  |  |  |
 | `SSL_set_session`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_set_session_id_context`  |  |  | :exclamation: [^stub] |
+| `SSL_set_session_id_context`  |  |  | :white_check_mark: |
 | `SSL_set_session_secret_cb`  |  |  |  |
 | `SSL_set_session_ticket_ext`  |  |  |  |
 | `SSL_set_session_ticket_ext_cb`  |  |  |  |

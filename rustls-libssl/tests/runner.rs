@@ -1,6 +1,6 @@
 use std::io::Read;
 use std::process::{Child, Command, Output, Stdio};
-use std::{net, thread, time};
+use std::{fs, net, thread, time};
 
 /* Note:
  *
@@ -320,6 +320,139 @@ fn server() {
 
     let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
     assert_eq!(openssl_output, rustls_output);
+}
+
+const NGINX_LOG_LEVEL: &str = "info";
+
+#[test]
+#[ignore]
+fn nginx() {
+    fs::create_dir_all("target/nginx-tmp/basic/html").unwrap();
+    fs::write(
+        "target/nginx-tmp/basic/server.conf",
+        "
+daemon off;
+master_process off;
+pid nginx.pid;
+
+events {
+}
+
+http {
+    ssl_session_cache builtin;
+    access_log access.log;
+
+    server {
+        listen 8443 ssl;
+        server_name localhost;
+        ssl_certificate ../../../test-ca/rsa/server.cert;
+        ssl_certificate_key ../../../test-ca/rsa/server.key;
+        add_header x-ssl-protocol \"$ssl_protocol\";
+        add_header x-ssl-cipher \"$ssl_cipher\";
+        add_header x-ssl-ciphers \"$ssl_ciphers\";
+        add_header x-ssl-curves \"$ssl_curves\";
+        add_header x-ssl-session-id \"$ssl_session_id\";
+        add_header x-ssl-session-reused \"$ssl_session_reused\";
+        add_header x-ssl-early-data \"$ssl_early_data\";
+        add_header x-ssl-server-name \"$ssl_server_name\";
+        add_header x-ssl-client-cert \"$ssl_client_cert\";
+        add_header x-ssl-client-raw-cert \"$ssl_client_raw_cert\";
+        add_header x-ssl-client-escaped-cert \"$ssl_client_escaped_cert\";
+        add_header x-ssl-client-s-dn \"$ssl_client_s_dn\";
+        add_header x-ssl-client-i-dn \"$ssl_client_i_dn\";
+        add_header x-ssl-client-s-dn-legacy \"$ssl_client_s_dn_legacy\";
+        add_header x-ssl-client-i-dn-legacy \"$ssl_client_i_dn_legacy\";
+        add_header x-ssl-client-serial \"$ssl_client_serial\";
+        add_header x-ssl-client-fingerprint \"$ssl_client_fingerprint\";
+        add_header x-ssl-client-verify \"$ssl_client_verify\";
+        add_header x-ssl-client-v-start \"$ssl_client_v_start\";
+        add_header x-ssl-client-v-end \"$ssl_client_v_end\";
+        add_header x-ssl-client-v-remain \"$ssl_client_v_remain\";
+    }
+}
+",
+    )
+    .unwrap();
+
+    fs::write(
+        "target/nginx-tmp/basic/html/welcome.html",
+        "<h1>hello world!</h1>",
+    )
+    .unwrap();
+    let big_file = vec![b'a'; 5 * 1024 * 1024];
+    fs::write("target/nginx-tmp/basic/html/large.html", &big_file).unwrap();
+
+    let nginx_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "nginx",
+                "-g",
+                &format!("error_log stderr {NGINX_LOG_LEVEL};"),
+                "-p",
+                "./target/nginx-tmp/basic",
+                "-c",
+                "server.conf",
+            ])
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_port(8443);
+
+    // basic single request
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "https://localhost:8443/welcome.html"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap()
+            .stdout,
+        b"<h1>hello world!</h1>"
+    );
+
+    // double request without http connection reuse (second should be a TLS resumption)
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--verbose",
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "-H",
+                "connection: close",
+                "https://localhost:8443/welcome.html",
+                "https://localhost:8443/welcome.html"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap()
+            .stdout,
+        b"<h1>hello world!</h1><h1>hello world!</h1>"
+    );
+
+    // big download
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "https://localhost:8443/large.html"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap()
+            .stdout,
+        big_file
+    );
+
+    drop(nginx_server);
 }
 
 struct KillOnDrop(Option<Child>);

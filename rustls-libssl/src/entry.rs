@@ -1540,6 +1540,13 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_check_private_key(_ssl: *const SSL) -> c_int {
+        log::trace!("not implemented: _SSL_check_private_key, returning success");
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _SSL_set_session_id_context(
         _ssl: *mut SSL,
         _sid_ctx: *const c_uchar,

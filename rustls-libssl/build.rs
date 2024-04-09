@@ -49,6 +49,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_accept",
     "SSL_alert_desc_string",
     "SSL_alert_desc_string_long",
+    "SSL_check_private_key",
     "SSL_CIPHER_description",
     "SSL_CIPHER_find",
     "SSL_CIPHER_get_bits",

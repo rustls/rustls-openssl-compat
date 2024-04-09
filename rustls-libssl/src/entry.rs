@@ -432,6 +432,47 @@ entry! {
     }
 }
 
+fn use_private_key_file(file_name: &str, file_type: c_int) -> Result<EvpPkey, Error> {
+    let der_data = match file_type {
+        FILETYPE_PEM => {
+            let mut file_reader = match fs::File::open(file_name) {
+                Ok(content) => io::BufReader::new(content),
+                Err(err) => return Err(Error::from_io(err)),
+            };
+
+            match rustls_pemfile::private_key(&mut file_reader) {
+                Ok(Some(key)) => key,
+                Ok(None) => {
+                    log::trace!("No keys found in {file_name:?}");
+                    return Err(Error::bad_data("pem file"));
+                }
+                Err(err) => {
+                    log::trace!("Failed to read {file_name:?}: {err:?}");
+                    return Err(Error::from_io(err));
+                }
+            }
+        }
+        FILETYPE_DER => {
+            let mut data = vec![];
+            match fs::File::open(file_name).and_then(|mut f| f.read_to_end(&mut data)) {
+                Ok(_) => PrivatePkcs8KeyDer::from(data).into(),
+                Err(err) => {
+                    log::trace!("Failed to read {file_name:?}: {err:?}");
+                    return Err(Error::from_io(err));
+                }
+            }
+        }
+        _ => {
+            return Err(Error::not_supported("file_type not in (PEM, DER)"));
+        }
+    };
+
+    match EvpPkey::new_from_der_bytes(der_data) {
+        None => Err(Error::not_supported("invalid key format")),
+        Some(key) => Ok(key),
+    }
+}
+
 entry! {
     pub fn _SSL_CTX_use_PrivateKey_file(
         ctx: *mut SSL_CTX,
@@ -441,45 +482,11 @@ entry! {
         let ctx = try_clone_arc!(ctx);
         let file_name = try_str!(file_name);
 
-        let der_data = match file_type {
-            FILETYPE_PEM => {
-                let mut file_reader = match fs::File::open(file_name) {
-                    Ok(content) => io::BufReader::new(content),
-                    Err(err) => return Error::from_io(err).raise().into(),
-                };
-
-                match rustls_pemfile::private_key(&mut file_reader) {
-                    Ok(Some(key)) => key,
-                    Ok(None) => {
-                        log::trace!("No keys found in {file_name:?}");
-                        return Error::bad_data("pem file").raise().into();
-                    }
-                    Err(err) => {
-                        log::trace!("Failed to read {file_name:?}: {err:?}");
-                        return Error::from_io(err).raise().into();
-                    }
-                }
+        let key = match use_private_key_file(file_name, file_type) {
+            Ok(key) => key,
+            Err(err) => {
+                return err.raise().into();
             }
-            FILETYPE_DER => {
-                let mut data = vec![];
-                match fs::File::open(file_name).and_then(|mut f| f.read_to_end(&mut data)) {
-                    Ok(_) => PrivatePkcs8KeyDer::from(data).into(),
-                    Err(err) => {
-                        log::trace!("Failed to read {file_name:?}: {err:?}");
-                        return Error::from_io(err).raise().into();
-                    }
-                }
-            }
-            _ => {
-                return Error::not_supported("file_type not in (PEM, DER)")
-                    .raise()
-                    .into();
-            }
-        };
-
-        let key = match EvpPkey::new_from_der_bytes(der_data) {
-            None => return Error::not_supported("invalid key format").raise().into(),
-            Some(key) => key,
         };
 
         match ctx.get_mut().commit_private_key(key) {
@@ -1124,6 +1131,29 @@ entry! {
         let pkey = EvpPkey::new_incref(pkey);
 
         match ssl.get_mut().commit_private_key(pkey) {
+            Err(e) => e.raise().into(),
+            Ok(()) => C_INT_SUCCESS,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_use_PrivateKey_file(
+        ssl: *mut SSL,
+        file_name: *const c_char,
+        file_type: c_int,
+    ) -> c_int {
+        let ssl = try_clone_arc!(ssl);
+        let file_name = try_str!(file_name);
+
+        let key = match use_private_key_file(file_name, file_type) {
+            Ok(key) => key,
+            Err(err) => {
+                return err.raise().into();
+            }
+        };
+
+        match ssl.get_mut().commit_private_key(key) {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }

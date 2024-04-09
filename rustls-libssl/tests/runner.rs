@@ -1,6 +1,6 @@
 use std::io::Read;
 use std::process::{Child, Command, Output, Stdio};
-use std::{net, thread, time};
+use std::{fs, net, thread, time};
 
 /* Note:
  *
@@ -325,6 +325,71 @@ fn server() {
 
     let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
     assert_eq!(openssl_output, rustls_output);
+}
+
+const NGINX_LOG_LEVEL: &str = "info";
+
+#[test]
+#[ignore]
+fn nginx() {
+    fs::create_dir_all("target/nginx-tmp/basic/html").unwrap();
+    fs::write(
+        "target/nginx-tmp/basic/server.conf",
+        include_str!("nginx.conf"),
+    )
+    .unwrap();
+
+    let big_file = vec![b'a'; 5 * 1024 * 1024];
+    fs::write("target/nginx-tmp/basic/html/large.html", &big_file).unwrap();
+
+    let nginx_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "nginx",
+                "-g",
+                &format!("error_log stderr {NGINX_LOG_LEVEL};"),
+                "-p",
+                "./target/nginx-tmp/basic",
+                "-c",
+                "server.conf",
+            ])
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_port(8443);
+
+    // basic single request
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args(["--cacert", "test-ca/rsa/ca.cert", "https://localhost:8443/"])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap()
+            .stdout,
+        b"hello world\n"
+    );
+
+    // big download (throttled by curl to ensure non-blocking writes work)
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "--limit-rate",
+                "1M",
+                "https://localhost:8443/large.html"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap()
+            .stdout,
+        big_file
+    );
+
+    drop(nginx_server);
 }
 
 struct KillOnDrop(Option<Child>);

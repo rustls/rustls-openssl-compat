@@ -1214,6 +1214,12 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_get_current_compression(_ssl: *const SSL) -> *const c_void {
+        ptr::null()
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL>;

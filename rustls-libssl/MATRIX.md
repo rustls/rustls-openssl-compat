@@ -329,7 +329,7 @@
 | `SSL_get_client_ciphers`  |  |  |  |
 | `SSL_get_client_random`  |  |  |  |
 | `SSL_get_current_cipher`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_current_compression`  |  |  |  |
+| `SSL_get_current_compression`  |  |  | :white_check_mark: |
 | `SSL_get_current_expansion`  |  |  |  |
 | `SSL_get_default_passwd_cb`  |  |  |  |
 | `SSL_get_default_passwd_cb_userdata`  |  |  |  |

@@ -1581,6 +1581,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get_current_compression(_ssl: *const SSL) -> *const c_void {
+        ptr::null()
+    }
+}
+
+entry! {
     pub fn _SSL_set_session_id_context(
         _ssl: *mut SSL,
         _sid_ctx: *const c_uchar,

@@ -487,7 +487,7 @@
 | `SSL_up_ref`  |  |  | :white_check_mark: |
 | `SSL_use_PrivateKey`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_use_PrivateKey_ASN1`  |  |  |  |
-| `SSL_use_PrivateKey_file`  |  |  |  |
+| `SSL_use_PrivateKey_file`  |  |  | :white_check_mark: |
 | `SSL_use_RSAPrivateKey` [^deprecatedin_3_0] |  |  |  |
 | `SSL_use_RSAPrivateKey_ASN1` [^deprecatedin_3_0] |  |  |  |
 | `SSL_use_RSAPrivateKey_file` [^deprecatedin_3_0] |  |  |  |

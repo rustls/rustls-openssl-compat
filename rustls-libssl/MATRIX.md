@@ -272,7 +272,7 @@
 | `SSL_callback_ctrl`  |  |  |  |
 | `SSL_certs_clear`  |  |  |  |
 | `SSL_check_chain`  |  |  |  |
-| `SSL_check_private_key`  |  |  |  |
+| `SSL_check_private_key`  |  |  | :white_check_mark: |
 | `SSL_clear`  |  |  |  |
 | `SSL_clear_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_client_hello_get0_ciphers`  |  |  |  |

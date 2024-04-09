@@ -1131,6 +1131,13 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_check_private_key(_ssl: *const SSL) -> c_int {
+        log::trace!("not implemented: _SSL_check_private_key, returning success");
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _SSL_get_servername(ssl: *const SSL, ty: c_int) -> *const c_char {
         if ty != TLSEXT_NAMETYPE_host_name {
             return ptr::null();

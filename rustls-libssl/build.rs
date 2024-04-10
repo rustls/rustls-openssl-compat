@@ -151,6 +151,8 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_set_SSL_CTX",
     "SSL_shutdown",
     "SSL_up_ref",
+    "SSL_use_certificate",
+    "SSL_use_PrivateKey",
     "SSL_want",
     "SSL_write",
     "TLS_client_method",

@@ -159,34 +159,36 @@ entry! {
 }
 
 entry! {
-    pub fn _SSL_CTX_ctrl(
-        _ctx: *mut SSL_CTX,
-        cmd: c_int,
-        larg: c_long,
-        _parg: *mut c_void,
-    ) -> c_long {
-        match SslCtrl::try_from(cmd) {
-            Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_CTX_set_mode()");
-                0
+    pub fn _SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
+        let ctx = try_clone_arc!(ctx);
+
+        let result = if let Ok(mut _inner) = ctx.lock() {
+            match SslCtrl::try_from(cmd) {
+                Ok(SslCtrl::Mode) => {
+                    log::warn!("unimplemented SSL_CTX_set_mode()");
+                    0
+                }
+                Ok(SslCtrl::SetMsgCallbackArg) => {
+                    log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
+                    0
+                }
+                Ok(SslCtrl::SetMaxProtoVersion) => {
+                    log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
+                    1
+                }
+                Ok(SslCtrl::SetTlsExtHostname) => {
+                    // not a defined operation in the OpenSSL API
+                    0
+                }
+                Err(()) => {
+                    log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
+                    0
+                }
             }
-            Ok(SslCtrl::SetMsgCallbackArg) => {
-                log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
-                0
-            }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
-                1
-            }
-            Ok(SslCtrl::SetTlsExtHostname) => {
-                // not a defined operation in the OpenSSL API
-                0
-            }
-            Err(()) => {
-                log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
-                0
-            }
-        }
+        } else {
+            0
+        };
+        result
     }
 }
 
@@ -551,31 +553,33 @@ entry! {
     pub fn _SSL_ctrl(ssl: *mut SSL, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ssl = try_clone_arc!(ssl);
 
-        match SslCtrl::try_from(cmd) {
-            Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_set_mode()");
-                0
+        let result = if let Ok(mut inner) = ssl.lock() {
+            match SslCtrl::try_from(cmd) {
+                Ok(SslCtrl::Mode) => {
+                    log::warn!("unimplemented SSL_set_mode()");
+                    0
+                }
+                Ok(SslCtrl::SetMsgCallbackArg) => {
+                    log::warn!("unimplemented SSL_set_msg_callback_arg()");
+                    0
+                }
+                Ok(SslCtrl::SetMaxProtoVersion) => {
+                    log::warn!("unimplemented SSL_set_max_proto_version()");
+                    1
+                }
+                Ok(SslCtrl::SetTlsExtHostname) => {
+                    let hostname = try_str!(parg as *const c_char);
+                    inner.set_sni_hostname(hostname) as c_long
+                }
+                Err(()) => {
+                    log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
+                    0
+                }
             }
-            Ok(SslCtrl::SetMsgCallbackArg) => {
-                log::warn!("unimplemented SSL_set_msg_callback_arg()");
-                0
-            }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_set_max_proto_version()");
-                1
-            }
-            Ok(SslCtrl::SetTlsExtHostname) => {
-                let hostname = try_str!(parg as *const c_char);
-                ssl.lock()
-                    .ok()
-                    .map(|mut ssl| ssl.set_sni_hostname(hostname))
-                    .unwrap_or_default() as c_long
-            }
-            Err(()) => {
-                log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
-                0
-            }
-        }
+        } else {
+            0
+        };
+        result
     }
 }
 

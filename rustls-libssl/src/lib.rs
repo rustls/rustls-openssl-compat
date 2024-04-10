@@ -1045,11 +1045,13 @@ impl Ssl {
                     return SSL_ERROR_SSL;
                 }
 
+                let want = self.want();
+
                 if let Some(bio) = self.bio.as_ref() {
-                    if bio.read_would_block() {
-                        return SSL_ERROR_WANT_READ;
-                    } else if bio.write_would_block() {
+                    if want.write && bio.write_would_block() {
                         return SSL_ERROR_WANT_WRITE;
+                    } else if want.read && bio.read_would_block() {
+                        return SSL_ERROR_WANT_READ;
                     }
                 }
 

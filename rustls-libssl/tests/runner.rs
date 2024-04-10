@@ -436,13 +436,15 @@ http {
         b"<h1>hello world!</h1><h1>hello world!</h1>"
     );
 
-    // big download
+    // big download (throttled by curl to ensure non-blocking writes work)
     assert_eq!(
         Command::new("curl")
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "--cacert",
                 "test-ca/rsa/ca.cert",
+                "--limit-rate",
+                "1M",
                 "https://localhost:8443/large.html"
             ])
             .stdout(Stdio::piped())

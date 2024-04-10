@@ -188,10 +188,22 @@ entry! {
                 log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
                 0
             }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
-                1
+            Ok(SslCtrl::SetMinProtoVersion) => {
+                if larg < 0 || larg > u16::MAX.into() {
+                    return 0;
+                }
+                ctx.get_mut().set_min_protocol_version(larg as u16);
+                C_INT_SUCCESS as c_long
             }
+            Ok(SslCtrl::GetMinProtoVersion) => ctx.get().get_min_protocol_version().into(),
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                if larg < 0 || larg > u16::MAX.into() {
+                    return 0;
+                }
+                ctx.get_mut().set_max_protocol_version(larg as u16);
+                C_INT_SUCCESS as c_long
+            }
+            Ok(SslCtrl::GetMaxProtoVersion) => ctx.get().get_max_protocol_version().into(),
             Ok(SslCtrl::SetTlsExtHostname) | Ok(SslCtrl::SetTlsExtServerNameCallback) => {
                 // not a defined operation in the OpenSSL API
                 0
@@ -688,10 +700,22 @@ entry! {
                 log::warn!("unimplemented SSL_set_msg_callback_arg()");
                 0
             }
-            Ok(SslCtrl::SetMaxProtoVersion) => {
-                log::warn!("unimplemented SSL_set_max_proto_version()");
-                1
+            Ok(SslCtrl::SetMinProtoVersion) => {
+                if larg < 0 || larg > u16::MAX.into() {
+                    return 0;
+                }
+                ssl.get_mut().set_min_protocol_version(larg as u16);
+                C_INT_SUCCESS as c_long
             }
+            Ok(SslCtrl::GetMinProtoVersion) => ssl.get().get_min_protocol_version().into(),
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                if larg < 0 || larg > u16::MAX.into() {
+                    return 0;
+                }
+                ssl.get_mut().set_max_protocol_version(larg as u16);
+                C_INT_SUCCESS as c_long
+            }
+            Ok(SslCtrl::GetMaxProtoVersion) => ssl.get().get_max_protocol_version().into(),
             Ok(SslCtrl::SetTlsExtHostname) => {
                 let hostname = try_str!(parg as *const c_char);
                 ssl.get_mut().set_sni_hostname(hostname) as c_long
@@ -1438,7 +1462,10 @@ num_enum! {
         SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
         SetChain = 88,
+        SetMinProtoVersion = 123,
         SetMaxProtoVersion = 124,
+        GetMinProtoVersion = 130,
+        GetMaxProtoVersion = 131,
     }
 }
 

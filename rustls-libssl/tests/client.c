@@ -61,6 +61,16 @@ int main(int argc, char **argv) {
   }
   printf("SSL_CTX_get_verify_depth default %d\n",
          SSL_CTX_get_verify_depth(ctx));
+  printf("SSL_CTX_get_min_proto_version default 0x%lx\n",
+         SSL_CTX_get_min_proto_version(ctx));
+  printf("SSL_CTX_get_max_proto_version default 0x%lx\n",
+         SSL_CTX_get_max_proto_version(ctx));
+  TRACE(SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION));
+  TRACE(SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION));
+  printf("SSL_CTX_get_min_proto_version 0x%lx\n",
+         SSL_CTX_get_min_proto_version(ctx));
+  printf("SSL_CTX_get_max_proto_version 0x%lx\n",
+         SSL_CTX_get_max_proto_version(ctx));
 
   X509 *client_cert = NULL;
   EVP_PKEY *client_key = NULL;
@@ -82,6 +92,8 @@ int main(int argc, char **argv) {
          SSL_get_certificate(ssl) == client_cert ? "same as" : "differs to");
   state(ssl);
   printf("SSL_get_verify_depth default %d\n", SSL_get_verify_depth(ssl));
+  printf("SSL_get_min_proto_version 0x%lx\n", SSL_get_min_proto_version(ssl));
+  printf("SSL_get_max_proto_version 0x%lx\n", SSL_get_max_proto_version(ssl));
   printf("SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
          SSL_get_servername_type(ssl));

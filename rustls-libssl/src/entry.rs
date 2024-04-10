@@ -22,7 +22,7 @@ use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
     try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
-use crate::x509::{load_certs, OwnedX509};
+use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
 use crate::{HandshakeState, ShutdownResult};
 
 /// Makes a entry function definition.
@@ -162,7 +162,7 @@ entry! {
     pub fn _SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ctx = try_clone_arc!(ctx);
 
-        let result = if let Ok(mut _inner) = ctx.lock() {
+        let result = if let Ok(mut inner) = ctx.lock() {
             match SslCtrl::try_from(cmd) {
                 Ok(SslCtrl::Mode) => {
                     log::warn!("unimplemented SSL_CTX_set_mode()");
@@ -180,6 +180,23 @@ entry! {
                     // not a defined operation in the OpenSSL API
                     0
                 }
+                Ok(SslCtrl::SetChain) => {
+                    let chain = if parg.is_null() {
+                        // this is `SSL_CTX_clear_chain_certs`
+                        vec![]
+                    } else {
+                        match larg {
+                            // this is `SSL_CTX_set1_chain` (incs ref)
+                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                            // this is `SSL_CTX_set0_chain` (retain ref)
+                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                        }
+                    };
+
+                    inner.stage_certificate_chain(chain);
+                    C_INT_SUCCESS as i64
+                }
+
                 Err(()) => {
                     log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
                     0
@@ -570,6 +587,22 @@ entry! {
                 Ok(SslCtrl::SetTlsExtHostname) => {
                     let hostname = try_str!(parg as *const c_char);
                     inner.set_sni_hostname(hostname) as c_long
+                }
+                Ok(SslCtrl::SetChain) => {
+                    let chain = if parg.is_null() {
+                        // this is `SSL_clear_chain_certs`
+                        vec![]
+                    } else {
+                        match larg {
+                            // this is `SSL_set1_chain` (incs ref)
+                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                            // this is `SSL_set0_chain` (retain ref)
+                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                        }
+                    };
+
+                    inner.stage_certificate_chain(chain);
+                    C_INT_SUCCESS as i64
                 }
                 Err(()) => {
                     log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
@@ -1231,6 +1264,7 @@ num_enum! {
         Mode = 33,
         SetMsgCallbackArg = 16,
         SetTlsExtHostname = 55,
+        SetChain = 88,
         SetMaxProtoVersion = 124,
     }
 }

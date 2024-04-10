@@ -15,7 +15,8 @@ use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor};
 use rustls::{
-    CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore, ServerConfig,
+    CipherSuite, ClientConfig, ClientConnection, Connection, ProtocolVersion, RootCertStore,
+    ServerConfig, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -52,8 +53,8 @@ mod x509;
 /// # Lifetime
 /// Functions that return SSL_METHOD, like `TLS_method()`, give static-lifetime pointers.
 pub struct SslMethod {
-    client_versions: &'static [&'static rustls::SupportedProtocolVersion],
-    server_versions: &'static [&'static rustls::SupportedProtocolVersion],
+    client_versions: &'static [&'static SupportedProtocolVersion],
+    server_versions: &'static [&'static SupportedProtocolVersion],
 }
 
 impl SslMethod {
@@ -216,6 +217,7 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 pub struct SslContext {
     method: &'static SslMethod,
     ex_data: ex_data::ExData,
+    versions: EnabledVersions,
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_depth: c_int,
@@ -236,6 +238,7 @@ impl SslContext {
         Self {
             method,
             ex_data: ex_data::ExData::default(),
+            versions: EnabledVersions::default(),
             raw_options: 0,
             verify_mode: VerifyMode::default(),
             verify_depth: -1,
@@ -276,6 +279,36 @@ impl SslContext {
     fn clear_options(&mut self, clear: u64) -> u64 {
         self.raw_options &= !clear;
         self.raw_options
+    }
+
+    fn set_min_protocol_version(&mut self, ver: u16) {
+        self.versions.min = match ver {
+            0 => None,
+            _ => Some(ProtocolVersion::from(ver)),
+        };
+    }
+
+    fn get_min_protocol_version(&self) -> u16 {
+        self.versions
+            .min
+            .as_ref()
+            .map(|v| u16::from(*v))
+            .unwrap_or_default()
+    }
+
+    fn set_max_protocol_version(&mut self, ver: u16) {
+        self.versions.max = match ver {
+            0 => None,
+            _ => Some(ProtocolVersion::from(ver)),
+        };
+    }
+
+    fn get_max_protocol_version(&self) -> u16 {
+        self.versions
+            .max
+            .as_ref()
+            .map(|v| u16::from(*v))
+            .unwrap_or_default()
     }
 
     fn set_max_early_data(&mut self, max: u32) {
@@ -428,6 +461,7 @@ pub fn iter_alpn(mut slice: &[u8]) -> impl Iterator<Item = Option<&[u8]>> {
 struct Ssl {
     ctx: Arc<NotThreadSafe<SslContext>>,
     ex_data: ex_data::ExData,
+    versions: EnabledVersions,
     raw_options: u64,
     mode: ConnMode,
     verify_mode: VerifyMode,
@@ -463,6 +497,7 @@ impl Ssl {
         Ok(Self {
             ctx,
             ex_data: ex_data::ExData::default(),
+            versions: inner.versions.clone(),
             raw_options: inner.raw_options,
             mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
@@ -517,6 +552,36 @@ impl Ssl {
     fn clear_options(&mut self, clear: u64) -> u64 {
         self.raw_options &= !clear;
         self.raw_options
+    }
+
+    fn set_min_protocol_version(&mut self, ver: u16) {
+        self.versions.min = match ver {
+            0 => None,
+            _ => Some(ProtocolVersion::from(ver)),
+        };
+    }
+
+    fn get_min_protocol_version(&self) -> u16 {
+        self.versions
+            .min
+            .as_ref()
+            .map(|v| u16::from(*v))
+            .unwrap_or_default()
+    }
+
+    fn set_max_protocol_version(&mut self, ver: u16) {
+        self.versions.max = match ver {
+            0 => None,
+            _ => Some(ProtocolVersion::from(ver)),
+        };
+    }
+
+    fn get_max_protocol_version(&self) -> u16 {
+        self.versions
+            .max
+            .as_ref()
+            .map(|v| u16::from(*v))
+            .unwrap_or_default()
     }
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {
@@ -680,8 +745,10 @@ impl Ssl {
             &self.verify_server_name,
         ));
 
+        let versions = self.versions.reduce_versions(method.client_versions)?;
+
         let wants_resolver = ClientConfig::builder_with_provider(provider)
-            .with_protocol_versions(method.client_versions)
+            .with_protocol_versions(&versions)
             .map_err(error::Error::from_rustls)?
             .dangerous()
             .with_custom_certificate_verifier(verifier.clone());
@@ -768,8 +835,10 @@ impl Ssl {
             .server_resolver()
             .ok_or_else(|| error::Error::bad_data("missing server keys"))?;
 
+        let versions = self.versions.reduce_versions(method.server_versions)?;
+
         let mut config = ServerConfig::builder_with_provider(provider)
-            .with_protocol_versions(method.server_versions)
+            .with_protocol_versions(&versions)
             .map_err(error::Error::from_rustls)?
             .with_client_cert_verifier(verifier.clone())
             .with_cert_resolver(resolver);
@@ -1256,6 +1325,40 @@ impl From<i32> for VerifyMode {
 impl From<VerifyMode> for i32 {
     fn from(v: VerifyMode) -> Self {
         v.0
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct EnabledVersions {
+    min: Option<ProtocolVersion>,
+    max: Option<ProtocolVersion>,
+}
+
+impl EnabledVersions {
+    fn reduce_versions(
+        &self,
+        method_versions: &'static [&'static SupportedProtocolVersion],
+    ) -> Result<Vec<&'static SupportedProtocolVersion>, error::Error> {
+        let acceptable: Vec<&'static SupportedProtocolVersion> = method_versions
+            .iter()
+            .cloned()
+            .filter(|v| self.satisfies(v.version))
+            .collect();
+
+        if acceptable.is_empty() {
+            Err(error::Error::bad_data(&format!(
+                "no versions usable: method enabled {method_versions:?}, filter {self:?}"
+            )))
+        } else {
+            Ok(acceptable)
+        }
+    }
+
+    fn satisfies(&self, v: ProtocolVersion) -> bool {
+        let min = self.min.map(u16::from).unwrap_or(0);
+        let max = self.max.map(u16::from).unwrap_or(0xffff);
+        let v = u16::from(v);
+        min <= v && v <= max
     }
 }
 

@@ -160,11 +160,11 @@ impl Bio {
     }
 
     pub fn read_would_block(&self) -> bool {
-        bio_should_retry(self.read)
+        bio_should_retry_read(self.read)
     }
 
     pub fn write_would_block(&self) -> bool {
-        bio_should_retry(self.write)
+        bio_should_retry_write(self.write)
     }
 }
 
@@ -185,7 +185,7 @@ impl io::Read for Bio {
             _ => {
                 if bio_in_eof(self.read) {
                     Ok(0)
-                } else if bio_should_retry(self.read) {
+                } else if bio_should_retry_read(self.read) {
                     Err(io::ErrorKind::WouldBlock.into())
                 } else {
                     Err(io::Error::other("BIO_read_ex failed"))
@@ -209,7 +209,13 @@ impl io::Write for Bio {
 
         match rc {
             1 => Ok(written_bytes),
-            _ => Err(io::Error::other("BIO_write_ex failed")),
+            _ => {
+                if bio_should_retry_write(self.write) {
+                    Err(io::ErrorKind::WouldBlock.into())
+                } else {
+                    Err(io::Error::other("BIO_write_ex failed"))
+                }
+            }
         }
     }
 
@@ -310,9 +316,16 @@ pub type BIO = OpaqueBio;
 #[allow(clippy::upper_case_acronyms)]
 pub type BIO_METHOD = bio_method_st;
 
-fn bio_should_retry(b: *const BIO) -> bool {
+fn bio_should_retry_read(b: *const BIO) -> bool {
+    const BIO_FLAGS_READ: c_int = 0x01;
     const BIO_SHOULD_RETRY: c_int = 0x08;
-    unsafe { BIO_test_flags(b, BIO_SHOULD_RETRY) != 0 }
+    unsafe { BIO_test_flags(b, BIO_SHOULD_RETRY | BIO_FLAGS_READ) != 0 }
+}
+
+fn bio_should_retry_write(b: *const BIO) -> bool {
+    const BIO_FLAGS_WRITE: c_int = 0x02;
+    const BIO_SHOULD_RETRY: c_int = 0x08;
+    unsafe { BIO_test_flags(b, BIO_SHOULD_RETRY | BIO_FLAGS_WRITE) != 0 }
 }
 
 fn bio_in_eof(b: *const BIO) -> bool {

@@ -33,13 +33,16 @@ impl Bio {
     /// Absent pointers are silently replaced with a `BIO_s_null()`.
     /// `Some(ptr::null_mut())` is illegal.
     ///
-    /// The caller donates their references, even if they point to the same
-    /// object.  In other words: if rbio and wbio are both `Some` and contain
-    /// the same pointer, the underlying reference count must be at least 2!
+    /// The caller donates their references, using the rules for `update()`.
     pub fn new_pair(rbio: Option<*mut BIO>, wbio: Option<*mut BIO>) -> Self {
-        let read = rbio.unwrap_or_else(|| unsafe { BIO_new(BIO_s_null()) });
-        let write = wbio.unwrap_or_else(|| unsafe { BIO_new(BIO_s_null()) });
-        Self { read, write }
+        let null_2 = unsafe { BIO_new(BIO_s_null()) };
+        unsafe { BIO_up_ref(null_2) };
+        let mut ret = Self {
+            read: null_2,
+            write: null_2,
+        };
+        ret.update(rbio, wbio);
+        ret
     }
 
     /// Update this object with a pair of raw BIO pointers.

@@ -26,6 +26,7 @@ enum Reason {
     UnableToGetWriteLock,
     OperationFailed,
     Unsupported,
+    WouldBlock,
     Alert(AlertDescription),
 }
 
@@ -39,6 +40,7 @@ impl From<Reason> for c_int {
             UnableToGetWriteLock => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 272,
             OperationFailed => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 263,
             Unsupported => ERR_RFLAG_COMMON | 268,
+            WouldBlock => 0,
             // `sslerr.h`
             Alert(alert) => 1000 + u8::from(alert) as c_int,
         }
@@ -109,15 +111,26 @@ impl Error {
     }
 
     pub fn from_io(err: std::io::Error) -> Self {
-        Self {
-            lib: Lib::User,
-            reason: Reason::OperationFailed,
-            string: Some(err.to_string()),
+        match err.kind() {
+            std::io::ErrorKind::WouldBlock => Self {
+                lib: Lib::User,
+                reason: Reason::WouldBlock,
+                string: None,
+            },
+            _ => Self {
+                lib: Lib::User,
+                reason: Reason::OperationFailed,
+                string: Some(err.to_string()),
+            },
         }
     }
 
     /// Add this error to the openssl error stack.
     pub fn raise(self) -> Self {
+        if self.quiet() {
+            return self;
+        }
+
         log::error!("raising {self:?}");
         let cstr = CString::new(
             self.string
@@ -139,6 +152,13 @@ impl Error {
             crate::miri::ERR_set_error(self.lib as c_int, self.reason.into(), cstr.as_ptr());
         }
         self
+    }
+
+    /// `WouldBlock` errors never make it on the error stack.
+    ///
+    /// They are usual in the use of non-blocking BIOs.
+    fn quiet(&self) -> bool {
+        matches!(self.reason, Reason::WouldBlock)
     }
 }
 

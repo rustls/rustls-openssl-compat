@@ -1,6 +1,6 @@
 use core::ffi::{c_int, c_long};
 use core::ptr;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 
 use openssl_sys::{ERR_new, ERR_set_error, ERR_RFLAGS_OFFSET, ERR_RFLAG_FATAL};
 use rustls::AlertDescription;
@@ -125,8 +125,6 @@ impl Error {
                 .unwrap_or_else(|| format!("{:?}", self.reason)),
         )
         .unwrap();
-        // safety: b"%s\0" satisfies requirements of from_bytes_with_nul_unchecked.
-        let fmt = unsafe { CStr::from_bytes_with_nul_unchecked(b"%s\0") };
         unsafe {
             ERR_new();
             // nb. miri cannot do variadic functions, so we define a miri-only equivalent
@@ -134,7 +132,7 @@ impl Error {
             ERR_set_error(
                 self.lib as c_int,
                 self.reason.into(),
-                fmt.as_ptr(),
+                c"%s".as_ptr(),
                 cstr.as_ptr(),
             );
             #[cfg(miri)]

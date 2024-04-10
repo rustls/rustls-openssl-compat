@@ -218,6 +218,10 @@ entry! {
                     log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
                     0
                 }
+                Ok(SslCtrl::SetMinProtoVersion) => {
+                    log::warn!("unimplemented SSL_CTX_set_min_proto_version()");
+                    1
+                }
                 Ok(SslCtrl::SetMaxProtoVersion) => {
                     log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
                     1
@@ -863,6 +867,10 @@ entry! {
                 Ok(SslCtrl::SetMsgCallbackArg) => {
                     log::warn!("unimplemented SSL_set_msg_callback_arg()");
                     0
+                }
+                Ok(SslCtrl::SetMinProtoVersion) => {
+                    log::warn!("unimplemented SSL_set_min_proto_version()");
+                    1
                 }
                 Ok(SslCtrl::SetMaxProtoVersion) => {
                     log::warn!("unimplemented SSL_set_max_proto_version()");
@@ -1812,6 +1820,7 @@ num_enum! {
         SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
         SetChain = 88,
+        SetMinProtoVersion = 123,
         SetMaxProtoVersion = 124,
     }
 }

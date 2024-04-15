@@ -14,38 +14,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
-static int trace(int rc, const char *str) {
-  printf("%s: %d\n", str, rc);
-  return rc;
-}
-
-#define TRACE(fn) trace((fn), #fn)
-
-static void hexdump(const char *label, const void *buf, int n) {
-  const uint8_t *ubuf = (const uint8_t *)buf;
-  printf("%s (%d bytes): ", label, n);
-  for (int i = 0; i < n; i++) {
-    printf("%02x", ubuf[i]);
-  }
-  printf("\n");
-}
-
-static void dump_openssl_error_stack(void) {
-  if (ERR_peek_error() != 0) {
-    printf("openssl error: %08lx\n", ERR_peek_error());
-    ERR_print_errors_fp(stderr);
-  }
-}
-
-static void state(const SSL *s) {
-  OSSL_HANDSHAKE_STATE st = SSL_get_state(s);
-  printf("state: %d (before:%d, init:%d, fin:%d)\n", st, SSL_in_before(s),
-         SSL_in_init(s), SSL_is_init_finished(s));
-}
+#include "helpers.h"
 
 int main(int argc, char **argv) {
   if (argc != 5) {
@@ -121,29 +93,7 @@ int main(int argc, char **argv) {
   printf("verify-result: %ld\n", SSL_get_verify_result(ssl));
   printf("cipher: %s\n", SSL_CIPHER_standard_name(SSL_get_current_cipher(ssl)));
 
-  // check the peer certificate and chain
-  X509 *cert = SSL_get1_peer_certificate(ssl);
-  if (cert) {
-    char *name = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
-    printf("client subject: %s\n", name);
-    free(name);
-  } else {
-    printf("client cert absent\n");
-  }
-  X509_free(cert);
-
-  STACK_OF(X509) *chain = SSL_get_peer_cert_chain(ssl);
-  if (chain) {
-    printf("%d certs in client chain\n", sk_X509_num(chain));
-    for (int i = 0; i < sk_X509_num(chain); i++) {
-      X509 *cert = sk_X509_value(chain, i);
-      char *name = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
-      printf("  %d: %s\n", i, name);
-      free(name);
-    }
-  } else {
-    printf("client cert chain absent\n");
-  }
+  show_peer_certificate("client", ssl);
 
   // read "request"
   while (1) {

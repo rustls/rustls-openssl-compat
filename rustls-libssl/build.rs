@@ -169,6 +169,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_set_fd",
     "SSL_set_options",
     "SSL_set_post_handshake_auth",
+    "SSL_set_quiet_shutdown",
     "SSL_set_session",
     "SSL_set_session_id_context",
     "SSL_set_shutdown",

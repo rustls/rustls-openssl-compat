@@ -880,6 +880,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_quiet_shutdown(ssl: *mut SSL, mode: c_int) {
+        try_clone_arc!(ssl).get_mut().set_quiet_shutdown(mode != 0)
+    }
+}
+
+entry! {
     pub fn _SSL_pending(ssl: *const SSL) -> c_int {
         try_clone_arc!(ssl).get_mut().get_pending_plaintext() as c_int
     }

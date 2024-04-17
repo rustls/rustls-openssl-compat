@@ -877,6 +877,12 @@ impl Ssl {
     }
 
     fn try_shutdown(&mut self) -> Result<ShutdownResult, error::Error> {
+        if self.shutdown_flags.quiet() {
+            self.shutdown_flags.set_sent();
+            self.shutdown_flags.set_received();
+            return Ok(ShutdownResult::Received);
+        }
+
         if !self.shutdown_flags.is_sent() {
             if let Some(conn) = self.conn_mut() {
                 conn.send_close_notify();
@@ -894,11 +900,15 @@ impl Ssl {
     }
 
     fn get_shutdown(&self) -> i32 {
-        self.shutdown_flags.0
+        self.shutdown_flags.get()
     }
 
     fn set_shutdown(&mut self, flags: i32) {
         self.shutdown_flags.set(flags);
+    }
+
+    fn set_quiet_shutdown(&mut self, enabled: bool) {
+        self.shutdown_flags.set_quiet(enabled);
     }
 
     fn get_pending_plaintext(&mut self) -> usize {
@@ -1140,6 +1150,9 @@ struct ShutdownFlags(i32);
 impl ShutdownFlags {
     const SENT: i32 = 1;
     const RECEIVED: i32 = 2;
+    const PUBLIC: i32 = Self::SENT | Self::RECEIVED;
+
+    const PRIV_QUIET: i32 = 4;
 
     fn is_sent(&self) -> bool {
         self.0 & ShutdownFlags::SENT == ShutdownFlags::SENT
@@ -1158,7 +1171,23 @@ impl ShutdownFlags {
     }
 
     fn set(&mut self, flags: i32) {
-        self.0 |= flags & (ShutdownFlags::SENT | ShutdownFlags::RECEIVED);
+        self.0 |= flags & ShutdownFlags::PUBLIC;
+    }
+
+    fn get(&self) -> i32 {
+        self.0 & ShutdownFlags::PUBLIC
+    }
+
+    fn set_quiet(&mut self, enabled: bool) {
+        if enabled {
+            self.0 |= ShutdownFlags::PRIV_QUIET;
+        } else {
+            self.0 &= !ShutdownFlags::PRIV_QUIET;
+        }
+    }
+
+    fn quiet(&self) -> bool {
+        self.0 & ShutdownFlags::PRIV_QUIET == ShutdownFlags::PRIV_QUIET
     }
 }
 

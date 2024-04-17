@@ -15,8 +15,8 @@ use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor};
 use rustls::{
-    CipherSuite, ClientConfig, ClientConnection, Connection, ProtocolVersion, RootCertStore,
-    ServerConfig, SupportedProtocolVersion,
+    CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind, ProtocolVersion,
+    RootCertStore, ServerConfig, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -1166,6 +1166,13 @@ impl Ssl {
                 }
             }
             None => HandshakeState::Before,
+        }
+    }
+
+    fn was_session_reused(&self) -> bool {
+        match self.conn() {
+            Some(conn) => conn.handshake_kind() == Some(HandshakeKind::Resumed),
+            None => false,
         }
     }
 }

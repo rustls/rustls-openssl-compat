@@ -1244,6 +1244,12 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_session_reused(ssl: *const SSL) -> c_int {
+        try_clone_arc!(ssl).get().was_session_reused() as c_int
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL>;
@@ -1499,10 +1505,6 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_session_reused(_ssl: *const SSL) -> c_int;
 }
 
 entry_stub! {

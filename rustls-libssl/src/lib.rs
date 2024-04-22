@@ -845,6 +845,7 @@ impl Ssl {
 
         config.alpn_protocols = mem::take(&mut self.alpn);
         config.max_early_data_size = self.max_early_data;
+        config.send_tls13_tickets = 2; // match OpenSSL default: see `man SSL_CTX_set_num_tickets`
 
         let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
             ConnState::Accepted(accepted) => accepted,

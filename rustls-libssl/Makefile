@@ -4,9 +4,11 @@ CARGOFLAGS += --locked
 CFLAGS := -Werror -Wall -Wextra -Wpedantic -g $(shell pkg-config --cflags openssl)
 PROFILE := debug
 
+ifeq ($(PROFILE), debug)
 ifeq ($(CC), clang)
 	CFLAGS += -fsanitize=address -fsanitize=undefined
 	LDFLAGS += -fsanitize=address
+endif
 endif
 
 ifeq ($(PROFILE), release)

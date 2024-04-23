@@ -39,8 +39,8 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - run: make PROFILE=release test
-      - run: make PROFILE=release integration
+      - run: make PROFILE=debug test
+      - run: make PROFILE=debug integration
 
   valgrind:
     name: Valgrind
@@ -55,7 +55,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
-      - run: VALGRIND="valgrind -q" make test integration
+      - run: VALGRIND="valgrind -q" make PROFILE=release test integration
 
   docs:
     name: Check for documentation errors

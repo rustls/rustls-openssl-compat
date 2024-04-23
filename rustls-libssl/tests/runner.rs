@@ -371,6 +371,39 @@ fn nginx() {
         b"hello world\n"
     );
 
+    for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r')] {
+        // multiple requests without http connection reuse
+        // (second should be a TLS resumption if possible)
+        assert_eq!(
+            Command::new("curl")
+                .env("LD_LIBRARY_PATH", "")
+                .args([
+                    "--verbose",
+                    "--cacert",
+                    "test-ca/rsa/ca.cert",
+                    "-H",
+                    "connection: close",
+                    &format!("https://localhost:{port}/"),
+                    &format!("https://localhost:{port}/ssl-agreed"),
+                    &format!("https://localhost:{port}/ssl-server-name"),
+                    &format!("https://localhost:{port}/ssl-was-reused")
+                ])
+                .stdout(Stdio::piped())
+                .output()
+                .map(print_output)
+                .unwrap()
+                .stdout,
+            format!(
+                "hello world\n\
+                 protocol:TLSv1.3,cipher:TLS_AES_256_GCM_SHA384\n\
+                 server-name:localhost\n\
+                 reused:{reused}\n"
+            )
+            .as_bytes(),
+        );
+        println!("PASS: resumption test for port={port} reused={reused}");
+    }
+
     // big download (throttled by curl to ensure non-blocking writes work)
     assert_eq!(
         Command::new("curl")

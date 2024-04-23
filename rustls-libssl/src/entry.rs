@@ -6,13 +6,9 @@
 use core::{mem, ptr};
 use std::io::{self, Read};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
-use std::sync::Mutex;
 use std::{fs, path::PathBuf};
 
-use openssl_sys::{
-    stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX,
-    X509_V_ERR_UNSPECIFIED,
-};
+use openssl_sys::{stack_st_X509, OPENSSL_malloc, EVP_PKEY, X509, X509_STORE, X509_STORE_CTX};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
@@ -22,6 +18,7 @@ use crate::ffi::{
     free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from, try_mut_slice_int,
     try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipRef,
 };
+use crate::not_thread_safe::NotThreadSafe;
 use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
 use crate::{HandshakeState, ShutdownResult};
 
@@ -110,7 +107,7 @@ type SSL_CTX = crate::SslContext;
 entry! {
     pub fn _SSL_CTX_new(meth: *const SSL_METHOD) -> *mut SSL_CTX {
         let method = try_ref_from_ptr!(meth);
-        to_arc_mut_ptr(Mutex::new(crate::SslContext::new(method)))
+        to_arc_mut_ptr(NotThreadSafe::new(crate::SslContext::new(method)))
     }
 }
 
@@ -130,31 +127,19 @@ entry! {
 
 entry! {
     pub fn _SSL_CTX_get_options(ctx: *const SSL_CTX) -> u64 {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|ctx| ctx.get_options())
-            .unwrap_or_default()
+        try_clone_arc!(ctx).get().get_options()
     }
 }
 
 entry! {
     pub fn _SSL_CTX_clear_options(ctx: *mut SSL_CTX, op: u64) -> u64 {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|mut ctx| ctx.clear_options(op))
-            .unwrap_or_default()
+        try_clone_arc!(ctx).get_mut().clear_options(op)
     }
 }
 
 entry! {
     pub fn _SSL_CTX_set_options(ctx: *mut SSL_CTX, op: u64) -> u64 {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|mut ctx| ctx.set_options(op))
-            .unwrap_or_default()
+        try_clone_arc!(ctx).get_mut().set_options(op)
     }
 }
 
@@ -162,57 +147,50 @@ entry! {
     pub fn _SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ctx = try_clone_arc!(ctx);
 
-        let result = if let Ok(mut inner) = ctx.lock() {
-            match SslCtrl::try_from(cmd) {
-                Ok(SslCtrl::Mode) => {
-                    log::warn!("unimplemented SSL_CTX_set_mode()");
-                    0
-                }
-                Ok(SslCtrl::SetMsgCallbackArg) => {
-                    log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
-                    0
-                }
-                Ok(SslCtrl::SetMaxProtoVersion) => {
-                    log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
-                    1
-                }
-                Ok(SslCtrl::SetTlsExtHostname) => {
-                    // not a defined operation in the OpenSSL API
-                    0
-                }
-                Ok(SslCtrl::SetChain) => {
-                    let chain = if parg.is_null() {
-                        // this is `SSL_CTX_clear_chain_certs`
-                        vec![]
-                    } else {
-                        match larg {
-                            // this is `SSL_CTX_set1_chain` (incs ref)
-                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
-                            // this is `SSL_CTX_set0_chain` (retain ref)
-                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
-                        }
-                    };
-
-                    inner.stage_certificate_chain(chain);
-                    C_INT_SUCCESS as i64
-                }
-
-                Err(()) => {
-                    log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
-                    0
-                }
+        match SslCtrl::try_from(cmd) {
+            Ok(SslCtrl::Mode) => {
+                log::warn!("unimplemented SSL_CTX_set_mode()");
+                0
             }
-        } else {
-            0
-        };
-        result
+            Ok(SslCtrl::SetMsgCallbackArg) => {
+                log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
+                0
+            }
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                log::warn!("unimplemented SSL_CTX_set_max_proto_version()");
+                1
+            }
+            Ok(SslCtrl::SetTlsExtHostname) => {
+                // not a defined operation in the OpenSSL API
+                0
+            }
+            Ok(SslCtrl::SetChain) => {
+                let chain = if parg.is_null() {
+                    // this is `SSL_CTX_clear_chain_certs`
+                    vec![]
+                } else {
+                    match larg {
+                        // this is `SSL_CTX_set1_chain` (incs ref)
+                        1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                        // this is `SSL_CTX_set0_chain` (retain ref)
+                        _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                    }
+                };
+
+                ctx.get_mut().stage_certificate_chain(chain);
+                C_INT_SUCCESS as i64
+            }
+
+            Err(()) => {
+                log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
+                0
+            }
+        }
     }
 }
 
 entry! {
     pub fn _SSL_CTX_set_verify(ctx: *mut SSL_CTX, mode: c_int, callback: SSL_verify_cb) {
-        let ctx = try_clone_arc!(ctx);
-
         if callback.is_some() {
             // supporting verify callbacks would mean we need to fully use
             // the openssl certificate verifier, because X509_STORE and
@@ -220,10 +198,9 @@ entry! {
             return Error::not_supported("verify callback").raise().into();
         }
 
-        ctx.lock()
-            .ok()
-            .map(|mut ctx| ctx.set_verify(crate::VerifyMode::from(mode)))
-            .unwrap_or_default();
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_verify(crate::VerifyMode::from(mode));
     }
 }
 
@@ -232,25 +209,20 @@ pub type SSL_verify_cb =
 
 entry! {
     pub fn _SSL_CTX_get_cert_store(ctx: *const SSL_CTX) -> *mut X509_STORE {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|ctx| ctx.get_x509_store())
-            .unwrap_or(ptr::null_mut())
+        try_clone_arc!(ctx).get().get_x509_store()
     }
 }
 
-fn load_verify_files(ctx: &Mutex<SSL_CTX>, file_names: impl Iterator<Item = PathBuf>) -> c_int {
+fn load_verify_files(
+    ctx: &NotThreadSafe<SSL_CTX>,
+    file_names: impl Iterator<Item = PathBuf>,
+) -> c_int {
     let certs = match load_certs(file_names) {
         Err(e) => return e.into(),
         Ok(certs) => certs,
     };
 
-    match ctx
-        .lock()
-        .map_err(|_| Error::cannot_lock())
-        .and_then(|mut ctx| ctx.add_trusted_certs(certs))
-    {
+    match ctx.get_mut().add_trusted_certs(certs) {
         Err(e) => e.raise().into(),
         Ok(()) => C_INT_SUCCESS,
     }
@@ -258,43 +230,22 @@ fn load_verify_files(ctx: &Mutex<SSL_CTX>, file_names: impl Iterator<Item = Path
 
 entry! {
     pub fn _SSL_CTX_set_default_verify_paths(ctx: *mut SSL_CTX) -> c_int {
-        let ctx = try_clone_arc!(ctx);
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.set_default_verify_paths())
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        try_clone_arc!(ctx).get_mut().set_default_verify_paths();
+        C_INT_SUCCESS
     }
 }
 
 entry! {
     pub fn _SSL_CTX_set_default_verify_dir(ctx: *mut SSL_CTX) -> c_int {
-        let ctx = try_clone_arc!(ctx);
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.set_default_verify_dir())
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        try_clone_arc!(ctx).get_mut().set_default_verify_dir();
+        C_INT_SUCCESS
     }
 }
 
 entry! {
     pub fn _SSL_CTX_set_default_verify_file(ctx: *mut SSL_CTX) -> c_int {
-        let ctx = try_clone_arc!(ctx);
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.set_default_verify_file())
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        try_clone_arc!(ctx).get_mut().set_default_verify_file();
+        C_INT_SUCCESS
     }
 }
 
@@ -303,7 +254,7 @@ entry! {
         let ctx = try_clone_arc!(ctx);
         let ca_file = try_str!(ca_file);
         let path_buf = PathBuf::from(ca_file);
-        load_verify_files(ctx.as_ref(), [path_buf].into_iter())
+        load_verify_files(&ctx, [path_buf].into_iter())
     }
 }
 
@@ -341,14 +292,8 @@ entry! {
             }
         };
 
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.set_alpn_offer(alpn))
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => MysteriouslyOppositeReturnValue::Success,
-        }
+        ctx.get_mut().set_alpn_offer(alpn);
+        MysteriouslyOppositeReturnValue::Success
     }
 }
 
@@ -385,14 +330,8 @@ entry! {
             }
         }
 
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.stage_certificate_chain(chain))
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        ctx.get_mut().stage_certificate_chain(chain);
+        C_INT_SUCCESS
     }
 }
 
@@ -407,14 +346,8 @@ entry! {
         let x509 = OwnedX509::new_incref(x);
         let ee = CertificateDer::from(x509.der_bytes());
 
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ctx| ctx.stage_certificate_end_entity(ee))
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        ctx.get_mut().stage_certificate_end_entity(ee);
+        C_INT_SUCCESS
     }
 }
 
@@ -468,11 +401,7 @@ entry! {
             Some(key) => key,
         };
 
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ctx| ctx.commit_private_key(key))
-        {
+        match ctx.get_mut().commit_private_key(key) {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }
@@ -489,11 +418,7 @@ entry! {
 
         let pkey = EvpPkey::new_incref(pkey);
 
-        match ctx
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ctx| ctx.commit_private_key(pkey))
-        {
+        match ctx.get_mut().commit_private_key(pkey) {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }
@@ -502,21 +427,13 @@ entry! {
 
 entry! {
     pub fn _SSL_CTX_get0_certificate(ctx: *const SSL_CTX) -> *mut X509 {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|ctx| ctx.get_certificate())
-            .unwrap_or(ptr::null_mut())
+        try_clone_arc!(ctx).get().get_certificate()
     }
 }
 
 entry! {
     pub fn _SSL_CTX_get0_privatekey(ctx: *const SSL_CTX) -> *mut EVP_PKEY {
-        let ctx = try_clone_arc!(ctx);
-        ctx.lock()
-            .ok()
-            .map(|ctx| ctx.get_privatekey())
-            .unwrap_or(ptr::null_mut())
+        try_clone_arc!(ctx).get().get_privatekey()
     }
 }
 
@@ -529,7 +446,7 @@ entry! {
 
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
-    type RustType = Mutex<SSL_CTX>;
+    type RustType = NotThreadSafe<SSL_CTX>;
 }
 
 type SSL = crate::Ssl;
@@ -538,17 +455,12 @@ entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
         let ctx = try_clone_arc!(ctx);
 
-        let ssl_ctx = match ctx.lock().ok() {
-            Some(ssl_ctx) => ssl_ctx,
-            None => return ptr::null_mut(),
-        };
-
-        let ssl = match crate::Ssl::new(ctx.clone(), &ssl_ctx).ok() {
+        let ssl = match crate::Ssl::new(ctx.clone(), ctx.get()).ok() {
             Some(ssl) => ssl,
             None => return ptr::null_mut(),
         };
 
-        to_arc_mut_ptr(Mutex::new(ssl))
+        to_arc_mut_ptr(NotThreadSafe::new(ssl))
     }
 }
 
@@ -570,79 +482,62 @@ entry! {
     pub fn _SSL_ctrl(ssl: *mut SSL, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ssl = try_clone_arc!(ssl);
 
-        let result = if let Ok(mut inner) = ssl.lock() {
-            match SslCtrl::try_from(cmd) {
-                Ok(SslCtrl::Mode) => {
-                    log::warn!("unimplemented SSL_set_mode()");
-                    0
-                }
-                Ok(SslCtrl::SetMsgCallbackArg) => {
-                    log::warn!("unimplemented SSL_set_msg_callback_arg()");
-                    0
-                }
-                Ok(SslCtrl::SetMaxProtoVersion) => {
-                    log::warn!("unimplemented SSL_set_max_proto_version()");
-                    1
-                }
-                Ok(SslCtrl::SetTlsExtHostname) => {
-                    let hostname = try_str!(parg as *const c_char);
-                    inner.set_sni_hostname(hostname) as c_long
-                }
-                Ok(SslCtrl::SetChain) => {
-                    let chain = if parg.is_null() {
-                        // this is `SSL_clear_chain_certs`
-                        vec![]
-                    } else {
-                        match larg {
-                            // this is `SSL_set1_chain` (incs ref)
-                            1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
-                            // this is `SSL_set0_chain` (retain ref)
-                            _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
-                        }
-                    };
-
-                    inner.stage_certificate_chain(chain);
-                    C_INT_SUCCESS as i64
-                }
-                Err(()) => {
-                    log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
-                    0
-                }
+        match SslCtrl::try_from(cmd) {
+            Ok(SslCtrl::Mode) => {
+                log::warn!("unimplemented SSL_set_mode()");
+                0
             }
-        } else {
-            0
-        };
-        result
+            Ok(SslCtrl::SetMsgCallbackArg) => {
+                log::warn!("unimplemented SSL_set_msg_callback_arg()");
+                0
+            }
+            Ok(SslCtrl::SetMaxProtoVersion) => {
+                log::warn!("unimplemented SSL_set_max_proto_version()");
+                1
+            }
+            Ok(SslCtrl::SetTlsExtHostname) => {
+                let hostname = try_str!(parg as *const c_char);
+                ssl.get_mut().set_sni_hostname(hostname) as c_long
+            }
+            Ok(SslCtrl::SetChain) => {
+                let chain = if parg.is_null() {
+                    // this is `SSL_clear_chain_certs`
+                    vec![]
+                } else {
+                    match larg {
+                        // this is `SSL_set1_chain` (incs ref)
+                        1 => OwnedX509Stack::new_copy(parg as *mut stack_st_X509).to_rustls(),
+                        // this is `SSL_set0_chain` (retain ref)
+                        _ => OwnedX509Stack::new(parg as *mut stack_st_X509).to_rustls(),
+                    }
+                };
+
+                ssl.get_mut().stage_certificate_chain(chain);
+                C_INT_SUCCESS as i64
+            }
+            Err(()) => {
+                log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
+                0
+            }
+        }
     }
 }
 
 entry! {
     pub fn _SSL_get_options(ssl: *const SSL) -> u64 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_options())
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get().get_options()
     }
 }
 
 entry! {
     pub fn _SSL_clear_options(ssl: *mut SSL, op: u64) -> u64 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.clear_options(op))
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().clear_options(op)
     }
 }
 
 entry! {
     pub fn _SSL_set_options(ssl: *mut SSL, op: u64) -> u64 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.set_options(op))
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().set_options(op)
     }
 }
 
@@ -664,73 +559,51 @@ entry! {
             }
         };
 
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.set_alpn_offer(alpn))
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => MysteriouslyOppositeReturnValue::Success,
-        }
+        ssl.get_mut().set_alpn_offer(alpn);
+        MysteriouslyOppositeReturnValue::Success
     }
 }
 
 entry! {
     pub fn _SSL_set_connect_state(ssl: *mut SSL) {
-        let ssl = try_clone_arc!(ssl);
-        let _ = ssl.lock().ok().map(|mut ssl| ssl.set_client_mode());
+        try_clone_arc!(ssl).get_mut().set_client_mode()
     }
 }
 
 entry! {
     pub fn _SSL_set_accept_state(ssl: *mut SSL) {
-        let ssl = try_clone_arc!(ssl);
-        let _ = ssl.lock().ok().map(|mut ssl| ssl.set_server_mode());
+        try_clone_arc!(ssl).get_mut().set_server_mode()
     }
 }
 
 entry! {
     pub fn _SSL_is_server(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.is_server())
-            .unwrap_or_default() as c_int
+        try_clone_arc!(ssl).get().is_server() as c_int
     }
 }
 
 entry! {
     pub fn _SSL_set1_host(ssl: *mut SSL, hostname: *const c_char) -> c_int {
-        let ssl = try_clone_arc!(ssl);
         let maybe_hostname = str_from_cstring(hostname);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.set_verify_hostname(maybe_hostname))
-            .unwrap_or_default() as c_int
+        try_clone_arc!(ssl)
+            .get_mut()
+            .set_verify_hostname(maybe_hostname) as c_int
     }
 }
 
 entry! {
     pub fn _SSL_set_fd(ssl: *mut SSL, fd: c_int) -> c_int {
-        let ssl = try_clone_arc!(ssl);
         let bio = Bio::new_fd_no_close(fd);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| {
-                ssl.set_bio(bio);
-                true
-            })
-            .unwrap_or_default() as c_int
+        try_clone_arc!(ssl).get_mut().set_bio(bio);
+        C_INT_SUCCESS
     }
 }
 
 entry! {
     pub fn _SSL_set_bio(ssl: *mut SSL, rbio: *mut BIO, wbio: *mut BIO) {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.set_bio_pair(Some(rbio), Some(wbio)))
-            .unwrap_or_default();
+        try_clone_arc!(ssl)
+            .get_mut()
+            .set_bio_pair(Some(rbio), Some(wbio));
     }
 }
 
@@ -740,10 +613,7 @@ entry! {
         if rbio.is_null() {
             return;
         }
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.set_bio_pair(Some(rbio), None))
-            .unwrap_or_default();
+        ssl.get_mut().set_bio_pair(Some(rbio), None);
     }
 }
 
@@ -753,44 +623,26 @@ entry! {
         if wbio.is_null() {
             return;
         }
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.set_bio_pair(None, Some(wbio)))
-            .unwrap_or_default();
+        ssl.get_mut().set_bio_pair(None, Some(wbio));
     }
 }
 
 entry! {
     pub fn _SSL_get_rbio(ssl: *const SSL) -> *mut BIO {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_rbio())
-            .unwrap_or_else(ptr::null_mut)
+        try_clone_arc!(ssl).get().get_rbio()
     }
 }
 
 entry! {
     pub fn _SSL_get_wbio(ssl: *const SSL) -> *mut BIO {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_wbio())
-            .unwrap_or_else(ptr::null_mut)
+        try_clone_arc!(ssl).get().get_wbio()
     }
 }
 
 entry! {
     pub fn _SSL_connect(ssl: *mut SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.connect())
-            .map_err(|err| err.raise())
-        {
-            Err(e) => e.into(),
+        match try_clone_arc!(ssl).get_mut().connect() {
+            Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }
     }
@@ -798,15 +650,8 @@ entry! {
 
 entry! {
     pub fn _SSL_accept(ssl: *mut SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.accept())
-            .map_err(|err| err.raise())
-        {
-            Err(e) => e.into(),
+        match try_clone_arc!(ssl).get_mut().accept() {
+            Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }
     }
@@ -822,13 +667,11 @@ entry! {
             return ERROR;
         }
 
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.write(slice))
-            .map_err(|err| err.raise())
-        {
-            Err(_e) => ERROR,
+        match ssl.get_mut().write(slice) {
+            Err(e) => {
+                e.raise();
+                ERROR
+            }
             Ok(written) => written as c_int,
         }
     }
@@ -840,13 +683,11 @@ entry! {
         let ssl = try_clone_arc!(ssl, ERROR);
         let slice = try_mut_slice_int!(buf as *mut u8, num, ERROR);
 
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.read(slice))
-            .map_err(|err| err.raise())
-        {
-            Err(_e) => ERROR,
+        match ssl.get_mut().read(slice) {
+            Err(e) => {
+                e.raise();
+                ERROR
+            }
             Ok(read) => read as c_int,
         }
     }
@@ -854,8 +695,7 @@ entry! {
 
 entry! {
     pub fn _SSL_want(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        let want = ssl.lock().ok().map(|ssl| ssl.want()).unwrap_or_default();
+        let want = try_clone_arc!(ssl).get().want();
 
         if want.read {
             SSL_READING
@@ -874,15 +714,11 @@ pub const SSL_READING: i32 = 3;
 entry! {
     pub fn _SSL_shutdown(ssl: *mut SSL) -> c_int {
         const ERROR: c_int = -1;
-        let ssl = try_clone_arc!(ssl, ERROR);
-
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.try_shutdown())
-            .map_err(|err| err.raise())
-        {
-            Err(_e) => ERROR,
+        match try_clone_arc!(ssl, ERROR).get_mut().try_shutdown() {
+            Err(e) => {
+                e.raise();
+                ERROR
+            }
             Ok(result) => match result {
                 ShutdownResult::Sent => 0 as c_int,
                 ShutdownResult::Received => 1 as c_int,
@@ -893,33 +729,19 @@ entry! {
 
 entry! {
     pub fn _SSL_get_shutdown(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-
-        ssl.lock().map(|ssl| ssl.get_shutdown()).unwrap_or_default()
+        try_clone_arc!(ssl).get().get_shutdown()
     }
 }
 
 entry! {
     pub fn _SSL_set_shutdown(ssl: *mut SSL, flags: c_int) {
-        let ssl = try_clone_arc!(ssl);
-
-        ssl.lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.set_shutdown(flags))
-            .map_err(|err| err.raise())
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().set_shutdown(flags)
     }
 }
 
 entry! {
     pub fn _SSL_pending(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-
-        ssl.lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.get_pending_plaintext() as c_int)
-            .map_err(|err| err.raise())
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().get_pending_plaintext() as c_int
     }
 }
 
@@ -931,12 +753,7 @@ entry! {
 
 entry! {
     pub fn _SSL_get_error(ssl: *const SSL, _ret_code: c_int) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.get_error() as c_int)
-            .map_err(|err| err.raise())
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().get_error() as c_int
     }
 }
 
@@ -946,18 +763,12 @@ entry! {
             return;
         }
 
-        let ssl = try_clone_arc!(ssl);
-
-        match ssl.lock().ok().and_then(|mut ssl| {
-            ssl.get_agreed_alpn().map(|proto| {
-                unsafe {
-                    // nb. alpn protocols are limited to 255 octets
-                    ptr::write(len, proto.len() as u32);
-                    ptr::write(data, proto.as_ptr());
-                };
-            })
-        }) {
-            Some(()) => {}
+        match try_clone_arc!(ssl).get().get_agreed_alpn() {
+            Some(slice) => unsafe {
+                // nb. alpn protocols are limited to 255 octets
+                ptr::write(len, slice.len() as u32);
+                ptr::write(data, slice.as_ptr());
+            },
             None => unsafe {
                 ptr::write(len, 0);
                 ptr::write(data, ptr::null());
@@ -968,10 +779,10 @@ entry! {
 
 entry! {
     pub fn _SSL_get_peer_cert_chain(ssl: *const SSL) -> *mut stack_st_X509 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .and_then(|mut ssl| ssl.get_peer_cert_chain().map(|x509| x509.pointer()))
+        try_clone_arc!(ssl)
+            .get_mut()
+            .get_peer_cert_chain()
+            .map(|x509| x509.pointer())
             .unwrap_or_else(ptr::null_mut)
     }
 }
@@ -984,30 +795,29 @@ entry! {
 
 entry! {
     pub fn _SSL_get0_peer_certificate(ssl: *const SSL) -> *mut X509 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .and_then(|mut ssl| ssl.get_peer_cert().map(|x509| x509.borrow_ref()))
+        try_clone_arc!(ssl)
+            .get_mut()
+            .get_peer_cert()
+            .map(|x509| x509.borrow_ref())
             .unwrap_or_else(ptr::null_mut)
     }
 }
 
 entry! {
     pub fn _SSL_get1_peer_certificate(ssl: *const SSL) -> *mut X509 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .and_then(|mut ssl| ssl.get_peer_cert().map(|x509| x509.up_ref()))
+        try_clone_arc!(ssl)
+            .get_mut()
+            .get_peer_cert()
+            .map(|x509| x509.up_ref())
             .unwrap_or_else(ptr::null_mut)
     }
 }
 
 entry! {
     pub fn _SSL_get_current_cipher(ssl: *const SSL) -> *const SSL_CIPHER {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .and_then(|ssl| ssl.get_negotiated_cipher_suite_id())
+        try_clone_arc!(ssl)
+            .get()
+            .get_negotiated_cipher_suite_id()
             .and_then(crate::SslCipher::find_by_id)
             .map(|cipher| cipher as *const SSL_CIPHER)
             .unwrap_or_else(ptr::null)
@@ -1016,10 +826,9 @@ entry! {
 
 entry! {
     pub fn _SSL_get_version(ssl: *const SSL) -> *const c_char {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .and_then(|ssl| ssl.get_negotiated_cipher_suite_id())
+        try_clone_arc!(ssl)
+            .get()
+            .get_negotiated_cipher_suite_id()
             .and_then(crate::SslCipher::find_by_id)
             .map(|cipher| cipher.version.as_ptr())
             .unwrap_or_else(ptr::null)
@@ -1028,86 +837,52 @@ entry! {
 
 entry! {
     pub fn _SSL_get_verify_result(ssl: *const SSL) -> c_long {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_last_verification_result())
-            .unwrap_or(X509_V_ERR_UNSPECIFIED as i64)
+        try_clone_arc!(ssl).get().get_last_verification_result()
     }
 }
 
 entry! {
     pub fn _SSL_get_certificate(ssl: *const SSL) -> *mut X509 {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_certificate())
-            .unwrap_or(ptr::null_mut())
+        try_clone_arc!(ssl).get().get_certificate()
     }
 }
 
 entry! {
     pub fn _SSL_get_privatekey(ssl: *const SSL) -> *mut EVP_PKEY {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|ssl| ssl.get_privatekey())
-            .unwrap_or(ptr::null_mut())
+        try_clone_arc!(ssl).get().get_privatekey()
     }
 }
 
 entry! {
     // nb. 0 is a reasonable OSSL_HANDSHAKE_STATE, it is OSSL_HANDSHAKE_STATE_TLS_ST_BEFORE
     pub fn _SSL_get_state(ssl: *const SSL) -> c_uint {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.handshake_state().into())
-            .unwrap_or_default()
+        try_clone_arc!(ssl).get_mut().handshake_state().into()
     }
 }
 
 entry! {
     pub fn _SSL_in_init(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.handshake_state().in_init())
-            .unwrap_or_default() as c_int
+        try_clone_arc!(ssl).get_mut().handshake_state().in_init() as c_int
     }
 }
 
 entry! {
     pub fn _SSL_in_before(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.handshake_state() == HandshakeState::Before)
-            .unwrap_or_default() as c_int
+        (try_clone_arc!(ssl).get_mut().handshake_state() == HandshakeState::Before) as c_int
     }
 }
 
 entry! {
     pub fn _SSL_is_init_finished(ssl: *const SSL) -> c_int {
-        let ssl = try_clone_arc!(ssl);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| ssl.handshake_state() == HandshakeState::Finished)
-            .unwrap_or_default() as c_int
+        (try_clone_arc!(ssl).get_mut().handshake_state() == HandshakeState::Finished) as c_int
     }
 }
 
 entry! {
     pub fn _SSL_set_SSL_CTX(ssl: *mut SSL, ctx_ptr: *mut SSL_CTX) -> *mut SSL_CTX {
-        let ssl = try_clone_arc!(ssl);
         let ctx = try_clone_arc!(ctx_ptr);
-        ssl.lock()
-            .ok()
-            .map(|mut ssl| {
-                ssl.set_ctx(ctx);
-                ctx_ptr
-            })
-            .unwrap_or_else(ptr::null_mut)
+        try_clone_arc!(ssl).get_mut().set_ctx(ctx);
+        ctx_ptr
     }
 }
 
@@ -1122,14 +897,8 @@ entry! {
         let x509 = OwnedX509::new_incref(x);
         let ee = CertificateDer::from(x509.der_bytes());
 
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .map(|mut ssl| ssl.stage_certificate_end_entity(ee))
-        {
-            Err(e) => e.raise().into(),
-            Ok(()) => C_INT_SUCCESS,
-        }
+        ssl.get_mut().stage_certificate_end_entity(ee);
+        C_INT_SUCCESS
     }
 }
 
@@ -1143,11 +912,7 @@ entry! {
 
         let pkey = EvpPkey::new_incref(pkey);
 
-        match ssl
-            .lock()
-            .map_err(|_| Error::cannot_lock())
-            .and_then(|mut ssl| ssl.commit_private_key(pkey))
-        {
+        match ssl.get_mut().commit_private_key(pkey) {
             Err(e) => e.raise().into(),
             Ok(()) => C_INT_SUCCESS,
         }
@@ -1156,7 +921,7 @@ entry! {
 
 impl Castable for SSL {
     type Ownership = OwnershipArc;
-    type RustType = Mutex<SSL>;
+    type RustType = NotThreadSafe<SSL>;
 }
 
 type SSL_CIPHER = crate::SslCipher;
@@ -1173,8 +938,7 @@ entry! {
 
 entry! {
     pub fn _SSL_CIPHER_get_bits(cipher: *const SSL_CIPHER, alg_bits: *mut c_int) -> c_int {
-        let cipher = try_ref_from_ptr!(cipher);
-        let bits = cipher.bits as c_int;
+        let bits = try_ref_from_ptr!(cipher).bits as c_int;
         if !alg_bits.is_null() {
             unsafe { ptr::write(alg_bits, bits) };
         }
@@ -1214,15 +978,13 @@ entry! {
 
 entry! {
     pub fn _SSL_CIPHER_get_id(cipher: *const SSL_CIPHER) -> u32 {
-        let cipher = try_ref_from_ptr!(cipher);
-        cipher.openssl_id()
+        try_ref_from_ptr!(cipher).openssl_id()
     }
 }
 
 entry! {
     pub fn _SSL_CIPHER_get_protocol_id(cipher: *const SSL_CIPHER) -> u16 {
-        let cipher = try_ref_from_ptr!(cipher);
-        cipher.protocol_id()
+        try_ref_from_ptr!(cipher).protocol_id()
     }
 }
 
@@ -1232,8 +994,8 @@ entry! {
         mut buf: *mut c_char,
         mut size: c_int,
     ) -> *mut c_char {
-        let cipher = try_ref_from_ptr!(cipher);
-        let required_len = cipher.description.to_bytes_with_nul().len();
+        let description = try_ref_from_ptr!(cipher).description;
+        let required_len = description.to_bytes_with_nul().len();
 
         if buf.is_null() {
             // safety: `required_len` is a compile-time constant, and is
@@ -1251,7 +1013,7 @@ entry! {
         }
 
         unsafe {
-            ptr::copy_nonoverlapping(cipher.description.as_ptr(), buf, required_len as usize);
+            ptr::copy_nonoverlapping(description.as_ptr(), buf, required_len as usize);
         };
         buf
     }

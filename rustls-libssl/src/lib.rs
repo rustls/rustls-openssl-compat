@@ -3,7 +3,7 @@ use core::{mem, ptr};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use openssl_probe::ProbeResult;
 use openssl_sys::{
@@ -16,6 +16,8 @@ use rustls::server::{Accepted, Acceptor};
 use rustls::{
     CipherSuite, ClientConfig, ClientConnection, Connection, RootCertStore, ServerConfig,
 };
+
+use not_thread_safe::NotThreadSafe;
 
 mod bio;
 #[macro_use]
@@ -37,6 +39,7 @@ mod ffi;
 #[cfg(miri)]
 #[allow(non_camel_case_types, dead_code)]
 mod miri;
+mod not_thread_safe;
 mod sign;
 mod verifier;
 mod x509;
@@ -334,7 +337,7 @@ pub fn parse_alpn(mut slice: &[u8]) -> Option<Vec<Vec<u8>>> {
 }
 
 struct Ssl {
-    ctx: Arc<Mutex<SslContext>>,
+    ctx: Arc<NotThreadSafe<SslContext>>,
     raw_options: u64,
     mode: ConnMode,
     verify_mode: VerifyMode,
@@ -360,7 +363,7 @@ enum ConnState {
 }
 
 impl Ssl {
-    fn new(ctx: Arc<Mutex<SslContext>>, inner: &SslContext) -> Result<Self, error::Error> {
+    fn new(ctx: Arc<NotThreadSafe<SslContext>>, inner: &SslContext) -> Result<Self, error::Error> {
         Ok(Self {
             ctx,
             raw_options: inner.raw_options,
@@ -379,16 +382,12 @@ impl Ssl {
         })
     }
 
-    fn set_ctx(&mut self, ctx: Arc<Mutex<SslContext>>) {
+    fn set_ctx(&mut self, ctx: Arc<NotThreadSafe<SslContext>>) {
         // there are no docs for `SSL_set_SSL_CTX`.  it seems the only
         // meaningful reason to use this is key/certificate switching
         // (eg, based on SNI).  So only bother updating `auth_keys`
         self.ctx = ctx.clone();
-        self.auth_keys = ctx
-            .lock()
-            .ok()
-            .map(|ctx| ctx.auth_keys.clone())
-            .unwrap_or_default();
+        self.auth_keys = ctx.get().auth_keys.clone();
     }
 
     fn get_options(&self) -> u64 {
@@ -509,11 +508,7 @@ impl Ssl {
             None => ServerName::try_from("0.0.0.0").unwrap(),
         };
 
-        let method = self
-            .ctx
-            .lock()
-            .map(|ctx| ctx.method)
-            .map_err(|_| error::Error::cannot_lock())?;
+        let method = self.ctx.get().method;
 
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(verifier::ServerVerifier::new(
@@ -563,11 +558,7 @@ impl Ssl {
     }
 
     fn init_server_conn(&mut self) -> Result<(), error::Error> {
-        let method = self
-            .ctx
-            .lock()
-            .map(|ctx| ctx.method)
-            .map_err(|_| error::Error::cannot_lock())?;
+        let method = self.ctx.get().method;
 
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(
@@ -753,7 +744,7 @@ impl Ssl {
             .unwrap_or_default()
     }
 
-    fn get_agreed_alpn(&mut self) -> Option<&[u8]> {
+    fn get_agreed_alpn(&self) -> Option<&[u8]> {
         self.conn().and_then(|conn| conn.alpn_protocol())
     }
 

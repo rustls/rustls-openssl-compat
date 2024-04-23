@@ -627,6 +627,17 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_session_id_context(
+        _ctx: *mut SSL_CTX,
+        _sid_ctx: *const c_uchar,
+        _sid_ctx_len: c_uint,
+    ) -> c_int {
+        log::warn!("SSL_CTX_set_session_id_context not yet implemented");
+        C_INT_SUCCESS
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;
@@ -1543,15 +1554,6 @@ pub type SSL_CTX_sess_remove_cb =
     Option<unsafe extern "C" fn(ctx: *mut SSL_CTX, sess: *mut SSL_SESSION)>;
 
 entry_stub! {
-    pub fn _SSL_CTX_set_session_id_context(
-        _ctx: *mut SSL_CTX,
-        _sid_ctx: *const c_uchar,
-        _sid_ctx_len: c_uint,
-    ) -> c_int;
-}
-
-entry_stub! {
-
     pub fn _SSL_set_session_id_context(
         _ssl: *mut SSL,
         _sid_ctx: *const c_uchar,

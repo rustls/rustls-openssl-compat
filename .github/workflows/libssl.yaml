@@ -41,6 +41,20 @@ jobs:
 
       - run: make PROFILE=debug test
       - run: make PROFILE=debug integration
+        # Note: we only check the client/server binaries here, assuming that
+        #       is sufficient for any other test binaries.
+      - name: Verify debug builds were using ASAN
+        run: |
+          nm target/client | grep '__asan_init'
+          nm target/server | grep '__asan_init'
+      - name: Build release binaries
+        run: |
+          make clean
+          make PROFILE=release
+      - name: Verify release builds were not using ASAN
+        run: |
+          nm target/client | grep -v '__asan_init'
+          nm target/server | grep -v '__asan_init'
 
   valgrind:
     name: Valgrind

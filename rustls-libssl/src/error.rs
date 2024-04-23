@@ -23,7 +23,6 @@ const ERR_RFLAG_COMMON: i32 = 0x2i32 << ERR_RFLAGS_OFFSET;
 enum Reason {
     PassedNullParameter,
     InternalError,
-    UnableToGetWriteLock,
     OperationFailed,
     Unsupported,
     WouldBlock,
@@ -37,7 +36,6 @@ impl From<Reason> for c_int {
             // see `err.h.in` for magic numbers.
             PassedNullParameter => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 258,
             InternalError => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 259,
-            UnableToGetWriteLock => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 272,
             OperationFailed => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 263,
             Unsupported => ERR_RFLAG_COMMON | 268,
             WouldBlock => 0,
@@ -67,14 +65,6 @@ impl Error {
         Self {
             lib: Lib::Ssl,
             reason: Reason::PassedNullParameter,
-            string: None,
-        }
-    }
-
-    pub fn cannot_lock() -> Self {
-        Self {
-            lib: Lib::Ssl,
-            reason: Reason::UnableToGetWriteLock,
             string: None,
         }
     }

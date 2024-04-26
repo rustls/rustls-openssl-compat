@@ -104,7 +104,7 @@
 | `SSL_CTX_get_security_callback`  |  |  |  |
 | `SSL_CTX_get_security_level`  |  |  |  |
 | `SSL_CTX_get_ssl_method`  |  |  |  |
-| `SSL_CTX_get_timeout`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_get_timeout`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_callback`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_mode`  |  | :white_check_mark: | :white_check_mark: |
@@ -191,7 +191,7 @@
 | `SSL_CTX_set_ssl_version` [^deprecatedin_3_0] |  |  |  |
 | `SSL_CTX_set_stateless_cookie_generate_cb`  |  |  |  |
 | `SSL_CTX_set_stateless_cookie_verify_cb`  |  |  |  |
-| `SSL_CTX_set_timeout`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_set_timeout`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_tlsext_max_fragment_length`  |  |  |  |
 | `SSL_CTX_set_tlsext_ticket_key_evp_cb`  |  |  |  |
 | `SSL_CTX_set_tlsext_use_srtp` [^srtp] |  |  |  |

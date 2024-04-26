@@ -47,6 +47,14 @@ impl SessionCaches {
         self.server.set_mode(mode)
     }
 
+    pub fn get_timeout(&self) -> u64 {
+        self.server.get_timeout()
+    }
+
+    pub fn set_timeout(&mut self, timeout: u64) -> u64 {
+        self.server.set_timeout(timeout)
+    }
+
     pub fn size(&self) -> usize {
         self.max_size
     }
@@ -92,6 +100,24 @@ impl ServerSessionStorage {
         }
     }
 
+    fn get_timeout(&self) -> u64 {
+        self.parameters
+            .lock()
+            .map(|inner| inner.time_out)
+            .unwrap_or_default()
+    }
+
+    fn set_timeout(&self, time_out: u64) -> u64 {
+        self.parameters
+            .lock()
+            .map(|mut inner| {
+                let old = inner.time_out;
+                inner.time_out = time_out;
+                old
+            })
+            .unwrap_or_default()
+    }
+
     fn set_size(&self, size: usize) {
         if let Ok(mut inner) = self.parameters.lock() {
             inner.max_size = size;
@@ -103,6 +129,7 @@ impl ServerSessionStorage {
 struct CacheParameters {
     mode: u32,
     max_size: usize,
+    time_out: u64,
 }
 
 impl CacheParameters {
@@ -110,6 +137,8 @@ impl CacheParameters {
         Self {
             mode: CACHE_MODE_SERVER,
             max_size,
+            // See <https://www.openssl.org/docs/manmaster/man3/SSL_get_default_timeout.html>
+            time_out: 300,
         }
     }
 }

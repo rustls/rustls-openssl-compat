@@ -490,6 +490,14 @@ impl SslContext {
         self.caches.set_mode(mode)
     }
 
+    fn get_session_timeout(&self) -> u64 {
+        self.caches.get_timeout()
+    }
+
+    fn set_session_timeout(&mut self, timeout: u64) -> u64 {
+        self.caches.set_timeout(timeout)
+    }
+
     fn set_max_early_data(&mut self, max: u32) {
         self.max_early_data = max;
     }

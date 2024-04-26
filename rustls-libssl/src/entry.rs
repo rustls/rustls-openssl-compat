@@ -651,6 +651,19 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_get_timeout(ctx: *const SSL_CTX) -> c_long {
+        try_clone_arc!(ctx).get().get_session_timeout() as c_long
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_set_timeout(ctx: *mut SSL_CTX, t: c_long) -> c_long {
+        let t = if t < 0 { 0 } else { t as u64 };
+        try_clone_arc!(ctx).get_mut().set_session_timeout(t) as c_long
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL_CTX>;
@@ -1717,14 +1730,6 @@ entry_stub! {
         _num: usize,
         _readbytes: *mut usize,
     ) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_get_timeout(_ctx: *const SSL_CTX) -> c_long;
-}
-
-entry_stub! {
-    pub fn _SSL_CTX_set_timeout(_ctx: *mut SSL_CTX, _t: c_long) -> c_long;
 }
 
 entry_stub! {

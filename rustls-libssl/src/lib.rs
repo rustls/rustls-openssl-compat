@@ -1393,6 +1393,22 @@ impl Ssl {
             None => false,
         }
     }
+
+    fn get_current_session(&self) -> Option<Arc<SslSession>> {
+        match &self.conn {
+            ConnState::Server(_, _, cache) => cache.get_most_recent_session(),
+            // divergence: `SSL_get1_session` etc only work for server SSLs
+            _ => None,
+        }
+    }
+
+    fn borrow_current_session(&self) -> *mut entry::SSL_SESSION {
+        match &self.conn {
+            ConnState::Server(_, _, cache) => cache.borrow_most_recent_session(),
+            // divergence: `SSL_get_session` etc only work for server SSLs
+            _ => ptr::null_mut(),
+        }
+    }
 }
 
 /// Encode rustls's internal representation in the wire format.

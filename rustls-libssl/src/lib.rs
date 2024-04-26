@@ -11,6 +11,7 @@ use openssl_sys::{
     EVP_PKEY, SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509,
     X509_STORE, X509_V_ERR_UNSPECIFIED,
 };
+use rustls::client::Resumption;
 use rustls::crypto::aws_lc_rs as provider;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor};
@@ -913,8 +914,6 @@ impl Ssl {
             None => ServerName::try_from("0.0.0.0").unwrap(),
         };
 
-        let method = self.ctx.get().method;
-
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(verifier::ServerVerifier::new(
             self.verify_roots.clone().into(),
@@ -923,7 +922,9 @@ impl Ssl {
             &self.verify_server_name,
         ));
 
-        let versions = self.versions.reduce_versions(method.client_versions)?;
+        let versions = self
+            .versions
+            .reduce_versions(self.ctx.get().method.client_versions)?;
 
         let wants_resolver = ClientConfig::builder_with_provider(provider)
             .with_protocol_versions(&versions)
@@ -938,6 +939,7 @@ impl Ssl {
         };
 
         config.alpn_protocols.clone_from(&self.alpn);
+        config.resumption = Resumption::store(self.ctx.get_mut().caches.get_client());
 
         let client_conn = ClientConnection::new(Arc::new(config), sni_server_name.clone())
             .map_err(error::Error::from_rustls)?;

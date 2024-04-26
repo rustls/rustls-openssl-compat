@@ -1,5 +1,6 @@
 use core::ptr;
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -115,6 +116,7 @@ impl Default for SessionCaches {
 pub struct ServerSessionStorage {
     items: Mutex<BTreeSet<Arc<SslSession>>>,
     parameters: Mutex<CacheParameters>,
+    op_count: AtomicUsize,
 }
 
 impl ServerSessionStorage {
@@ -122,6 +124,7 @@ impl ServerSessionStorage {
         Self {
             items: Mutex::new(BTreeSet::new()),
             parameters: Mutex::new(CacheParameters::new(max_size)),
+            op_count: AtomicUsize::new(0),
         }
     }
 
@@ -235,6 +238,8 @@ impl ServerSessionStorage {
     }
 
     fn insert(&self, new: Arc<SslSession>) -> bool {
+        self.tick();
+
         if let Ok(mut items) = self.items.lock() {
             items.insert(new)
         } else {
@@ -243,6 +248,8 @@ impl ServerSessionStorage {
     }
 
     fn take(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+        self.tick();
+
         if let Ok(mut items) = self.items.lock() {
             items.take(&SslSessionLookup::for_id(id))
         } else {
@@ -251,6 +258,8 @@ impl ServerSessionStorage {
     }
 
     fn find_by_id(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+        self.tick();
+
         if let Ok(items) = self.items.lock() {
             items.get(&SslSessionLookup::for_id(id)).cloned()
         } else {
@@ -274,6 +283,40 @@ impl ServerSessionStorage {
                 // otherwise, this is quicker.
                 items.clear();
             }
+        }
+    }
+
+    fn flush_expired(&self, at_time: TimeBase) {
+        if let Ok(mut items) = self.items.lock() {
+            let callbacks = self.callbacks();
+            if let Some(callback) = callbacks.remove_callback {
+                // if we have a callback to invoke, do it the slow way
+                let mut removal_list: BTreeSet<_> = items
+                    .iter()
+                    .filter(|item| item.expired(at_time))
+                    .cloned()
+                    .collect();
+
+                while let Some(sess) = removal_list.pop_first() {
+                    items.remove(&sess);
+                    callbacks::invoke_session_remove_callback(
+                        Some(callback),
+                        callbacks.ssl_ctx,
+                        sess,
+                    );
+                }
+            } else {
+                items.retain(|item| !item.expired(at_time));
+            }
+        }
+    }
+
+    fn tick(&self) {
+        // Called every cache operation.  Every 255 operations, expire
+        // sessions (unless application opts out with CACHE_MODE_NO_AUTO_CLEAR).
+        let op_count = self.op_count.fetch_add(1, Ordering::SeqCst);
+        if self.mode() & CACHE_MODE_NO_AUTO_CLEAR == 0 && op_count & 0xff == 0xff {
+            self.flush_expired(TimeBase::now());
         }
     }
 }
@@ -468,5 +511,30 @@ impl TimeBase {
                 .map(|n| n.as_secs())
                 .unwrap_or_default(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flush_expired() {
+        let cache = ServerSessionStorage::new(10);
+
+        for i in 1..=5 {
+            assert!(cache.insert(
+                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+            ));
+        }
+
+        // expires items 1, 2
+        cache.flush_expired(TimeBase(10 + 3));
+
+        assert!(cache.find_by_id(&[1]).is_none());
+        assert!(cache.find_by_id(&[2]).is_none());
+        assert!(cache.find_by_id(&[3]).is_some());
+        assert!(cache.find_by_id(&[4]).is_some());
+        assert!(cache.find_by_id(&[5]).is_some());
     }
 }

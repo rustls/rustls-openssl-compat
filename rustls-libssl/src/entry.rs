@@ -639,11 +639,14 @@ entry! {
 
 entry! {
     pub fn _SSL_CTX_set_session_id_context(
-        _ctx: *mut SSL_CTX,
-        _sid_ctx: *const c_uchar,
-        _sid_ctx_len: c_uint,
+        ctx: *mut SSL_CTX,
+        sid_ctx: *const c_uchar,
+        sid_ctx_len: c_uint,
     ) -> c_int {
-        log::warn!("SSL_CTX_set_session_id_context not yet implemented");
+        let sid_ctx = try_slice!(sid_ctx, sid_ctx_len);
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_session_id_context(sid_ctx);
         C_INT_SUCCESS
     }
 }
@@ -1685,14 +1688,6 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_CTX_remove_session(_ssl: *const SSL, _session: *mut SSL_SESSION) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_set_session_id_context(
-        _ssl: *mut SSL,
-        _sid_ctx: *const c_uchar,
-        _sid_ctx_len: c_uint,
-    ) -> c_int;
 }
 
 entry_stub! {

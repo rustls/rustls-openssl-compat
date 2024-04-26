@@ -85,6 +85,10 @@ impl SessionCaches {
     pub fn set_get_callback(&mut self, callback: SSL_CTX_sess_get_cb) {
         self.server.set_get_callback(callback);
     }
+
+    pub fn set_context(&mut self, context: &[u8]) {
+        self.server.set_context(context);
+    }
 }
 
 impl Default for SessionCaches {
@@ -165,12 +169,19 @@ impl ServerSessionStorage {
             inner.callbacks.ssl_ctx = ssl_ctx;
         }
     }
+
+    fn set_context(&self, context: &[u8]) {
+        if let Ok(mut inner) = self.parameters.lock() {
+            context.clone_into(&mut inner.context);
+        }
+    }
 }
 
 #[derive(Debug)]
 struct CacheParameters {
     callbacks: CacheCallbacks,
     mode: u32,
+    context: Vec<u8>,
     max_size: usize,
     time_out: u64,
 }
@@ -180,6 +191,7 @@ impl CacheParameters {
         Self {
             callbacks: CacheCallbacks::default(),
             mode: CACHE_MODE_SERVER,
+            context: vec![],
             max_size,
             // See <https://www.openssl.org/docs/manmaster/man3/SSL_get_default_timeout.html>
             time_out: 300,

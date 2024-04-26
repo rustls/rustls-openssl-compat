@@ -5,9 +5,12 @@ use std::time::SystemTime;
 
 use rustls::client::ClientSessionMemoryCache;
 use rustls::client::ClientSessionStore;
+use rustls::server::StoresServerSessions;
 
-use crate::entry::{SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb, SSL_CTX};
-use crate::SslSession;
+use crate::entry::{
+    SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb, SSL_CTX, SSL_SESSION,
+};
+use crate::{callbacks, SslSession, SslSessionLookup};
 
 /// A container for session caches that can live inside
 /// an `SSL_CTX` but outlive a rustls `ServerConfig`/`ClientConfig`
@@ -47,6 +50,11 @@ impl SessionCaches {
             self.client
                 .get_or_insert_with(|| Arc::new(ClientSessionMemoryCache::new(self.max_size))),
         )
+    }
+
+    /// Get a cache that can be used for a single `ServerConnection`
+    pub fn get_server(&mut self) -> Arc<SingleServerCache> {
+        Arc::new(SingleServerCache::new(self.server.clone()))
     }
 
     pub fn set_mode(&mut self, mode: u32) -> u32 {
@@ -175,6 +183,75 @@ impl ServerSessionStorage {
             context.clone_into(&mut inner.context);
         }
     }
+
+    fn get_context(&self) -> Vec<u8> {
+        self.parameters
+            .lock()
+            .ok()
+            .map(|inner| inner.context.clone())
+            .unwrap_or_default()
+    }
+
+    fn mode(&self) -> u32 {
+        self.parameters
+            .lock()
+            .map(|inner| inner.mode)
+            .unwrap_or_default()
+    }
+
+    fn callbacks(&self) -> CacheCallbacks {
+        self.parameters
+            .lock()
+            .map(|inner| inner.callbacks)
+            .unwrap_or_default()
+    }
+
+    fn invoke_new_callback(&self, sess: Arc<SslSession>) -> bool {
+        callbacks::invoke_session_new_callback(self.callbacks().new_callback, sess)
+    }
+
+    fn invoke_remove_callback(&self, sess: Arc<SslSession>) {
+        let callbacks = self.callbacks();
+        callbacks::invoke_session_remove_callback(
+            callbacks.remove_callback,
+            callbacks.ssl_ctx,
+            sess,
+        );
+    }
+
+    fn invoke_get_callback(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+        callbacks::invoke_session_get_callback(self.callbacks().get_callback, id)
+    }
+
+    fn build_new_session(&self, id: Vec<u8>, value: Vec<u8>) -> Arc<SslSession> {
+        let context = self.get_context();
+        let time_out = ExpiryTime::calculate(TimeBase::now(), self.get_timeout());
+        Arc::new(SslSession::new(id, value, context, time_out))
+    }
+
+    fn insert(&self, new: Arc<SslSession>) -> bool {
+        if let Ok(mut items) = self.items.lock() {
+            items.insert(new)
+        } else {
+            false
+        }
+    }
+
+    fn take(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+        if let Ok(mut items) = self.items.lock() {
+            items.take(&SslSessionLookup::for_id(id))
+        } else {
+            None
+        }
+    }
+
+    fn find_by_id(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+        if let Ok(items) = self.items.lock() {
+            items.get(&SslSessionLookup::for_id(id)).cloned()
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -199,7 +276,109 @@ impl CacheParameters {
     }
 }
 
+/// A `StoresServerSessions` implementor that is bound to a single `SSL`,
+/// and tracks which `SSL_SESSION` was most recently used, to allow
+/// `SSL_get_session` to work.
+#[derive(Debug)]
+pub struct SingleServerCache {
+    parent: Arc<ServerSessionStorage>,
+    most_recent_session: Mutex<Option<Arc<SslSession>>>,
+}
+
+impl SingleServerCache {
+    fn new(parent: Arc<ServerSessionStorage>) -> Self {
+        Self {
+            parent,
+            most_recent_session: Mutex::new(None),
+        }
+    }
+
+    fn is_enabled(&self) -> bool {
+        self.parent.mode() & CACHE_MODE_SERVER == CACHE_MODE_SERVER
+    }
+
+    fn save_most_recent_session(&self, sess: Arc<SslSession>) {
+        if let Ok(mut old) = self.most_recent_session.lock() {
+            *old = Some(sess);
+        }
+    }
+}
+
+impl StoresServerSessions for SingleServerCache {
+    fn put(&self, id: Vec<u8>, value: Vec<u8>) -> bool {
+        if !self.is_enabled() {
+            return false;
+        }
+
+        let sess = self.parent.build_new_session(id, value);
+
+        self.save_most_recent_session(sess.clone());
+
+        let possibly_stored_elsewhere = self.parent.invoke_new_callback(sess.clone());
+
+        if self.parent.mode() & CACHE_MODE_NO_INTERNAL_STORE == 0 {
+            self.parent.insert(sess) || possibly_stored_elsewhere
+        } else {
+            possibly_stored_elsewhere
+        }
+    }
+
+    fn get(&self, id: &[u8]) -> Option<Vec<u8>> {
+        if !self.is_enabled() {
+            return None;
+        }
+
+        if self.parent.mode() & CACHE_MODE_NO_INTERNAL_LOOKUP == 0 {
+            let sess = self.parent.find_by_id(id);
+            if let Some(sess) = sess {
+                self.save_most_recent_session(sess.clone());
+                return Some(sess.value.clone());
+            }
+        }
+
+        if let Some(sess) = self.parent.invoke_get_callback(id) {
+            return Some(sess.value.clone());
+        }
+
+        None
+    }
+
+    fn take(&self, id: &[u8]) -> Option<Vec<u8>> {
+        if !self.is_enabled() {
+            return None;
+        }
+
+        if self.parent.mode() & CACHE_MODE_NO_INTERNAL_LOOKUP == 0 {
+            let sess = self.parent.take(id);
+
+            if let Some(sess) = sess {
+                // inform external cache that this session is being consumed
+                self.parent.invoke_remove_callback(sess.clone());
+
+                self.save_most_recent_session(sess.clone());
+                return Some(sess.value.clone());
+            }
+        }
+
+        // look up in external cache
+        if let Some(sess) = self.parent.invoke_get_callback(id) {
+            self.save_most_recent_session(sess.clone());
+            self.parent.invoke_remove_callback(sess.clone());
+            return Some(sess.value.clone());
+        }
+
+        None
+    }
+
+    fn can_cache(&self) -> bool {
+        self.is_enabled()
+    }
+}
+
 const CACHE_MODE_SERVER: u32 = 0x02;
+const CACHE_MODE_NO_AUTO_CLEAR: u32 = 0x080;
+const CACHE_MODE_NO_INTERNAL_LOOKUP: u32 = 0x100;
+const CACHE_MODE_NO_INTERNAL_STORE: u32 = 0x200;
 
 #[derive(Clone, Copy, Debug)]
 struct CacheCallbacks {

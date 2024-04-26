@@ -700,7 +700,11 @@ enum ConnState {
     Client(Connection, Arc<verifier::ServerVerifier>),
     Accepting(Acceptor),
     Accepted(Accepted),
-    Server(Connection, Arc<verifier::ClientVerifier>),
+    Server(
+        Connection,
+        Arc<verifier::ClientVerifier>,
+        Arc<cache::SingleServerCache>,
+    ),
 }
 
 impl Ssl {
@@ -1030,8 +1034,6 @@ impl Ssl {
     }
 
     fn init_server_conn(&mut self) -> Result<(), error::Error> {
-        let method = self.ctx.get().method;
-
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(
             verifier::ClientVerifier::new(
@@ -1047,7 +1049,9 @@ impl Ssl {
             .server_resolver()
             .ok_or_else(|| error::Error::bad_data("missing server keys"))?;
 
-        let versions = self.versions.reduce_versions(method.server_versions)?;
+        let versions = self
+            .versions
+            .reduce_versions(self.ctx.get().method.server_versions)?;
 
         let mut config = ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(&versions)
@@ -1058,6 +1062,8 @@ impl Ssl {
         config.alpn_protocols = mem::take(&mut self.alpn);
         config.max_early_data_size = self.max_early_data;
         config.send_tls13_tickets = 2; // match OpenSSL default: see `man SSL_CTX_set_num_tickets`
+        let cache = self.ctx.get_mut().caches.get_server();
+        config.session_storage = cache.clone();
 
         let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
             ConnState::Accepted(accepted) => accepted,
@@ -1069,27 +1075,27 @@ impl Ssl {
             .into_connection(Arc::new(config))
             .map_err(|(err, _alert)| error::Error::from_rustls(err))?;
 
-        self.conn = ConnState::Server(server_conn.into(), verifier);
+        self.conn = ConnState::Server(server_conn.into(), verifier, cache);
         Ok(())
     }
 
     fn conn(&self) -> Option<&Connection> {
         match &self.conn {
-            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Some(conn),
+            ConnState::Client(conn, _) | ConnState::Server(conn, _, _) => Some(conn),
             _ => None,
         }
     }
 
     fn conn_mut(&mut self) -> Option<&mut Connection> {
         match &mut self.conn {
-            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Some(conn),
+            ConnState::Client(conn, _) | ConnState::Server(conn, _, _) => Some(conn),
             _ => None,
         }
     }
 
     fn want(&self) -> Want {
         match &self.conn {
-            ConnState::Client(conn, _) | ConnState::Server(conn, _) => Want {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _, _) => Want {
                 read: conn.wants_read(),
                 write: conn.wants_write(),
             },
@@ -1146,7 +1152,7 @@ impl Ssl {
         };
 
         match &mut self.conn {
-            ConnState::Client(conn, _) | ConnState::Server(conn, _) => {
+            ConnState::Client(conn, _) | ConnState::Server(conn, _, _) => {
                 match conn.complete_io(bio) {
                     Ok(_) => {}
                     Err(e) => {
@@ -1297,7 +1303,7 @@ impl Ssl {
     fn get_last_verification_result(&self) -> i64 {
         match &self.conn {
             ConnState::Client(_, verifier) => verifier.last_result(),
-            ConnState::Server(_, verifier) => verifier.last_result(),
+            ConnState::Server(_, verifier, _) => verifier.last_result(),
             _ => X509_V_ERR_UNSPECIFIED as i64,
         }
     }

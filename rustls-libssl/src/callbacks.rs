@@ -1,14 +1,18 @@
 use core::cell::RefCell;
 use core::ffi::{c_int, c_uchar, c_void};
 use core::{ptr, slice};
+use std::sync::Arc;
 
 use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
 use rustls::AlertDescription;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_servername_callback_func, SSL,
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_new_session_cb,
+    SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb,
+    _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
 };
 use crate::error::Error;
+use crate::ffi;
 
 /// Smuggling SSL* pointers from the outer entrypoint into the
 /// callback call site.
@@ -178,4 +182,77 @@ impl Default for ServerNameCallbackConfig {
             context: ptr::null_mut(),
         }
     }
+}
+
+/// Returns true if a callback was actually called.
+///
+/// It is unknowable if this means something was stored externally.
+pub fn invoke_session_new_callback(
+    callback: SSL_CTX_new_session_cb,
+    sess: Arc<SSL_SESSION>,
+) -> bool {
+    let callback = match callback {
+        Some(callback) => callback,
+        None => {
+            return false;
+        }
+    };
+
+    let ssl = SslCallbackContext::ssl_ptr();
+    let sess_ptr = Arc::into_raw(sess) as *mut SSL_SESSION;
+
+    let result = unsafe { callback(ssl, sess_ptr) };
+
+    // "If the callback returns 1, the application retains the reference"
+    if result == 0 {
+        _SSL_SESSION_free(sess_ptr);
+    }
+    true
+}
+
+pub fn invoke_session_get_callback(
+    callback: SSL_CTX_sess_get_cb,
+    id: &[u8],
+) -> Option<Arc<SSL_SESSION>> {
+    let callback = match callback {
+        Some(callback) => callback,
+        None => {
+            return None;
+        }
+    };
+
+    let ssl_ptr = SslCallbackContext::ssl_ptr();
+    let mut copy = 1;
+    let sess_ptr = unsafe { callback(ssl_ptr, id.as_ptr(), id.len() as c_int, &mut copy) };
+
+    if sess_ptr.is_null() {
+        return None;
+    }
+
+    let maybe_sess = ffi::clone_arc(sess_ptr);
+
+    if copy > 0 {
+        _SSL_SESSION_free(sess_ptr);
+    }
+
+    maybe_sess
+}
+
+pub fn invoke_session_remove_callback(
+    callback: SSL_CTX_sess_remove_cb,
+    ssl_ctx: *mut SSL_CTX,
+    sess: Arc<SSL_SESSION>,
+) {
+    let callback = match callback {
+        Some(callback) => callback,
+        None => {
+            return;
+        }
+    };
+
+    let sess_ptr = Arc::into_raw(sess) as *mut SSL_SESSION;
+
+    unsafe { callback(ssl_ctx, sess_ptr) };
+
+    _SSL_SESSION_free(sess_ptr);
 }

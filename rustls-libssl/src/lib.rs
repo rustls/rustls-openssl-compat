@@ -490,6 +490,18 @@ impl SslContext {
         self.caches.set_mode(mode)
     }
 
+    fn set_session_new_cb(&mut self, callback: entry::SSL_CTX_new_session_cb) {
+        self.caches.set_new_callback(callback);
+    }
+
+    fn set_session_get_cb(&mut self, callback: entry::SSL_CTX_sess_get_cb) {
+        self.caches.set_get_callback(callback);
+    }
+
+    fn set_session_remove_cb(&mut self, callback: entry::SSL_CTX_sess_remove_cb) {
+        self.caches.set_remove_callback(callback);
+    }
+
     fn get_session_timeout(&self) -> u64 {
         self.caches.get_timeout()
     }

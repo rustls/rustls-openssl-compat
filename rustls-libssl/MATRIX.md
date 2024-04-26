@@ -119,9 +119,9 @@
 | `SSL_CTX_sess_get_get_cb`  |  |  |  |
 | `SSL_CTX_sess_get_new_cb`  |  |  |  |
 | `SSL_CTX_sess_get_remove_cb`  |  |  |  |
-| `SSL_CTX_sess_set_get_cb`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CTX_sess_set_new_cb`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CTX_sess_set_remove_cb`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_sess_set_get_cb`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CTX_sess_set_new_cb`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| `SSL_CTX_sess_set_remove_cb`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_sessions`  |  |  |  |
 | `SSL_CTX_set0_CA_list`  |  |  |  |
 | `SSL_CTX_set0_ctlog_store` [^ct] |  |  |  |

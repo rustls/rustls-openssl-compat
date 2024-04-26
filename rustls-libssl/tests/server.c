@@ -69,6 +69,32 @@ static int sni_callback(SSL *ssl, int *al, void *arg) {
   return SSL_TLSEXT_ERR_OK;
 }
 
+static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
+  printf("in sess_new_callback\n");
+  assert(ssl != NULL);
+  assert(sess != NULL);
+  unsigned id_len = 0;
+  SSL_SESSION_get_id(sess, &id_len);
+  printf("  SSL_SESSION_get_id len=%u\n", id_len);
+  return 0;
+}
+
+static SSL_SESSION *sess_get_callback(SSL *ssl, const uint8_t *id, int id_len,
+                                      int *copy) {
+  (void)id;
+  printf("in sess_get_callback\n");
+  assert(ssl != NULL);
+  printf("  id_len=%d\n", id_len);
+  *copy = 0;
+  return NULL;
+}
+
+static void sess_remove_callback(SSL_CTX *ctx, SSL_SESSION *sess) {
+  printf("in sess_remove_callback\n");
+  assert(ctx != NULL);
+  assert(sess != NULL);
+}
+
 int main(int argc, char **argv) {
   if (argc != 5) {
     printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth\n\n",
@@ -123,6 +149,9 @@ int main(int argc, char **argv) {
   SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
   dump_openssl_error_stack();
 
+  SSL_CTX_sess_set_new_cb(ctx, sess_new_callback);
+  SSL_CTX_sess_set_get_cb(ctx, sess_get_callback);
+  SSL_CTX_sess_set_remove_cb(ctx, sess_remove_callback);
   TRACE(SSL_CTX_sess_set_cache_size(ctx, 10));
   TRACE(SSL_CTX_sess_get_cache_size(ctx));
   TRACE(SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_SERVER));

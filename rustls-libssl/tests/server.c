@@ -123,6 +123,10 @@ int main(int argc, char **argv) {
   SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
   dump_openssl_error_stack();
 
+  TRACE(SSL_CTX_sess_set_cache_size(ctx, 10));
+  TRACE(SSL_CTX_sess_get_cache_size(ctx));
+  TRACE(SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_SERVER));
+
   X509 *server_cert = NULL;
   EVP_PKEY *server_key = NULL;
   TRACE(SSL_CTX_use_certificate_chain_file(ctx, certfile));

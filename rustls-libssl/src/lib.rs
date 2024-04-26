@@ -382,6 +382,7 @@ pub struct SslContext {
     method: &'static SslMethod,
     ex_data: ex_data::ExData,
     versions: EnabledVersions,
+    caches: cache::SessionCaches,
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_depth: c_int,
@@ -403,6 +404,7 @@ impl SslContext {
             method,
             ex_data: ex_data::ExData::default(),
             versions: EnabledVersions::default(),
+            caches: cache::SessionCaches::default(),
             raw_options: 0,
             verify_mode: VerifyMode::default(),
             verify_depth: -1,
@@ -473,6 +475,18 @@ impl SslContext {
             .as_ref()
             .map(|v| u16::from(*v))
             .unwrap_or_default()
+    }
+
+    fn get_session_cache_size(&self) -> usize {
+        self.caches.size()
+    }
+
+    fn set_session_cache_size(&mut self, size: usize) -> usize {
+        self.caches.set_size(size)
+    }
+
+    fn set_session_cache_mode(&mut self, mode: u32) -> u32 {
+        self.caches.set_mode(mode)
     }
 
     fn set_max_early_data(&mut self, max: u32) {

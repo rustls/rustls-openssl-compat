@@ -240,8 +240,20 @@ impl ServerSessionStorage {
     fn insert(&self, new: Arc<SslSession>) -> bool {
         self.tick();
 
+        let max_size = self
+            .parameters
+            .lock()
+            .map(|inner| inner.max_size)
+            .unwrap_or_default();
+
         if let Ok(mut items) = self.items.lock() {
-            items.insert(new)
+            let inserted = items.insert(new);
+
+            while items.len() > max_size {
+                Self::flush_oldest(&mut items);
+            }
+
+            inserted
         } else {
             false
         }
@@ -317,6 +329,13 @@ impl ServerSessionStorage {
         let op_count = self.op_count.fetch_add(1, Ordering::SeqCst);
         if self.mode() & CACHE_MODE_NO_AUTO_CLEAR == 0 && op_count & 0xff == 0xff {
             self.flush_expired(TimeBase::now());
+        }
+    }
+
+    fn flush_oldest(items: &mut BTreeSet<Arc<SslSession>>) {
+        let oldest = items.iter().min_by_key(|item| item.expiry_time.0);
+        if let Some(oldest) = oldest.cloned() {
+            items.take(&oldest);
         }
     }
 }
@@ -536,5 +555,49 @@ mod tests {
         assert!(cache.find_by_id(&[3]).is_some());
         assert!(cache.find_by_id(&[4]).is_some());
         assert!(cache.find_by_id(&[5]).is_some());
+    }
+
+    #[test]
+    fn respects_max_size() {
+        let cache = ServerSessionStorage::new(4);
+
+        for i in 1..=5 {
+            assert!(cache.insert(
+                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+            ));
+        }
+
+        assert!(cache.find_by_id(&[1]).is_none());
+        assert!(cache.find_by_id(&[2]).is_some());
+        assert!(cache.find_by_id(&[3]).is_some());
+        assert!(cache.find_by_id(&[4]).is_some());
+        assert!(cache.find_by_id(&[5]).is_some());
+    }
+
+    #[test]
+    fn respects_change_in_max_size() {
+        let cache = ServerSessionStorage::new(5);
+
+        for i in 1..=5 {
+            assert!(cache.insert(
+                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+            ));
+        }
+
+        assert!(cache.find_by_id(&[1]).is_some());
+        assert!(cache.find_by_id(&[2]).is_some());
+        assert!(cache.find_by_id(&[3]).is_some());
+        assert!(cache.find_by_id(&[4]).is_some());
+        assert!(cache.find_by_id(&[5]).is_some());
+
+        cache.set_size(4);
+        assert!(cache.insert(SslSession::new(vec![6], vec![], vec![], ExpiryTime(16)).into()));
+
+        assert!(cache.find_by_id(&[1]).is_none());
+        assert!(cache.find_by_id(&[2]).is_none());
+        assert!(cache.find_by_id(&[3]).is_some());
+        assert!(cache.find_by_id(&[4]).is_some());
+        assert!(cache.find_by_id(&[5]).is_some());
+        assert!(cache.find_by_id(&[6]).is_some());
     }
 }

@@ -97,6 +97,11 @@ impl SessionCaches {
     pub fn set_context(&mut self, context: &[u8]) {
         self.server.set_context(context);
     }
+
+    pub fn flush_all(&mut self) {
+        self.server.flush_all();
+        self.client.take();
+    }
 }
 
 impl Default for SessionCaches {
@@ -250,6 +255,25 @@ impl ServerSessionStorage {
             items.get(&SslSessionLookup::for_id(id)).cloned()
         } else {
             None
+        }
+    }
+
+    fn flush_all(&self) {
+        if let Ok(mut items) = self.items.lock() {
+            let callbacks = self.callbacks();
+            if let Some(callback) = callbacks.remove_callback {
+                // if we have a callback to invoke, do it the slow way
+                while let Some(sess) = items.pop_first() {
+                    callbacks::invoke_session_remove_callback(
+                        Some(callback),
+                        callbacks.ssl_ctx,
+                        sess,
+                    );
+                }
+            } else {
+                // otherwise, this is quicker.
+                items.clear();
+            }
         }
     }
 }

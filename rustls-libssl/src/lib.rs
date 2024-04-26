@@ -522,6 +522,10 @@ impl SslContext {
         self.caches.set_timeout(timeout)
     }
 
+    fn flush_all_sessions(&mut self) {
+        self.caches.flush_all();
+    }
+
     fn set_max_early_data(&mut self, max: u32) {
         self.max_early_data = max;
     }

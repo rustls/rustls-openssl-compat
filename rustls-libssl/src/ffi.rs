@@ -165,6 +165,21 @@ where
     drop(unsafe { Arc::from_raw(rs_typed) });
 }
 
+/// Similar to `free_arc`, but call `into_inner` on the Arc instead of just
+/// dropping it.
+///
+/// This returns `Some` if this was the last reference.
+pub(crate) fn free_arc_into_inner<C>(ptr: *const C) -> Option<C::RustType>
+where
+    C: Castable<Ownership = OwnershipArc>,
+{
+    if ptr.is_null() {
+        return None;
+    }
+    let rs_typed = cast_const_ptr(ptr);
+    Arc::into_inner(unsafe { Arc::from_raw(rs_typed) })
+}
+
 /// Convert a mutable pointer to a [`Castable`] to an optional `Box` over the underlying
 /// [`Castable::RustType`], and immediately let it fall out of scope to be freed.
 ///

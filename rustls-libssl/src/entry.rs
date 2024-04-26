@@ -21,9 +21,9 @@ use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
 use crate::ffi::{
-    clone_arc, free_arc, str_from_cstring, to_arc_mut_ptr, try_clone_arc, try_from,
-    try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable, OwnershipArc,
-    OwnershipRef,
+    clone_arc, free_arc, free_arc_into_inner, str_from_cstring, to_arc_mut_ptr, try_clone_arc,
+    try_from, try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable,
+    OwnershipArc, OwnershipRef,
 };
 use crate::not_thread_safe::NotThreadSafe;
 use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
@@ -136,7 +136,9 @@ entry! {
 
 entry! {
     pub fn _SSL_CTX_free(ctx: *mut SSL_CTX) {
-        free_arc(ctx);
+        if let Some(inner) = free_arc_into_inner(ctx) {
+            inner.get_mut().flush_all_sessions();
+        }
     }
 }
 

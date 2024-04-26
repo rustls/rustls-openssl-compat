@@ -1,5 +1,5 @@
 use core::ffi::{c_char, c_int, c_uint, c_void, CStr};
-use core::{mem, ptr};
+use core::{borrow, cmp, fmt, mem, ptr};
 use std::ffi::CString;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
@@ -22,6 +22,7 @@ use rustls::{
 use not_thread_safe::NotThreadSafe;
 
 mod bio;
+mod cache;
 mod callbacks;
 #[macro_use]
 mod constants;
@@ -213,6 +214,169 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
     version: c"TLSv1.3",
     description: c"TLS_CHACHA20_POLY1305_SHA256   TLSv1.3 Kx=any      Au=any   Enc=CHACHA20/POLY1305(256) Mac=AEAD\n",
 };
+
+/// Backs a server-side SSL_SESSION object
+///
+/// Note that this has equality and ordering entirely based on the `id` field.
+pub struct SslSession {
+    id: SslSessionLookup,
+    value: Vec<u8>,
+    context: Vec<u8>,
+    expiry_time: cache::ExpiryTime,
+}
+
+impl SslSession {
+    /// A magic number for the start of SslSession encodings.
+    ///
+    /// Aims to avoid confusion with other SSL_SESSION encodings (eg, from openssl).
+    /// We are not compatible with these.
+    const MAGIC: &'static [u8] = b"rustlsv1";
+
+    pub fn new(
+        id: Vec<u8>,
+        value: Vec<u8>,
+        context: Vec<u8>,
+        expiry_time: cache::ExpiryTime,
+    ) -> Self {
+        Self {
+            id: SslSessionLookup(id),
+            value,
+            context,
+            expiry_time,
+        }
+    }
+
+    /// Encode this session to an opaque binary format.
+    ///
+    /// This could be DER (OpenSSL does) but currently is ad-hoc.
+    pub fn encode(&self) -> Vec<u8> {
+        let id_len = self.id.0.len().to_le_bytes();
+        let value_len = self.value.len().to_le_bytes();
+        let context_len = self.context.len().to_le_bytes();
+        let expiry = self.expiry_time.0.to_le_bytes();
+
+        let mut ret = Vec::with_capacity(
+            SslSession::MAGIC.len()
+                + id_len.len()
+                + self.id.0.len()
+                + value_len.len()
+                + self.value.len()
+                + context_len.len()
+                + self.context.len()
+                + expiry.len(),
+        );
+        ret.extend_from_slice(SslSession::MAGIC);
+        ret.extend_from_slice(&id_len);
+        ret.extend_from_slice(&self.id.0);
+        ret.extend_from_slice(&value_len);
+        ret.extend_from_slice(&self.value);
+        ret.extend_from_slice(&context_len);
+        ret.extend_from_slice(&self.context);
+        ret.extend_from_slice(&expiry);
+        ret
+    }
+
+    /// Decodes from the front of `slice`.  Returns the remainder.
+    pub fn decode(slice: &[u8]) -> Option<(Self, &[u8])> {
+        fn split_at(slice: &[u8], mid: usize) -> Option<(&[u8], &[u8])> {
+            if mid <= slice.len() {
+                Some(slice.split_at(mid))
+            } else {
+                None
+            }
+        }
+
+        fn slice_to_usize(slice: &[u8]) -> usize {
+            // unwrap: `slice` must be `usize_len` in length
+            usize::from_le_bytes(slice.try_into().unwrap())
+        }
+
+        fn slice_to_u64(slice: &[u8]) -> u64 {
+            // unwrap: `slice` must be `u64_len` in length
+            u64::from_le_bytes(slice.try_into().unwrap())
+        }
+
+        let usize_len = mem::size_of::<usize>();
+        let u64_len = mem::size_of::<u64>();
+
+        let (magic, slice) = split_at(slice, SslSession::MAGIC.len())?;
+        if magic != SslSession::MAGIC {
+            return None;
+        }
+        let (id_len, slice) = split_at(slice, usize_len)?;
+        let (id, slice) = split_at(slice, slice_to_usize(id_len))?;
+        let (value_len, slice) = split_at(slice, usize_len)?;
+        let (value, slice) = split_at(slice, slice_to_usize(value_len))?;
+        let (context_len, slice) = split_at(slice, usize_len)?;
+        let (context, slice) = split_at(slice, slice_to_usize(context_len))?;
+        let (expiry, slice) = split_at(slice, u64_len)?;
+        Some((
+            Self {
+                id: SslSessionLookup(id.to_vec()),
+                value: value.to_vec(),
+                context: context.to_vec(),
+                expiry_time: cache::ExpiryTime(slice_to_u64(expiry)),
+            },
+            slice,
+        ))
+    }
+
+    pub fn get_id(&self) -> &[u8] {
+        &self.id.0
+    }
+
+    pub fn expired(&self, at_time: cache::TimeBase) -> bool {
+        self.expiry_time.in_past(at_time)
+    }
+
+    pub fn older_than(&self, other: &Self) -> bool {
+        self.expiry_time.0 < other.expiry_time.0
+    }
+}
+
+impl PartialOrd<SslSession> for SslSession {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
+}
+
+impl Ord for SslSession {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialEq<SslSession> for SslSession {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for SslSession {}
+
+impl borrow::Borrow<SslSessionLookup> for Arc<SslSession> {
+    fn borrow(&self) -> &SslSessionLookup {
+        &self.id
+    }
+}
+
+impl fmt::Debug for SslSession {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("SslSession")
+            .field("id", &self.id)
+            .field("expiry", &self.expiry_time)
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug, PartialOrd, Ord, Eq, PartialEq)]
+pub struct SslSessionLookup(Vec<u8>);
+
+impl SslSessionLookup {
+    pub fn for_id(id: &[u8]) -> Self {
+        Self(id.to_vec())
+    }
+}
 
 pub struct SslContext {
     method: &'static SslMethod,

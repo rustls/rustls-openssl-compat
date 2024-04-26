@@ -498,6 +498,10 @@ impl SslContext {
         self.caches.set_mode(mode)
     }
 
+    fn set_session_id_context(&mut self, context: &[u8]) {
+        self.caches.set_context(context);
+    }
+
     fn set_session_new_cb(&mut self, callback: entry::SSL_CTX_new_session_cb) {
         self.caches.set_new_callback(callback);
     }

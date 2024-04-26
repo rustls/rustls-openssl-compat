@@ -461,7 +461,7 @@
 | `SSL_set_security_callback`  |  |  |  |
 | `SSL_set_security_level`  |  |  |  |
 | `SSL_set_session`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_set_session_id_context`  |  |  | :exclamation: [^stub] |
+| `SSL_set_session_id_context`  |  |  |  |
 | `SSL_set_session_secret_cb`  |  |  |  |
 | `SSL_set_session_ticket_ext`  |  |  |  |
 | `SSL_set_session_ticket_ext_cb`  |  |  |  |

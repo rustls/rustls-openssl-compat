@@ -1,3 +1,4 @@
+use core::ptr;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -5,6 +6,7 @@ use std::time::SystemTime;
 use rustls::client::ClientSessionMemoryCache;
 use rustls::client::ClientSessionStore;
 
+use crate::entry::{SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb};
 use crate::SslSession;
 
 /// A container for session caches that can live inside
@@ -67,6 +69,18 @@ impl SessionCaches {
         self.client.take();
         old_size
     }
+
+    pub fn set_new_callback(&mut self, callback: SSL_CTX_new_session_cb) {
+        self.server.set_new_callback(callback)
+    }
+
+    pub fn set_remove_callback(&mut self, callback: SSL_CTX_sess_remove_cb) {
+        self.server.set_remove_callback(callback)
+    }
+
+    pub fn set_get_callback(&mut self, callback: SSL_CTX_sess_get_cb) {
+        self.server.set_get_callback(callback);
+    }
 }
 
 impl Default for SessionCaches {
@@ -123,10 +137,29 @@ impl ServerSessionStorage {
             inner.max_size = size;
         }
     }
+
+    fn set_new_callback(&self, callback: SSL_CTX_new_session_cb) {
+        if let Ok(mut inner) = self.parameters.lock() {
+            inner.callbacks.new_callback = callback;
+        }
+    }
+
+    fn set_remove_callback(&self, callback: SSL_CTX_sess_remove_cb) {
+        if let Ok(mut inner) = self.parameters.lock() {
+            inner.callbacks.remove_callback = callback;
+        }
+    }
+
+    fn set_get_callback(&self, callback: SSL_CTX_sess_get_cb) {
+        if let Ok(mut inner) = self.parameters.lock() {
+            inner.callbacks.get_callback = callback;
+        }
+    }
 }
 
 #[derive(Debug)]
 struct CacheParameters {
+    callbacks: CacheCallbacks,
     mode: u32,
     max_size: usize,
     time_out: u64,
@@ -135,6 +168,7 @@ struct CacheParameters {
 impl CacheParameters {
     fn new(max_size: usize) -> Self {
         Self {
+            callbacks: CacheCallbacks::default(),
             mode: CACHE_MODE_SERVER,
             max_size,
             // See <https://www.openssl.org/docs/manmaster/man3/SSL_get_default_timeout.html>
@@ -144,6 +178,23 @@ impl CacheParameters {
 }
 
 const CACHE_MODE_SERVER: u32 = 0x02;
+
+#[derive(Clone, Copy, Debug)]
+struct CacheCallbacks {
+    new_callback: SSL_CTX_new_session_cb,
+    remove_callback: SSL_CTX_sess_remove_cb,
+    get_callback: SSL_CTX_sess_get_cb,
+}
+
+impl Default for CacheCallbacks {
+    fn default() -> Self {
+        Self {
+            new_callback: None,
+            remove_callback: None,
+            get_callback: None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExpiryTime(pub u64);

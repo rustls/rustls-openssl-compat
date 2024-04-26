@@ -652,6 +652,48 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_sess_set_new_cb(ctx: *mut SSL_CTX, new_session_cb: SSL_CTX_new_session_cb) {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_session_new_cb(new_session_cb)
+    }
+}
+
+pub type SSL_CTX_new_session_cb =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _sess: *mut SSL_SESSION) -> c_int>;
+
+entry! {
+    pub fn _SSL_CTX_sess_set_get_cb(ctx: *mut SSL_CTX, get_session_cb: SSL_CTX_sess_get_cb) {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_session_get_cb(get_session_cb)
+    }
+}
+
+pub type SSL_CTX_sess_get_cb = Option<
+    unsafe extern "C" fn(
+        ssl: *mut SSL,
+        data: *const c_uchar,
+        len: c_int,
+        copy: *mut c_int,
+    ) -> *mut SSL_SESSION,
+>;
+
+entry! {
+    pub fn _SSL_CTX_sess_set_remove_cb(
+        ctx: *mut SSL_CTX,
+        remove_session_cb: SSL_CTX_sess_remove_cb,
+    ) {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_session_remove_cb(remove_session_cb)
+    }
+}
+
+pub type SSL_CTX_sess_remove_cb =
+    Option<unsafe extern "C" fn(ctx: *mut SSL_CTX, sess: *mut SSL_SESSION)>;
+
+entry! {
     pub fn _SSL_CTX_get_timeout(ctx: *const SSL_CTX) -> c_long {
         try_clone_arc!(ctx).get().get_session_timeout() as c_long
     }
@@ -1649,29 +1691,6 @@ entry_stub! {
 }
 
 entry_stub! {
-    pub fn _SSL_CTX_sess_set_get_cb(_ctx: *mut SSL_CTX, _get_session_cb: SSL_CTX_sess_get_cb);
-}
-
-pub type SSL_CTX_sess_get_cb = Option<
-    unsafe extern "C" fn(
-        ssl: *mut SSL,
-        data: *const c_uchar,
-        len: c_int,
-        copy: *mut c_int,
-    ) -> *mut SSL_SESSION,
->;
-
-entry_stub! {
-    pub fn _SSL_CTX_sess_set_remove_cb(
-        _ctx: *mut SSL_CTX,
-        _remove_session_cb: SSL_CTX_sess_remove_cb,
-    );
-}
-
-pub type SSL_CTX_sess_remove_cb =
-    Option<unsafe extern "C" fn(ctx: *mut SSL_CTX, sess: *mut SSL_SESSION)>;
-
-entry_stub! {
     pub fn _SSL_set_session_id_context(
         _ssl: *mut SSL,
         _sid_ctx: *const c_uchar,
@@ -1689,13 +1708,6 @@ pub type SSL_CTX_keylog_cb_func =
 entry_stub! {
     pub fn _SSL_CTX_add_client_CA(_ctx: *mut SSL_CTX, _x: *mut X509) -> c_int;
 }
-
-entry_stub! {
-    pub fn _SSL_CTX_sess_set_new_cb(_ctx: *mut SSL_CTX, _new_session_cb: SSL_CTX_new_session_cb);
-}
-
-pub type SSL_CTX_new_session_cb =
-    Option<unsafe extern "C" fn(_ssl: *mut SSL, _sess: *mut SSL_SESSION) -> c_int>;
 
 entry_stub! {
     pub fn _SSL_CTX_set_ciphersuites(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;

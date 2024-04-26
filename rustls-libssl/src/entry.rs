@@ -6,6 +6,7 @@
 use core::{mem, ptr};
 use std::io::{self, Read};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
+use std::sync::Arc;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
@@ -1333,6 +1334,22 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_get1_session(ssl: *mut SSL) -> *mut SSL_SESSION {
+        try_clone_arc!(ssl)
+            .get()
+            .get_current_session()
+            .map(|sess| Arc::into_raw(sess) as *mut SSL_SESSION)
+            .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_session(ssl: *const SSL) -> *mut SSL_SESSION {
+        try_clone_arc!(ssl).get().borrow_current_session()
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<SSL>;
@@ -1676,14 +1693,6 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_get1_session(_ssl: *mut SSL) -> *mut SSL_SESSION;
-}
-
-entry_stub! {
-    pub fn _SSL_get_session(_ssl: *const SSL) -> *mut SSL_SESSION;
 }
 
 entry_stub! {

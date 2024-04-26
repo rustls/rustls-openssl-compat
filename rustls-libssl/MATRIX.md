@@ -316,7 +316,7 @@
 | `SSL_get0_security_ex_data`  |  |  |  |
 | `SSL_get0_verified_chain`  |  |  | :white_check_mark: |
 | `SSL_get1_peer_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get1_session`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_get1_session`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_supported_ciphers`  |  |  |  |
 | `SSL_get_SSL_CTX`  |  |  |  |
 | `SSL_get_all_async_fds`  |  |  |  |
@@ -364,7 +364,7 @@
 | `SSL_get_server_random`  |  |  |  |
 | `SSL_get_servername`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_servername_type`  |  |  | :white_check_mark: |
-| `SSL_get_session`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_get_session`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_shared_ciphers`  |  |  |  |
 | `SSL_get_shared_sigalgs`  |  |  |  |
 | `SSL_get_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

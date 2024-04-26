@@ -302,6 +302,24 @@ impl SingleServerCache {
             *old = Some(sess);
         }
     }
+
+    pub fn get_most_recent_session(&self) -> Option<Arc<SslSession>> {
+        self.most_recent_session
+            .lock()
+            .ok()
+            .and_then(|inner| inner.clone())
+    }
+
+    pub fn borrow_most_recent_session(&self) -> *mut SSL_SESSION {
+        if let Ok(inner) = self.most_recent_session.lock() {
+            inner
+                .as_ref()
+                .map(|sess| Arc::as_ptr(sess) as *mut SSL_SESSION)
+                .unwrap_or_else(ptr::null_mut)
+        } else {
+            ptr::null_mut()
+        }
+    }
 }
 
 impl StoresServerSessions for SingleServerCache {

@@ -422,8 +422,16 @@ impl SslContext {
         }
     }
 
-    fn install_ex_data(&mut self, ex_data: ex_data::ExData) {
-        self.ex_data = ex_data;
+    fn complete_construction(
+        &mut self,
+        pointer_to_self: *mut entry::SSL_CTX,
+    ) -> Result<(), error::Error> {
+        self.caches.set_pointer_to_owning_ssl_ctx(pointer_to_self);
+
+        self.ex_data = ex_data::ExData::new_ssl_ctx(pointer_to_self)
+            .ok_or_else(|| error::Error::bad_data("ex_data construction failed"))?;
+
+        Ok(())
     }
 
     fn set_ex_data(&mut self, idx: c_int, data: *mut c_void) -> Result<(), error::Error> {

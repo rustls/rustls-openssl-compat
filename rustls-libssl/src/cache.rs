@@ -6,7 +6,7 @@ use std::time::SystemTime;
 use rustls::client::ClientSessionMemoryCache;
 use rustls::client::ClientSessionStore;
 
-use crate::entry::{SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb};
+use crate::entry::{SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb, SSL_CTX};
 use crate::SslSession;
 
 /// A container for session caches that can live inside
@@ -35,6 +35,10 @@ impl SessionCaches {
             client: None,
             server: Arc::new(ServerSessionStorage::new(max_size)),
         }
+    }
+
+    pub fn set_pointer_to_owning_ssl_ctx(&mut self, ptr: *mut SSL_CTX) {
+        self.server.set_ssl_ctx(ptr);
     }
 
     /// Get a cache that can be used for an in-construction `ClientConnection`
@@ -155,6 +159,12 @@ impl ServerSessionStorage {
             inner.callbacks.get_callback = callback;
         }
     }
+
+    fn set_ssl_ctx(&self, ssl_ctx: *mut SSL_CTX) {
+        if let Ok(mut inner) = self.parameters.lock() {
+            inner.callbacks.ssl_ctx = ssl_ctx;
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -184,6 +194,7 @@ struct CacheCallbacks {
     new_callback: SSL_CTX_new_session_cb,
     remove_callback: SSL_CTX_sess_remove_cb,
     get_callback: SSL_CTX_sess_get_cb,
+    ssl_ctx: *mut SSL_CTX,
 }
 
 impl Default for CacheCallbacks {
@@ -192,9 +203,13 @@ impl Default for CacheCallbacks {
             new_callback: None,
             remove_callback: None,
             get_callback: None,
+            ssl_ctx: ptr::null_mut(),
         }
     }
 }
+// `ssl_ctx` is not Send, but we don't dereference it (could
+// equally be an integer).
+unsafe impl Send for CacheCallbacks {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExpiryTime(pub u64);

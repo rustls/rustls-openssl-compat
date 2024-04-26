@@ -113,18 +113,15 @@ pub type SSL_CTX = crate::SslContext;
 entry! {
     pub fn _SSL_CTX_new(meth: *const SSL_METHOD) -> *mut SSL_CTX {
         let method = try_ref_from_ptr!(meth);
-        let out = to_arc_mut_ptr(NotThreadSafe::new(crate::SslContext::new(method)));
-        let ex_data = match ExData::new_ssl_ctx(out) {
-            None => {
-                _SSL_CTX_free(out);
-                return ptr::null_mut();
-            }
-            Some(ex_data) => ex_data,
-        };
-
+        let out: *mut SSL_CTX = to_arc_mut_ptr(NotThreadSafe::new(crate::SslContext::new(method)));
         // safety: we just made this object, the pointer must be valid
-        clone_arc(out).unwrap().get_mut().install_ex_data(ex_data);
-        out
+        match clone_arc(out).unwrap().get_mut().complete_construction(out) {
+            Err(err) => {
+                _SSL_CTX_free(out);
+                err.raise().into()
+            }
+            Ok(()) => out,
+        }
     }
 }
 

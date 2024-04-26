@@ -2,12 +2,18 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
+use rustls::client::ClientSessionMemoryCache;
+use rustls::client::ClientSessionStore;
+
 use crate::SslSession;
 
 /// A container for session caches that can live inside
 /// an `SSL_CTX` but outlive a rustls `ServerConfig`/`ClientConfig`
 pub struct SessionCaches {
     max_size: usize,
+
+    /// the underlying client store. This outlives any given connection.
+    client: Option<Arc<dyn ClientSessionStore + Send + Sync>>,
 
     /// the underlying server store. This outlives any given connection.
     server: Arc<ServerSessionStorage>,
@@ -24,8 +30,17 @@ impl SessionCaches {
         // servers in a given `SSL_CTX`) so this should be ok.
         Self {
             max_size,
+            client: None,
             server: Arc::new(ServerSessionStorage::new(max_size)),
         }
+    }
+
+    /// Get a cache that can be used for an in-construction `ClientConnection`
+    pub fn get_client(&mut self) -> Arc<dyn ClientSessionStore + Send + Sync> {
+        Arc::clone(
+            self.client
+                .get_or_insert_with(|| Arc::new(ClientSessionMemoryCache::new(self.max_size))),
+        )
     }
 
     pub fn set_mode(&mut self, mode: u32) -> u32 {
@@ -40,6 +55,8 @@ impl SessionCaches {
         let old_size = self.max_size;
         self.max_size = size;
         self.server.set_size(size);
+        // divergence: openssl can change the size without emptying the (client) cache
+        self.client.take();
         old_size
     }
 }

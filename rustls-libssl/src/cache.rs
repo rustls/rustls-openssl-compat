@@ -237,6 +237,15 @@ impl ServerSessionStorage {
         Arc::new(SslSession::new(id, value, context, time_out))
     }
 
+    /// Return `None` if `sess` has the wrong context value.
+    fn filter_session_context(&self, sess: Arc<SslSession>) -> Option<Arc<SslSession>> {
+        if self.get_context() == sess.context {
+            Some(sess)
+        } else {
+            None
+        }
+    }
+
     fn insert(&self, new: Arc<SslSession>) -> bool {
         self.tick();
 
@@ -433,14 +442,21 @@ impl StoresServerSessions for SingleServerCache {
         }
 
         if self.parent.mode() & CACHE_MODE_NO_INTERNAL_LOOKUP == 0 {
-            let sess = self.parent.find_by_id(id);
+            let sess = self
+                .parent
+                .find_by_id(id)
+                .and_then(|sess| self.parent.filter_session_context(sess));
             if let Some(sess) = sess {
                 self.save_most_recent_session(sess.clone());
                 return Some(sess.value.clone());
             }
         }
 
-        if let Some(sess) = self.parent.invoke_get_callback(id) {
+        if let Some(sess) = self
+            .parent
+            .invoke_get_callback(id)
+            .and_then(|sess| self.parent.filter_session_context(sess))
+        {
             return Some(sess.value.clone());
         }
 
@@ -453,7 +469,10 @@ impl StoresServerSessions for SingleServerCache {
         }
 
         if self.parent.mode() & CACHE_MODE_NO_INTERNAL_LOOKUP == 0 {
-            let sess = self.parent.take(id);
+            let sess = self
+                .parent
+                .take(id)
+                .and_then(|sess| self.parent.filter_session_context(sess));
 
             if let Some(sess) = sess {
                 // inform external cache that this session is being consumed
@@ -465,7 +484,11 @@ impl StoresServerSessions for SingleServerCache {
         }
 
         // look up in external cache
-        if let Some(sess) = self.parent.invoke_get_callback(id) {
+        if let Some(sess) = self
+            .parent
+            .invoke_get_callback(id)
+            .and_then(|sess| self.parent.filter_session_context(sess))
+        {
             self.save_most_recent_session(sess.clone());
             self.parent.invoke_remove_callback(sess.clone());
             return Some(sess.value.clone());
@@ -599,5 +622,25 @@ mod tests {
         assert!(cache.find_by_id(&[4]).is_some());
         assert!(cache.find_by_id(&[5]).is_some());
         assert!(cache.find_by_id(&[6]).is_some());
+    }
+
+    #[test]
+    fn respects_context() {
+        let cache = ServerSessionStorage::new(5);
+        cache.set_context(b"hello");
+
+        assert!(cache
+            .insert(SslSession::new(vec![1], vec![], b"hello".to_vec(), ExpiryTime(10)).into()));
+        assert!(cache
+            .insert(SslSession::new(vec![2], vec![], b"goodbye".to_vec(), ExpiryTime(10)).into()));
+
+        assert!(cache
+            .find_by_id(&[1])
+            .and_then(|sess| cache.filter_session_context(sess))
+            .is_some());
+        assert!(cache
+            .find_by_id(&[2])
+            .and_then(|sess| cache.filter_session_context(sess))
+            .is_none());
     }
 }

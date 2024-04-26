@@ -216,7 +216,7 @@
 | `SSL_CTX_use_serverinfo_ex`  |  |  |  |
 | `SSL_CTX_use_serverinfo_file`  |  |  |  |
 | `SSL_SESSION_dup`  |  |  |  |
-| `SSL_SESSION_free`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_SESSION_free`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_get0_alpn_selected`  |  |  |  |
 | `SSL_SESSION_get0_cipher`  |  |  |  |
 | `SSL_SESSION_get0_hostname`  |  |  |  |
@@ -226,7 +226,7 @@
 | `SSL_SESSION_get0_ticket_appdata`  |  |  |  |
 | `SSL_SESSION_get_compress_id`  |  |  |  |
 | `SSL_SESSION_get_ex_data`  |  |  |  |
-| `SSL_SESSION_get_id`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_SESSION_get_id`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_get_master_key`  |  |  |  |
 | `SSL_SESSION_get_max_early_data`  |  |  |  |
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |
@@ -252,7 +252,7 @@
 | `SSL_SESSION_set_protocol_version`  |  |  |  |
 | `SSL_SESSION_set_time`  |  |  |  |
 | `SSL_SESSION_set_timeout`  |  |  |  |
-| `SSL_SESSION_up_ref`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_SESSION_up_ref`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_accept`  |  |  | :white_check_mark: |
@@ -519,8 +519,8 @@
 | `TLSv1_client_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
 | `TLSv1_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
 | `TLSv1_server_method` [^deprecatedin_1_1_0] [^tls1_method] |  |  |  |
-| `d2i_SSL_SESSION`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `i2d_SSL_SESSION`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `d2i_SSL_SESSION`  |  | :white_check_mark: | :white_check_mark: |
+| `i2d_SSL_SESSION`  |  | :white_check_mark: | :white_check_mark: |
 
 [^stub]: symbol exists, but just returns an error.
 [^deprecatedin_1_1_0]: deprecated in openssl 1.1.0

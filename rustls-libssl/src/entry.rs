@@ -1431,6 +1431,91 @@ entry! {
     }
 }
 
+pub type SSL_SESSION = crate::SslSession;
+
+entry! {
+    pub fn _SSL_SESSION_get_id(sess: *const SSL_SESSION, len: *mut c_uint) -> *const c_uchar {
+        if len.is_null() {
+            return ptr::null();
+        }
+
+        let sess = try_clone_arc!(sess);
+        let id = sess.get_id();
+        unsafe { *len = id.len() as c_uint };
+        id.as_ptr()
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_up_ref(sess: *mut SSL_SESSION) -> c_int {
+        let sess = try_clone_arc!(sess);
+        mem::forget(sess.clone());
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
+    pub fn _d2i_SSL_SESSION(
+        a: *mut *mut SSL_SESSION,
+        pp: *mut *const c_uchar,
+        length: c_long,
+    ) -> *mut SSL_SESSION {
+        if !a.is_null() {
+            return Error::not_supported("d2i_SSL_SESSION with a != NULL")
+                .raise()
+                .into();
+        }
+
+        if pp.is_null() {
+            return Error::bad_data("d2i_SSL_SESSION with pp == NULL")
+                .raise()
+                .into();
+        }
+
+        let ptr = unsafe { ptr::read(pp) };
+        let slice = try_slice!(ptr, length);
+
+        let (sess, rest) = match SSL_SESSION::decode(slice) {
+            Some(r) => r,
+            None => {
+                return Error::bad_data("cannot decode SSL_SESSION").raise().into();
+            }
+        };
+        let consumed_bytes = slice.len() - rest.len();
+
+        // move along *pp
+        unsafe { ptr::write(pp, ptr.add(consumed_bytes)) };
+        to_arc_mut_ptr(sess)
+    }
+}
+
+entry! {
+    pub fn _i2d_SSL_SESSION(sess: *const SSL_SESSION, pp: *mut *mut c_uchar) -> c_int {
+        let sess = try_clone_arc!(sess);
+        let encoded = sess.encode();
+
+        if !pp.is_null() {
+            let ptr = unsafe { ptr::read(pp) };
+            unsafe {
+                ptr::copy_nonoverlapping(encoded.as_ptr(), ptr, encoded.len());
+                ptr::write(pp, ptr.add(encoded.len()));
+            }
+        }
+        encoded.len() as c_int
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_free(sess: *mut SSL_SESSION) {
+        free_arc(sess);
+    }
+}
+
+impl Castable for SSL_SESSION {
+    type Ownership = OwnershipArc;
+    type RustType = SSL_SESSION;
+}
+
 /// Normal OpenSSL return value convention success indicator.
 ///
 /// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
@@ -1580,26 +1665,6 @@ pub type SSL_CTX_new_session_cb =
     Option<unsafe extern "C" fn(_ssl: *mut SSL, _sess: *mut SSL_SESSION) -> c_int>;
 
 entry_stub! {
-    pub fn _SSL_SESSION_get_id(_s: *const SSL_SESSION, _len: *mut c_uint) -> *const c_uchar;
-}
-
-entry_stub! {
-    pub fn _SSL_SESSION_up_ref(_ses: *mut SSL_SESSION) -> c_int;
-}
-
-entry_stub! {
-    pub fn _d2i_SSL_SESSION(
-        _a: *mut *mut SSL_SESSION,
-        _pp: *mut *const c_uchar,
-        _length: c_long,
-    ) -> *mut SSL_SESSION;
-}
-
-entry_stub! {
-    pub fn _i2d_SSL_SESSION(_in: *const SSL_SESSION, _pp: *mut *mut c_uchar) -> c_int;
-}
-
-entry_stub! {
     pub fn _SSL_CTX_set_ciphersuites(_ctx: *mut SSL_CTX, _s: *const c_char) -> c_int;
 }
 
@@ -1614,12 +1679,6 @@ entry_stub! {
 // The SSL_CTX X509_STORE isn't being meaningfully used yet.
 entry_stub! {
     pub fn _SSL_CTX_set_default_verify_store(_ctx: *mut SSL_CTX) -> c_int;
-}
-
-pub struct SSL_SESSION;
-
-entry_stub! {
-    pub fn _SSL_SESSION_free(_sess: *mut SSL_SESSION);
 }
 
 entry_stub! {
@@ -2009,5 +2068,30 @@ mod tests {
             ),
             0
         );
+    }
+
+    #[test]
+    fn test_SSL_SESSION_roundtrip() {
+        let sess = crate::SslSession::new(
+            vec![1; 32],
+            vec![2; 32],
+            vec![3; 128],
+            crate::cache::ExpiryTime(123),
+        );
+        let sess_ptr = to_arc_mut_ptr(sess);
+
+        let mut buffer = [0u8; 1024];
+        let mut ptr = buffer.as_mut_ptr();
+        let len = _i2d_SSL_SESSION(sess_ptr, &mut ptr);
+
+        println!("encoding: {:?}", &buffer[..len as usize]);
+
+        let mut ptr = buffer.as_ptr();
+        let new_sess = _d2i_SSL_SESSION(ptr::null_mut(), &mut ptr, buffer.len() as c_long);
+        assert!(!new_sess.is_null());
+        assert_eq!(len as usize, (ptr as usize) - (buffer.as_ptr() as usize));
+
+        _SSL_SESSION_free(new_sess);
+        _SSL_SESSION_free(sess_ptr);
     }
 }

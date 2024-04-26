@@ -228,6 +228,19 @@ entry! {
                 ctx.get_mut().set_servername_callback_context(parg);
                 C_INT_SUCCESS as c_long
             }
+            Ok(SslCtrl::SetSessCacheSize) => {
+                if larg < 0 {
+                    return 0;
+                }
+                ctx.get_mut().set_session_cache_size(larg as usize) as c_long
+            }
+            Ok(SslCtrl::GetSessCacheSize) => ctx.get().get_session_cache_size() as c_long,
+            Ok(SslCtrl::SetSessCacheMode) => {
+                if larg < 0 {
+                    return 0;
+                }
+                ctx.get_mut().set_session_cache_mode(larg as u32) as c_long
+            }
             Err(()) => {
                 log::warn!("unimplemented _SSL_CTX_ctrl(..., {cmd}, {larg}, ...)");
                 0
@@ -748,7 +761,11 @@ entry! {
                 C_INT_SUCCESS as i64
             }
             // not a defined operation in the OpenSSL API
-            Ok(SslCtrl::SetTlsExtServerNameCallback) | Ok(SslCtrl::SetTlsExtServerNameArg) => 0,
+            Ok(SslCtrl::SetTlsExtServerNameCallback)
+            | Ok(SslCtrl::SetTlsExtServerNameArg)
+            | Ok(SslCtrl::SetSessCacheSize)
+            | Ok(SslCtrl::GetSessCacheSize)
+            | Ok(SslCtrl::SetSessCacheMode) => 0,
             Err(()) => {
                 log::warn!("unimplemented _SSL_ctrl(..., {cmd}, {larg}, ...)");
                 0
@@ -1560,6 +1577,9 @@ num_enum! {
     enum SslCtrl {
         Mode = 33,
         SetMsgCallbackArg = 16,
+        SetSessCacheSize = 42,
+        GetSessCacheSize = 43,
+        SetSessCacheMode = 44,
         SetTlsExtServerNameCallback = 53,
         SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,

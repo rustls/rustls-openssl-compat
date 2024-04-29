@@ -173,3 +173,29 @@ jobs:
       - run: rustup override set "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)"
       - run: rustup component add miri
       - run: cargo miri test
+
+  packaging:
+    name: Packaging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+
+      - name: Install cargo-get
+        run: cargo install cargo-get
+
+      - name: Install nfpm
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          echo PATH=$PATH:$HOME/go/bin >> $GITHUB_ENV
+
+      - name: Build packages
+        run: make package PROFILE=release
+
+      - name: Test packages
+        run: make test-package PROFILE=release

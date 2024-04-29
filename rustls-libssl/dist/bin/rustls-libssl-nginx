@@ -1,0 +1,32 @@
+#!/bin/sh -e
+
+NGINX_DROP_IN_DIR=/etc/systemd/system/nginx.service.d/
+DROP_IN=/usr/share/rustls-libssl/50-rustls-libssl.conf
+
+distro=$(lsb_release --short --id 2>/dev/null || echo "Unknown")
+
+case $distro in
+"Debian")
+  ;;
+"Ubuntu")
+  ;;
+*)
+  echo "Warning: Distro may be unsupported"
+  ;;
+esac
+
+case "$1" in
+enable)
+  mkdir --parents $NGINX_DROP_IN_DIR
+  ln --symbolic --force --verbose $DROP_IN $NGINX_DROP_IN_DIR
+  echo "enabled, now \`systemctl daemon-reload' and restart nginx with \`service nginx restart'"
+  ;;
+disable)
+  rm "$NGINX_DROP_IN_DIR/$(basename $DROP_IN)"
+  echo "disabled, now \`systemctl daemon-reload' and restart nginx with \`service nginx restart'"
+  ;;
+*)
+  echo "usage: $0 <enable|disable>"
+  echo "Enables or disable use of rustls-libssl by nginx."
+  ;;
+esac

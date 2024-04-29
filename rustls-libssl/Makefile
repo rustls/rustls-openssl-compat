@@ -64,4 +64,18 @@ format-check:
 		-name '*.[c|h]' | \
 		xargs clang-format --dry-run -Werror -i
 
-.PHONY: all clean test integration format format-check
+package: package-deb
+
+package-deb: dist/nfpm.yaml target/release/libssl.so.3 target/VERSION
+	mkdir --parents target/dist
+	env VERSION=$(shell $(CARGO) get package.version) \
+	    VERSION_PRERELEASE=$(shell $(CARGO) get package.version --pre) \
+	    nfpm package --config $< --target target/dist --packager deb
+
+target/VERSION: ALWAYS
+	echo "This is rustls-libssl `git describe --always`\nDate: `date`\nIncorporating:" > $@
+	$(CARGO) tree >> $@
+
+ALWAYS: ;
+
+.PHONY: all clean test integration format format-check package package-deb ALWAYS

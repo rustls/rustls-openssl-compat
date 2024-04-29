@@ -1,0 +1,35 @@
+name: "rustls-libssl"
+arch: "amd64"
+platform: "linux"
+version: ${VERSION}
+prerelease: ${VERSION_PRERELEASE}
+section: "default"
+maintainer: "Joe Birr-Pixton <jbp@jbp.io>"
+description: |
+  rustls-libssl is a drop-in replacement for OpenSSL libssl.so
+  backed by rustls.
+vendor: "rustls project"
+homepage: "https://github.com/rustls/rustls-openssl-compat"
+license: "Apache-2.0"
+
+depends:
+- libssl3
+recommends:
+- nginx
+- curl
+
+contents:
+- src: ./target/release/libssl.so.3
+  dst: /usr/lib/x86_64-linux-gnu/rustls-libssl/
+
+- src: ./dist/bin/
+  dst: /usr/bin/
+
+- src: ./dist/share/
+  dst: /usr/share/rustls-libssl/
+
+- src: "{LICENSE,README.md}"
+  dst: /usr/share/rustls-libssl/
+
+- src: target/VERSION
+  dst: /usr/share/rustls-libssl/

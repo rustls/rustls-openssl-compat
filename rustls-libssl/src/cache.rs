@@ -47,10 +47,13 @@ impl SessionCaches {
 
     /// Get a cache that can be used for an in-construction `ClientConnection`
     pub fn get_client(&mut self) -> Arc<dyn ClientSessionStore + Send + Sync> {
-        Arc::clone(
-            self.client
-                .get_or_insert_with(|| Arc::new(ClientSessionMemoryCache::new(self.max_size))),
-        )
+        Arc::clone(self.client.get_or_insert_with(|| {
+            Arc::new(ClientSessionMemoryCache::new(if self.max_size == 0 {
+                usize::MAX
+            } else {
+                self.max_size
+            }))
+        }))
     }
 
     /// Get a cache that can be used for a single `ServerConnection`
@@ -77,7 +80,8 @@ impl SessionCaches {
     pub fn set_size(&mut self, size: usize) -> usize {
         let old_size = self.max_size;
         self.max_size = size;
-        self.server.set_size(size);
+        self.server
+            .set_size(if size == 0 { usize::MAX } else { size });
         // divergence: openssl can change the size without emptying the (client) cache
         self.client.take();
         old_size
@@ -525,6 +529,7 @@ impl Default for CacheCallbacks {
         }
     }
 }
+
 // `ssl_ctx` is not Send, but we don't dereference it (could
 // equally be an integer).
 unsafe impl Send for CacheCallbacks {}

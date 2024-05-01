@@ -1,4 +1,4 @@
-| Symbol | curl | nginx | implemented? |
+| Symbol | curl[^curl] | nginx[^nginx] | implemented? |
 |---|---|---|---|
 | `BIO_f_ssl`  | :white_check_mark: |  | :white_check_mark: |
 | `BIO_new_buffer_ssl_connect`  |  |  |  |
@@ -542,3 +542,5 @@
 [^tls1_1_method]: TLS 1.1-specific
 [^tls1_2_method]: TLS 1.2-specific
 [^engine]: openssl ENGINE-specific
+[^curl]: curl 7.81.0-1ubuntu1.16 (ubuntu 22.04)
+[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)

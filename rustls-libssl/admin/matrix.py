@@ -212,7 +212,7 @@ SSL_write
 TLS_method
 """.split())
 
-print('| Symbol | curl | nginx | implemented? |')
+print('| Symbol | curl[^curl] | nginx[^nginx] | implemented? |')
 print('|---|---|---|---|')
 for i in sorted(items.keys()):
     print('| `' + i + '` ' + flags(items[i]) + ' | ' + curl_p(i) + ' | ' + nginx_p(i) + ' | ' + impl_p(i) + ' |')
@@ -237,4 +237,6 @@ print("""
 [^tls1_method]: TLS 1.0-specific
 [^tls1_1_method]: TLS 1.1-specific
 [^tls1_2_method]: TLS 1.2-specific
-[^engine]: openssl ENGINE-specific""")
+[^engine]: openssl ENGINE-specific
+[^curl]: curl 7.81.0-1ubuntu1.16 (ubuntu 22.04)
+[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)""")

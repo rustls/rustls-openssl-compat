@@ -1,9 +1,9 @@
 # rustls-openssl-compat
 
-This is the planned home of several rustls ↔️ OpenSSL compatibility layers.
+This is the planned home of several rustls to OpenSSL compatibility layers.
 Currently here:
 
-- **rustls-libssl**: an implementation of the OpenSSL libssl ABI in terms of rustls.
+- **[rustls-libssl](rustls-libssl/)**: an implementation of the OpenSSL libssl ABI in terms of rustls.
 
 Not yet here:
 

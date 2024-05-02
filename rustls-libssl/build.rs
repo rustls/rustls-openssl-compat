@@ -189,6 +189,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_use_certificate",
     "SSL_use_PrivateKey",
     "SSL_use_PrivateKey_file",
+    "SSL_version",
     "SSL_want",
     "SSL_write",
     "SSL_write_early_data",

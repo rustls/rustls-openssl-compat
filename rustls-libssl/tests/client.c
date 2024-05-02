@@ -123,6 +123,7 @@ int main(int argc, char **argv) {
   hexdump("alpn", alpn_ptr, alpn_len);
 
   printf("version: %s\n", SSL_get_version(ssl));
+  printf("numeric version: %d\n", SSL_version(ssl));
   printf("verify-result: %ld\n", SSL_get_verify_result(ssl));
   printf("cipher: %s\n", SSL_CIPHER_standard_name(SSL_get_current_cipher(ssl)));
 

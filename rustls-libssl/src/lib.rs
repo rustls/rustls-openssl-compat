@@ -355,9 +355,9 @@ impl PartialEq<SslSession> for SslSession {
 
 impl Eq for SslSession {}
 
-impl borrow::Borrow<SslSessionLookup> for Arc<SslSession> {
+impl borrow::Borrow<SslSessionLookup> for Arc<NotThreadSafe<SslSession>> {
     fn borrow(&self) -> &SslSessionLookup {
-        &self.id
+        &self.get().id
     }
 }
 
@@ -1398,7 +1398,7 @@ impl Ssl {
         }
     }
 
-    fn get_current_session(&self) -> Option<Arc<SslSession>> {
+    fn get_current_session(&self) -> Option<Arc<NotThreadSafe<SslSession>>> {
         match &self.conn {
             ConnState::Server(_, _, cache) => cache.get_most_recent_session(),
             // divergence: `SSL_get1_session` etc only work for server SSLs

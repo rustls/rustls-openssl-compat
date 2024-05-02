@@ -409,7 +409,7 @@
 | `SSL_rstate_string`  |  |  |  |
 | `SSL_rstate_string_long`  |  |  |  |
 | `SSL_select_next_proto`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_sendfile`  |  |  |  |
+| `SSL_sendfile`  |  |  | :exclamation: [^stub] |
 | `SSL_session_reused`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set0_CA_list`  |  |  |  |
 | `SSL_set0_rbio`  |  |  | :white_check_mark: |

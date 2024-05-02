@@ -1976,6 +1976,18 @@ entry_stub! {
 
 pub struct SSL_CONF_CTX;
 
+// No kTLS/sendfile support
+
+entry_stub! {
+    pub fn _SSL_sendfile(
+        _ssl: *mut SSL,
+        _fd: c_int,
+        _offset: c_long,
+        _size: usize,
+        _flags: c_int,
+    ) -> c_long;
+}
+
 // ---------------------
 
 #[cfg(test)]

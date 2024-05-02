@@ -237,14 +237,21 @@ pub struct OwnedX509Store {
 }
 
 impl OwnedX509Store {
-    pub fn new() -> Self {
-        Self {
-            raw: unsafe { X509_STORE_new() },
-        }
+    /// Create a new one, from a (donated) existing ref.
+    pub fn new(store: *mut X509_STORE) -> Self {
+        Self { raw: store }
     }
 
     pub fn pointer(&self) -> *mut X509_STORE {
         self.raw
+    }
+}
+
+impl Default for OwnedX509Store {
+    fn default() -> Self {
+        Self {
+            raw: unsafe { X509_STORE_new() },
+        }
     }
 }
 

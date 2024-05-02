@@ -297,6 +297,12 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_set_cert_store(ctx: *mut SSL_CTX, store: *mut X509_STORE) {
+        try_clone_arc!(ctx).get_mut().set_x509_store(store);
+    }
+}
+
 fn load_verify_files(
     ctx: &NotThreadSafe<SSL_CTX>,
     file_names: impl Iterator<Item = PathBuf>,

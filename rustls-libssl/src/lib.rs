@@ -21,6 +21,7 @@ use rustls::{
 };
 
 use not_thread_safe::NotThreadSafe;
+use x509::OwnedX509Store;
 
 mod bio;
 mod cache;
@@ -435,7 +436,7 @@ impl SslContext {
             verify_mode: VerifyMode::default(),
             verify_depth: -1,
             verify_roots: RootCertStore::empty(),
-            verify_x509_store: x509::OwnedX509Store::new(),
+            verify_x509_store: OwnedX509Store::default(),
             alpn: vec![],
             default_cert_file: None,
             default_cert_dir: None,
@@ -613,6 +614,13 @@ impl SslContext {
 
     fn get_x509_store(&self) -> *mut X509_STORE {
         self.verify_x509_store.pointer()
+    }
+
+    fn set_x509_store(&mut self, store: *mut X509_STORE) {
+        self.verify_x509_store = match store.is_null() {
+            true => OwnedX509Store::default(),
+            false => OwnedX509Store::new(store),
+        };
     }
 
     fn set_alpn_offer(&mut self, alpn: Vec<Vec<u8>>) {

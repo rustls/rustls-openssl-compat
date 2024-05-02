@@ -96,6 +96,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_set_alpn_protos",
     "SSL_CTX_set_alpn_select_cb",
     "SSL_CTX_set_cert_cb",
+    "SSL_CTX_set_cert_store",
     "SSL_CTX_set_cipher_list",
     "SSL_CTX_set_ciphersuites",
     "SSL_CTX_set_client_CA_list",

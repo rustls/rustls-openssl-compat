@@ -77,6 +77,7 @@ static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
   SSL_SESSION_get_id(sess, &id_len);
   printf("  SSL_SESSION_get_id len=%u\n", id_len);
   TRACE(SSL_SESSION_set_timeout(sess, SSL_SESSION_get_timeout(sess)));
+  TRACE(SSL_SESSION_set1_id_context(sess, (uint8_t *)"hello", 5));
   return 0;
 }
 

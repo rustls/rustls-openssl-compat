@@ -498,7 +498,7 @@
 | `SSL_use_certificate_file`  |  |  |  |
 | `SSL_use_psk_identity_hint` [^psk] |  |  |  |
 | `SSL_verify_client_post_handshake`  |  |  |  |
-| `SSL_version`  |  |  |  |
+| `SSL_version`  |  |  | :white_check_mark: |
 | `SSL_waiting_for_async`  |  |  |  |
 | `SSL_want`  |  |  | :white_check_mark: |
 | `SSL_write`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

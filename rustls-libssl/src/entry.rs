@@ -1173,6 +1173,19 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_version(ssl: *const SSL) -> c_int {
+        try_clone_arc!(ssl)
+            .get()
+            .conn()
+            .and_then(|conn| {
+                conn.protocol_version()
+                    .map(|proto| u16::from(proto) as c_int)
+            })
+            .unwrap_or_default()
+    }
+}
+
+entry! {
     pub fn _SSL_get_verify_result(ssl: *const SSL) -> c_long {
         try_clone_arc!(ssl).get().get_last_verification_result()
     }

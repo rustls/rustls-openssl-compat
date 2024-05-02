@@ -755,6 +755,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get_SSL_CTX(ssl: *const SSL) -> *mut SSL_CTX {
+        Arc::as_ptr(&try_clone_arc!(ssl).get().ctx) as *mut SSL_CTX
+    }
+}
+
+entry! {
     pub fn _SSL_set_ex_data(ssl: *mut SSL, idx: c_int, data: *mut c_void) -> c_int {
         match try_clone_arc!(ssl).get_mut().set_ex_data(idx, data) {
             Err(e) => e.raise().into(),

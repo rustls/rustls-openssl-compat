@@ -318,7 +318,7 @@
 | `SSL_get1_peer_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_session`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_supported_ciphers`  |  |  |  |
-| `SSL_get_SSL_CTX`  |  |  |  |
+| `SSL_get_SSL_CTX`  |  |  | :white_check_mark: |
 | `SSL_get_all_async_fds`  |  |  |  |
 | `SSL_get_async_status`  |  |  |  |
 | `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

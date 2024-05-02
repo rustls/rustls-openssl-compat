@@ -1944,6 +1944,38 @@ entry_stub! {
     pub fn _SSL_set_post_handshake_auth(_s: *mut SSL, _val: c_int);
 }
 
+// no configuration command support
+
+entry_stub! {
+    pub fn _SSL_CONF_CTX_new() -> *mut SSL_CONF_CTX;
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_CTX_free(_cctx: *mut SSL_CONF_CTX);
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_CTX_finish(_cctx: *mut SSL_CONF_CTX) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_CTX_set_flags(_cctx: *mut SSL_CONF_CTX, _flags: c_uint) -> c_uint;
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_CTX_set_ssl_ctx(_cctx: *mut SSL_CONF_CTX, _ctx: *mut SSL_CTX);
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_cmd(_ctx: *mut SSL_CONF_CTX, _opt: *mut c_char, _value: *mut c_char) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CONF_cmd_value_type(_ctx: *mut SSL_CONF_CTX, _opt: *mut c_char) -> c_int;
+}
+
+pub struct SSL_CONF_CTX;
+
 // ---------------------
 
 #[cfg(test)]

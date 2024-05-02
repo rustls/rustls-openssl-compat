@@ -1580,6 +1580,18 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_set1_id_context(
+        sess: *mut SSL_SESSION,
+        sid_ctx: *const c_uchar,
+        sid_ctx_len: c_uint,
+    ) -> c_int {
+        let slice = try_slice!(sid_ctx, sid_ctx_len);
+        try_clone_arc!(sess).get_mut().set_context(slice);
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _d2i_SSL_SESSION(
         a: *mut *mut SSL_SESSION,
         pp: *mut *const c_uchar,

@@ -3,7 +3,7 @@
 set -e
 TAG="$1"
 
-docker run --interactive --publish 8443:443 "$TAG" &
+docker run --init --interactive --publish 8443:443 "$TAG" &
 DOCKER_ID=$!
 sleep 2
 

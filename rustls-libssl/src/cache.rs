@@ -11,6 +11,7 @@ use rustls::server::StoresServerSessions;
 use crate::entry::{
     SSL_CTX_new_session_cb, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb, SSL_CTX, SSL_SESSION,
 };
+use crate::not_thread_safe::NotThreadSafe;
 use crate::{callbacks, SslSession, SslSessionLookup};
 
 /// A container for session caches that can live inside
@@ -118,11 +119,12 @@ impl Default for SessionCaches {
 
 #[derive(Debug)]
 pub struct ServerSessionStorage {
-    items: Mutex<BTreeSet<Arc<SslSession>>>,
+    items: Mutex<BTreeSet<Arc<NotThreadSafe<SslSession>>>>,
     parameters: Mutex<CacheParameters>,
     op_count: AtomicUsize,
 }
 
+#[allow(clippy::mutable_key_type)] // clippy can't see that we don't mutate SslSession::id
 impl ServerSessionStorage {
     fn new(max_size: usize) -> Self {
         Self {
@@ -218,11 +220,11 @@ impl ServerSessionStorage {
             .unwrap_or_default()
     }
 
-    fn invoke_new_callback(&self, sess: Arc<SslSession>) -> bool {
+    fn invoke_new_callback(&self, sess: Arc<NotThreadSafe<SslSession>>) -> bool {
         callbacks::invoke_session_new_callback(self.callbacks().new_callback, sess)
     }
 
-    fn invoke_remove_callback(&self, sess: Arc<SslSession>) {
+    fn invoke_remove_callback(&self, sess: Arc<NotThreadSafe<SslSession>>) {
         let callbacks = self.callbacks();
         callbacks::invoke_session_remove_callback(
             callbacks.remove_callback,
@@ -231,26 +233,31 @@ impl ServerSessionStorage {
         );
     }
 
-    fn invoke_get_callback(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+    fn invoke_get_callback(&self, id: &[u8]) -> Option<Arc<NotThreadSafe<SslSession>>> {
         callbacks::invoke_session_get_callback(self.callbacks().get_callback, id)
     }
 
-    fn build_new_session(&self, id: Vec<u8>, value: Vec<u8>) -> Arc<SslSession> {
+    fn build_new_session(&self, id: Vec<u8>, value: Vec<u8>) -> Arc<NotThreadSafe<SslSession>> {
         let context = self.get_context();
         let time_out = ExpiryTime::calculate(TimeBase::now(), self.get_timeout());
-        Arc::new(SslSession::new(id, value, context, time_out))
+        Arc::new(NotThreadSafe::new(SslSession::new(
+            id, value, context, time_out,
+        )))
     }
 
     /// Return `None` if `sess` has the wrong context value.
-    fn filter_session_context(&self, sess: Arc<SslSession>) -> Option<Arc<SslSession>> {
-        if self.get_context() == sess.context {
+    fn filter_session_context(
+        &self,
+        sess: Arc<NotThreadSafe<SslSession>>,
+    ) -> Option<Arc<NotThreadSafe<SslSession>>> {
+        if self.get_context() == sess.get().context {
             Some(sess)
         } else {
             None
         }
     }
 
-    fn insert(&self, new: Arc<SslSession>) -> bool {
+    fn insert(&self, new: Arc<NotThreadSafe<SslSession>>) -> bool {
         self.tick();
 
         let max_size = self
@@ -272,7 +279,7 @@ impl ServerSessionStorage {
         }
     }
 
-    fn take(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+    fn take(&self, id: &[u8]) -> Option<Arc<NotThreadSafe<SslSession>>> {
         self.tick();
 
         if let Ok(mut items) = self.items.lock() {
@@ -282,7 +289,7 @@ impl ServerSessionStorage {
         }
     }
 
-    fn find_by_id(&self, id: &[u8]) -> Option<Arc<SslSession>> {
+    fn find_by_id(&self, id: &[u8]) -> Option<Arc<NotThreadSafe<SslSession>>> {
         self.tick();
 
         if let Ok(items) = self.items.lock() {
@@ -318,7 +325,7 @@ impl ServerSessionStorage {
                 // if we have a callback to invoke, do it the slow way
                 let mut removal_list: BTreeSet<_> = items
                     .iter()
-                    .filter(|item| item.expired(at_time))
+                    .filter(|item| item.get().expired(at_time))
                     .cloned()
                     .collect();
 
@@ -331,7 +338,7 @@ impl ServerSessionStorage {
                     );
                 }
             } else {
-                items.retain(|item| !item.expired(at_time));
+                items.retain(|item| !item.get().expired(at_time));
             }
         }
     }
@@ -345,8 +352,8 @@ impl ServerSessionStorage {
         }
     }
 
-    fn flush_oldest(items: &mut BTreeSet<Arc<SslSession>>) {
-        let oldest = items.iter().min_by_key(|item| item.expiry_time.0);
+    fn flush_oldest(items: &mut BTreeSet<Arc<NotThreadSafe<SslSession>>>) {
+        let oldest = items.iter().min_by_key(|item| item.get().expiry_time.0);
         if let Some(oldest) = oldest.cloned() {
             items.take(&oldest);
         }
@@ -381,7 +388,7 @@ impl CacheParameters {
 #[derive(Debug)]
 pub struct SingleServerCache {
     parent: Arc<ServerSessionStorage>,
-    most_recent_session: Mutex<Option<Arc<SslSession>>>,
+    most_recent_session: Mutex<Option<Arc<NotThreadSafe<SslSession>>>>,
 }
 
 impl SingleServerCache {
@@ -396,13 +403,13 @@ impl SingleServerCache {
         self.parent.mode() & CACHE_MODE_SERVER == CACHE_MODE_SERVER
     }
 
-    fn save_most_recent_session(&self, sess: Arc<SslSession>) {
+    fn save_most_recent_session(&self, sess: Arc<NotThreadSafe<SslSession>>) {
         if let Ok(mut old) = self.most_recent_session.lock() {
             *old = Some(sess);
         }
     }
 
-    pub fn get_most_recent_session(&self) -> Option<Arc<SslSession>> {
+    pub fn get_most_recent_session(&self) -> Option<Arc<NotThreadSafe<SslSession>>> {
         self.most_recent_session
             .lock()
             .ok()
@@ -452,7 +459,7 @@ impl StoresServerSessions for SingleServerCache {
                 .and_then(|sess| self.parent.filter_session_context(sess));
             if let Some(sess) = sess {
                 self.save_most_recent_session(sess.clone());
-                return Some(sess.value.clone());
+                return Some(sess.get().value.clone());
             }
         }
 
@@ -461,7 +468,7 @@ impl StoresServerSessions for SingleServerCache {
             .invoke_get_callback(id)
             .and_then(|sess| self.parent.filter_session_context(sess))
         {
-            return Some(sess.value.clone());
+            return Some(sess.get().value.clone());
         }
 
         None
@@ -483,7 +490,7 @@ impl StoresServerSessions for SingleServerCache {
                 self.parent.invoke_remove_callback(sess.clone());
 
                 self.save_most_recent_session(sess.clone());
-                return Some(sess.value.clone());
+                return Some(sess.get().value.clone());
             }
         }
 
@@ -495,7 +502,7 @@ impl StoresServerSessions for SingleServerCache {
         {
             self.save_most_recent_session(sess.clone());
             self.parent.invoke_remove_callback(sess.clone());
-            return Some(sess.value.clone());
+            return Some(sess.get().value.clone());
         }
 
         None
@@ -571,7 +578,13 @@ mod tests {
 
         for i in 1..=5 {
             assert!(cache.insert(
-                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+                NotThreadSafe::new(SslSession::new(
+                    vec![i],
+                    vec![],
+                    vec![],
+                    ExpiryTime(10 + i as u64)
+                ))
+                .into()
             ));
         }
 
@@ -591,7 +604,13 @@ mod tests {
 
         for i in 1..=5 {
             assert!(cache.insert(
-                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+                NotThreadSafe::new(SslSession::new(
+                    vec![i],
+                    vec![],
+                    vec![],
+                    ExpiryTime(10 + i as u64)
+                ))
+                .into()
             ));
         }
 
@@ -608,7 +627,13 @@ mod tests {
 
         for i in 1..=5 {
             assert!(cache.insert(
-                SslSession::new(vec![i], vec![], vec![], ExpiryTime(10 + i as u64)).into()
+                NotThreadSafe::new(SslSession::new(
+                    vec![i],
+                    vec![],
+                    vec![],
+                    ExpiryTime(10 + i as u64)
+                ))
+                .into()
             ));
         }
 
@@ -619,7 +644,9 @@ mod tests {
         assert!(cache.find_by_id(&[5]).is_some());
 
         cache.set_size(4);
-        assert!(cache.insert(SslSession::new(vec![6], vec![], vec![], ExpiryTime(16)).into()));
+        assert!(cache.insert(
+            NotThreadSafe::new(SslSession::new(vec![6], vec![], vec![], ExpiryTime(16))).into()
+        ));
 
         assert!(cache.find_by_id(&[1]).is_none());
         assert!(cache.find_by_id(&[2]).is_none());
@@ -634,10 +661,24 @@ mod tests {
         let cache = ServerSessionStorage::new(5);
         cache.set_context(b"hello");
 
-        assert!(cache
-            .insert(SslSession::new(vec![1], vec![], b"hello".to_vec(), ExpiryTime(10)).into()));
-        assert!(cache
-            .insert(SslSession::new(vec![2], vec![], b"goodbye".to_vec(), ExpiryTime(10)).into()));
+        assert!(cache.insert(
+            NotThreadSafe::new(SslSession::new(
+                vec![1],
+                vec![],
+                b"hello".to_vec(),
+                ExpiryTime(10)
+            ))
+            .into()
+        ));
+        assert!(cache.insert(
+            NotThreadSafe::new(SslSession::new(
+                vec![2],
+                vec![],
+                b"goodbye".to_vec(),
+                ExpiryTime(10)
+            ))
+            .into()
+        ));
 
         assert!(cache
             .find_by_id(&[1])

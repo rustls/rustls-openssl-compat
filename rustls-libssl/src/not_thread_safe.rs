@@ -1,4 +1,6 @@
 use core::cell::UnsafeCell;
+use core::cmp;
+use std::fmt;
 
 /// An extremely bad and unsafe laundering of pointer-to-references.
 ///
@@ -33,3 +35,31 @@ impl<T> NotThreadSafe<T> {
         unsafe { &mut *self.cell.get() }
     }
 }
+
+impl<T: fmt::Debug> fmt::Debug for NotThreadSafe<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        self.cell.fmt(f)
+    }
+}
+
+impl<T: Ord + PartialOrd> Ord for NotThreadSafe<T> {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.get().cmp(other.get())
+    }
+}
+
+impl<T: PartialOrd<T> + Ord> PartialOrd for NotThreadSafe<T> {
+    fn partial_cmp(&self, other: &NotThreadSafe<T>) -> Option<cmp::Ordering> {
+        Some(self.get().cmp(other.get()))
+    }
+}
+
+impl<T: Eq> Eq for NotThreadSafe<T> {}
+
+impl<T: PartialEq> PartialEq for NotThreadSafe<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get().eq(other.get())
+    }
+}
+
+unsafe impl<T> Sync for NotThreadSafe<T> {}

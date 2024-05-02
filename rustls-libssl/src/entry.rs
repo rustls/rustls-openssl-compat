@@ -1531,7 +1531,7 @@ entry! {
         }
 
         let sess = try_clone_arc!(sess);
-        let id = sess.get_id();
+        let id = sess.get().get_id();
         unsafe { *len = id.len() as c_uint };
         id.as_ptr()
     }
@@ -1576,14 +1576,14 @@ entry! {
 
         // move along *pp
         unsafe { ptr::write(pp, ptr.add(consumed_bytes)) };
-        to_arc_mut_ptr(sess)
+        to_arc_mut_ptr(NotThreadSafe::new(sess))
     }
 }
 
 entry! {
     pub fn _i2d_SSL_SESSION(sess: *const SSL_SESSION, pp: *mut *mut c_uchar) -> c_int {
         let sess = try_clone_arc!(sess);
-        let encoded = sess.encode();
+        let encoded = sess.get().encode();
 
         if !pp.is_null() {
             let ptr = unsafe { ptr::read(pp) };
@@ -1604,7 +1604,7 @@ entry! {
 
 impl Castable for SSL_SESSION {
     type Ownership = OwnershipArc;
-    type RustType = SSL_SESSION;
+    type RustType = NotThreadSafe<SSL_SESSION>;
 }
 
 /// Normal OpenSSL return value convention success indicator.
@@ -2118,7 +2118,7 @@ mod tests {
             vec![3; 128],
             crate::cache::ExpiryTime(123),
         );
-        let sess_ptr = to_arc_mut_ptr(sess);
+        let sess_ptr = to_arc_mut_ptr(NotThreadSafe::new(sess));
 
         let mut buffer = [0u8; 1024];
         let mut ptr = buffer.as_mut_ptr();

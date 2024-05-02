@@ -13,6 +13,7 @@ use crate::entry::{
 };
 use crate::error::Error;
 use crate::ffi;
+use crate::not_thread_safe::NotThreadSafe;
 
 /// Smuggling SSL* pointers from the outer entrypoint into the
 /// callback call site.
@@ -189,7 +190,7 @@ impl Default for ServerNameCallbackConfig {
 /// It is unknowable if this means something was stored externally.
 pub fn invoke_session_new_callback(
     callback: SSL_CTX_new_session_cb,
-    sess: Arc<SSL_SESSION>,
+    sess: Arc<NotThreadSafe<SSL_SESSION>>,
 ) -> bool {
     let callback = match callback {
         Some(callback) => callback,
@@ -213,7 +214,7 @@ pub fn invoke_session_new_callback(
 pub fn invoke_session_get_callback(
     callback: SSL_CTX_sess_get_cb,
     id: &[u8],
-) -> Option<Arc<SSL_SESSION>> {
+) -> Option<Arc<NotThreadSafe<SSL_SESSION>>> {
     let callback = match callback {
         Some(callback) => callback,
         None => {
@@ -241,7 +242,7 @@ pub fn invoke_session_get_callback(
 pub fn invoke_session_remove_callback(
     callback: SSL_CTX_sess_remove_cb,
     ssl_ctx: *mut SSL_CTX,
-    sess: Arc<SSL_SESSION>,
+    sess: Arc<NotThreadSafe<SSL_SESSION>>,
 ) {
     let callback = match callback {
         Some(callback) => callback,

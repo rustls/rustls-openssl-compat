@@ -647,6 +647,9 @@ entry! {
         sid_ctx_len: c_uint,
     ) -> c_int {
         let sid_ctx = try_slice!(sid_ctx, sid_ctx_len);
+        if sid_ctx.len() > SSL_MAX_SID_CTX_LENGTH {
+            return Error::not_supported("excess sid_ctx_len").raise().into();
+        }
         try_clone_arc!(ctx)
             .get_mut()
             .set_session_id_context(sid_ctx);
@@ -1580,6 +1583,21 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_set1_id_context(
+        sess: *mut SSL_SESSION,
+        sid_ctx: *const c_uchar,
+        sid_ctx_len: c_uint,
+    ) -> c_int {
+        let slice = try_slice!(sid_ctx, sid_ctx_len);
+        if slice.len() > SSL_MAX_SID_CTX_LENGTH {
+            return Error::not_supported("excess sid_ctx_len").raise().into();
+        }
+        try_clone_arc!(sess).get_mut().set_context(slice);
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _d2i_SSL_SESSION(
         a: *mut *mut SSL_SESSION,
         pp: *mut *const c_uchar,
@@ -1648,6 +1666,8 @@ const C_INT_SUCCESS: c_int = 1;
 
 const FILETYPE_PEM: c_int = 1;
 const FILETYPE_DER: c_int = 2;
+
+const SSL_MAX_SID_CTX_LENGTH: usize = 32;
 
 /// Define an enum that can round trip through a c_int, with no
 /// UB for unknown values.

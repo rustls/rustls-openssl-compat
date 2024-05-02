@@ -243,7 +243,7 @@
 | `SSL_SESSION_set1_alpn_selected`  |  |  |  |
 | `SSL_SESSION_set1_hostname`  |  |  |  |
 | `SSL_SESSION_set1_id`  |  |  |  |
-| `SSL_SESSION_set1_id_context`  |  |  |  |
+| `SSL_SESSION_set1_id_context`  |  |  | :white_check_mark: |
 | `SSL_SESSION_set1_master_key`  |  |  |  |
 | `SSL_SESSION_set1_ticket_appdata`  |  |  |  |
 | `SSL_SESSION_set_cipher`  |  |  |  |

@@ -350,6 +350,10 @@ impl SslSession {
         self.time_out = time_out_secs;
     }
 
+    pub fn set_context(&mut self, new_context: &[u8]) {
+        self.context = new_context.to_vec();
+    }
+
     pub fn expired(&self, at_time: cache::TimeBase) -> bool {
         cache::ExpiryTime::calculate(self.creation_time, self.time_out).in_past(at_time)
     }

@@ -162,6 +162,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_SESSION_get_time",
     "SSL_SESSION_get_timeout",
     "SSL_session_reused",
+    "SSL_SESSION_set1_id_context",
     "SSL_SESSION_set_time",
     "SSL_SESSION_set_timeout",
     "SSL_SESSION_up_ref",

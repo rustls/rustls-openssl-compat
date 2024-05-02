@@ -1546,6 +1546,40 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_set_time(sess: *mut SSL_SESSION, time: c_long) -> c_long {
+        if time < 0 {
+            return 0;
+        }
+        try_clone_arc!(sess)
+            .get_mut()
+            .set_creation_time(time as u64);
+        C_INT_SUCCESS as c_long
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_get_time(sess: *const SSL_SESSION) -> c_long {
+        try_clone_arc!(sess).get().get_creation_time() as c_long
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_set_timeout(sess: *mut SSL_SESSION, time_out: c_long) -> c_long {
+        if time_out < 0 {
+            return 0;
+        }
+        try_clone_arc!(sess).get_mut().set_time_out(time_out as u64);
+        C_INT_SUCCESS as c_long
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_get_timeout(sess: *const SSL_SESSION) -> c_long {
+        try_clone_arc!(sess).get().get_time_out() as c_long
+    }
+}
+
+entry! {
     pub fn _d2i_SSL_SESSION(
         a: *mut *mut SSL_SESSION,
         pp: *mut *const c_uchar,
@@ -2116,7 +2150,8 @@ mod tests {
             vec![1; 32],
             vec![2; 32],
             vec![3; 128],
-            crate::cache::ExpiryTime(123),
+            crate::cache::TimeBase(123),
+            300,
         );
         let sess_ptr = to_arc_mut_ptr(NotThreadSafe::new(sess));
 

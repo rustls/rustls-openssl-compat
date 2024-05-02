@@ -232,8 +232,8 @@
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |
 | `SSL_SESSION_get_protocol_version`  |  |  |  |
 | `SSL_SESSION_get_ticket_lifetime_hint`  |  |  |  |
-| `SSL_SESSION_get_time`  |  |  |  |
-| `SSL_SESSION_get_timeout`  |  |  |  |
+| `SSL_SESSION_get_time`  |  |  | :white_check_mark: |
+| `SSL_SESSION_get_timeout`  |  |  | :white_check_mark: |
 | `SSL_SESSION_has_ticket`  |  |  |  |
 | `SSL_SESSION_is_resumable`  |  |  |  |
 | `SSL_SESSION_new`  |  |  |  |
@@ -250,8 +250,8 @@
 | `SSL_SESSION_set_ex_data`  |  |  |  |
 | `SSL_SESSION_set_max_early_data`  |  |  |  |
 | `SSL_SESSION_set_protocol_version`  |  |  |  |
-| `SSL_SESSION_set_time`  |  |  |  |
-| `SSL_SESSION_set_timeout`  |  |  |  |
+| `SSL_SESSION_set_time`  |  |  | :white_check_mark: |
+| `SSL_SESSION_set_timeout`  |  |  | :white_check_mark: |
 | `SSL_SESSION_up_ref`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |

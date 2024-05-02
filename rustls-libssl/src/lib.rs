@@ -223,7 +223,8 @@ pub struct SslSession {
     id: SslSessionLookup,
     value: Vec<u8>,
     context: Vec<u8>,
-    expiry_time: cache::ExpiryTime,
+    creation_time: cache::TimeBase,
+    time_out: u64,
 }
 
 impl SslSession {
@@ -237,13 +238,15 @@ impl SslSession {
         id: Vec<u8>,
         value: Vec<u8>,
         context: Vec<u8>,
-        expiry_time: cache::ExpiryTime,
+        creation_time: cache::TimeBase,
+        time_out: u64,
     ) -> Self {
         Self {
             id: SslSessionLookup(id),
             value,
             context,
-            expiry_time,
+            creation_time,
+            time_out,
         }
     }
 
@@ -254,7 +257,8 @@ impl SslSession {
         let id_len = self.id.0.len().to_le_bytes();
         let value_len = self.value.len().to_le_bytes();
         let context_len = self.context.len().to_le_bytes();
-        let expiry = self.expiry_time.0.to_le_bytes();
+        let creation_time = self.creation_time.0.to_le_bytes();
+        let time_out = self.time_out.to_le_bytes();
 
         let mut ret = Vec::with_capacity(
             SslSession::MAGIC.len()
@@ -264,7 +268,8 @@ impl SslSession {
                 + self.value.len()
                 + context_len.len()
                 + self.context.len()
-                + expiry.len(),
+                + creation_time.len()
+                + time_out.len(),
         );
         ret.extend_from_slice(SslSession::MAGIC);
         ret.extend_from_slice(&id_len);
@@ -273,7 +278,8 @@ impl SslSession {
         ret.extend_from_slice(&self.value);
         ret.extend_from_slice(&context_len);
         ret.extend_from_slice(&self.context);
-        ret.extend_from_slice(&expiry);
+        ret.extend_from_slice(&creation_time);
+        ret.extend_from_slice(&time_out);
         ret
     }
 
@@ -310,13 +316,15 @@ impl SslSession {
         let (value, slice) = split_at(slice, slice_to_usize(value_len))?;
         let (context_len, slice) = split_at(slice, usize_len)?;
         let (context, slice) = split_at(slice, slice_to_usize(context_len))?;
-        let (expiry, slice) = split_at(slice, u64_len)?;
+        let (creation_time, slice) = split_at(slice, u64_len)?;
+        let (time_out, slice) = split_at(slice, u64_len)?;
         Some((
             Self {
                 id: SslSessionLookup(id.to_vec()),
                 value: value.to_vec(),
                 context: context.to_vec(),
-                expiry_time: cache::ExpiryTime(slice_to_u64(expiry)),
+                creation_time: cache::TimeBase(slice_to_u64(creation_time)),
+                time_out: slice_to_u64(time_out),
             },
             slice,
         ))
@@ -326,12 +334,24 @@ impl SslSession {
         &self.id.0
     }
 
-    pub fn expired(&self, at_time: cache::TimeBase) -> bool {
-        self.expiry_time.in_past(at_time)
+    pub fn get_creation_time(&self) -> u64 {
+        self.creation_time.0
     }
 
-    pub fn older_than(&self, other: &Self) -> bool {
-        self.expiry_time.0 < other.expiry_time.0
+    pub fn set_creation_time(&mut self, new_time: u64) {
+        self.creation_time = cache::TimeBase(new_time);
+    }
+
+    pub fn get_time_out(&self) -> u64 {
+        self.time_out
+    }
+
+    pub fn set_time_out(&mut self, time_out_secs: u64) {
+        self.time_out = time_out_secs;
+    }
+
+    pub fn expired(&self, at_time: cache::TimeBase) -> bool {
+        cache::ExpiryTime::calculate(self.creation_time, self.time_out).in_past(at_time)
     }
 }
 
@@ -365,7 +385,8 @@ impl fmt::Debug for SslSession {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("SslSession")
             .field("id", &self.id)
-            .field("expiry", &self.expiry_time)
+            .field("creation_time", &self.creation_time)
+            .field("time_out", &self.time_out)
             .finish_non_exhaustive()
     }
 }

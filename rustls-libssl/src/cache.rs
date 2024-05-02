@@ -239,9 +239,12 @@ impl ServerSessionStorage {
 
     fn build_new_session(&self, id: Vec<u8>, value: Vec<u8>) -> Arc<NotThreadSafe<SslSession>> {
         let context = self.get_context();
-        let time_out = ExpiryTime::calculate(TimeBase::now(), self.get_timeout());
         Arc::new(NotThreadSafe::new(SslSession::new(
-            id, value, context, time_out,
+            id,
+            value,
+            context,
+            TimeBase::now(),
+            self.get_timeout(),
         )))
     }
 
@@ -353,7 +356,7 @@ impl ServerSessionStorage {
     }
 
     fn flush_oldest(items: &mut BTreeSet<Arc<NotThreadSafe<SslSession>>>) {
-        let oldest = items.iter().min_by_key(|item| item.get().expiry_time.0);
+        let oldest = items.iter().min_by_key(|item| item.get().creation_time.0);
         if let Some(oldest) = oldest.cloned() {
             items.take(&oldest);
         }
@@ -545,7 +548,7 @@ unsafe impl Send for CacheCallbacks {}
 pub struct ExpiryTime(pub u64);
 
 impl ExpiryTime {
-    fn calculate(now: TimeBase, life_time_secs: u64) -> ExpiryTime {
+    pub fn calculate(now: TimeBase, life_time_secs: u64) -> ExpiryTime {
         ExpiryTime(now.0.saturating_add(life_time_secs))
     }
 
@@ -555,7 +558,7 @@ impl ExpiryTime {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TimeBase(u64);
+pub struct TimeBase(pub u64);
 
 impl TimeBase {
     pub fn now() -> Self {
@@ -582,7 +585,8 @@ mod tests {
                     vec![i],
                     vec![],
                     vec![],
-                    ExpiryTime(10 + i as u64)
+                    TimeBase(i as u64),
+                    10
                 ))
                 .into()
             ));
@@ -608,7 +612,8 @@ mod tests {
                     vec![i],
                     vec![],
                     vec![],
-                    ExpiryTime(10 + i as u64)
+                    TimeBase(i as u64),
+                    10
                 ))
                 .into()
             ));
@@ -631,7 +636,8 @@ mod tests {
                     vec![i],
                     vec![],
                     vec![],
-                    ExpiryTime(10 + i as u64)
+                    TimeBase(i as u64),
+                    10
                 ))
                 .into()
             ));
@@ -645,7 +651,7 @@ mod tests {
 
         cache.set_size(4);
         assert!(cache.insert(
-            NotThreadSafe::new(SslSession::new(vec![6], vec![], vec![], ExpiryTime(16))).into()
+            NotThreadSafe::new(SslSession::new(vec![6], vec![], vec![], TimeBase(6), 10)).into()
         ));
 
         assert!(cache.find_by_id(&[1]).is_none());
@@ -666,7 +672,8 @@ mod tests {
                 vec![1],
                 vec![],
                 b"hello".to_vec(),
-                ExpiryTime(10)
+                TimeBase(5),
+                5,
             ))
             .into()
         ));
@@ -675,7 +682,8 @@ mod tests {
                 vec![2],
                 vec![],
                 b"goodbye".to_vec(),
-                ExpiryTime(10)
+                TimeBase(5),
+                5
             ))
             .into()
         ));

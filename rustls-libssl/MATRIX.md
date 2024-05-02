@@ -49,16 +49,16 @@
 | `SSL_COMP_get_name`  |  |  |  |
 | `SSL_COMP_set0_compression_methods`  |  |  |  |
 | `SSL_CONF_CTX_clear_flags`  |  |  |  |
-| `SSL_CONF_CTX_finish`  |  |  |  |
-| `SSL_CONF_CTX_free`  |  |  |  |
-| `SSL_CONF_CTX_new`  |  |  |  |
+| `SSL_CONF_CTX_finish`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_CTX_free`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_CTX_new`  |  |  | :exclamation: [^stub] |
 | `SSL_CONF_CTX_set1_prefix`  |  |  |  |
-| `SSL_CONF_CTX_set_flags`  |  |  |  |
+| `SSL_CONF_CTX_set_flags`  |  |  | :exclamation: [^stub] |
 | `SSL_CONF_CTX_set_ssl`  |  |  |  |
-| `SSL_CONF_CTX_set_ssl_ctx`  |  |  |  |
-| `SSL_CONF_cmd`  |  |  |  |
+| `SSL_CONF_CTX_set_ssl_ctx`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_cmd`  |  |  | :exclamation: [^stub] |
 | `SSL_CONF_cmd_argv`  |  |  |  |
-| `SSL_CONF_cmd_value_type`  |  |  |  |
+| `SSL_CONF_cmd_value_type`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_add1_to_CA_list`  |  |  |  |

@@ -3,11 +3,11 @@
 set -e
 TAG="$1"
 
-docker run --init --interactive --publish 8443:443 "$TAG" &
-DOCKER_ID=$!
+docker run --interactive --publish 8443:443 "$TAG" &
 sleep 2
 
 output_got=$(curl --cacert ca.cert https://localhost:8443/)
 
-kill "$DOCKER_ID"
+docker stop "$(docker ps --quiet)"
+
 diff --unified --report-identical-files <(echo "hello world") <(echo "$output_got")

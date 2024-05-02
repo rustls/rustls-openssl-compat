@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
 
   SSL *ssl = SSL_new(ctx);
   dump_openssl_error_stack();
+  assert(SSL_get_SSL_CTX(ssl) == ctx);
   printf("SSL_new: SSL_get_privatekey %s SSL_CTX_get0_privatekey\n",
          SSL_get_privatekey(ssl) == client_key ? "same as" : "differs to");
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",

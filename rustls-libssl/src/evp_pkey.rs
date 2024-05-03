@@ -170,6 +170,27 @@ impl EvpScheme for RsaPss {
 unsafe impl Sync for RsaPss {}
 unsafe impl Send for RsaPss {}
 
+pub fn ed25519() -> Box<dyn EvpScheme + Send + Sync> {
+    Box::new(Ed25519)
+}
+
+#[derive(Debug)]
+struct Ed25519;
+
+impl EvpScheme for Ed25519 {
+    fn digest(&self) -> *mut EVP_MD {
+        // "When calling EVP_DigestSignInit() or EVP_DigestVerifyInit(), the
+        // digest type parameter MUST be set to NULL."
+        // <https://www.openssl.org/docs/man3.0/man7/EVP_SIGNATURE-ED25519.html>
+        ptr::null_mut()
+    }
+
+    fn configure_ctx(&self, _: &mut SignCtx) -> Option<()> {
+        // "No additional parameters can be set during one-shot signing or verification."
+        Some(())
+    }
+}
+
 /// Owning wrapper for a signing `EVP_MD_CTX`
 pub(crate) struct SignCtx {
     md_ctx: *mut EVP_MD_CTX,

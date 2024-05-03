@@ -10,7 +10,7 @@ use rustls::{SignatureAlgorithm, SignatureScheme};
 
 use crate::error;
 use crate::evp_pkey::{
-    rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384,
+    ed25519, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384,
     rsa_pss_sha512, EvpPkey, EvpScheme,
 };
 use crate::x509::OwnedX509Stack;
@@ -200,6 +200,17 @@ impl sign::SigningKey for OpenSslKey {
                         pkey: self.0.clone(),
                         pscheme: rsa_pkcs1_sha256(),
                         scheme: SignatureScheme::RSA_PKCS1_SHA256,
+                    }));
+                }
+
+                None
+            }
+            SignatureAlgorithm::ED25519 => {
+                if offered.contains(&SignatureScheme::ED25519) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: ed25519(),
+                        scheme: SignatureScheme::ED25519,
                     }));
                 }
 

@@ -401,6 +401,7 @@ fn server_key_algorithms() {
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha256", "-tls1_2");
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha384", "-tls1_2");
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha512", "-tls1_2");
+    server_with_key_algorithm("ed25519", "ed25519", "-tls1_3");
 }
 
 const NGINX_LOG_LEVEL: &str = "info";

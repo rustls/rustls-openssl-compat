@@ -10,8 +10,8 @@ use rustls::{SignatureAlgorithm, SignatureScheme};
 
 use crate::error;
 use crate::evp_pkey::{
-    ed25519, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384,
-    rsa_pss_sha512, EvpPkey, EvpScheme,
+    ecdsa_sha256, ecdsa_sha384, ecdsa_sha512, ed25519, rsa_pkcs1_sha256, rsa_pkcs1_sha384,
+    rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384, rsa_pss_sha512, EvpPkey, EvpScheme,
 };
 use crate::x509::OwnedX509Stack;
 
@@ -211,6 +211,31 @@ impl sign::SigningKey for OpenSslKey {
                         pkey: self.0.clone(),
                         pscheme: ed25519(),
                         scheme: SignatureScheme::ED25519,
+                    }));
+                }
+
+                None
+            }
+            SignatureAlgorithm::ECDSA => {
+                if offered.contains(&SignatureScheme::ECDSA_NISTP256_SHA256) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: ecdsa_sha256(),
+                        scheme: SignatureScheme::ECDSA_NISTP256_SHA256,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::ECDSA_NISTP384_SHA384) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: ecdsa_sha384(),
+                        scheme: SignatureScheme::ECDSA_NISTP384_SHA384,
+                    }));
+                }
+                if offered.contains(&SignatureScheme::ECDSA_NISTP521_SHA512) {
+                    return Some(Box::new(OpenSslSigner {
+                        pkey: self.0.clone(),
+                        pscheme: ecdsa_sha512(),
+                        scheme: SignatureScheme::ECDSA_NISTP521_SHA512,
                     }));
                 }
 

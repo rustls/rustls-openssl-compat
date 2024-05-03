@@ -191,6 +191,34 @@ impl EvpScheme for Ed25519 {
     }
 }
 
+pub fn ecdsa_sha256() -> Box<dyn EvpScheme + Send + Sync> {
+    Box::new(Ecdsa(unsafe { EVP_sha256() }))
+}
+
+pub fn ecdsa_sha384() -> Box<dyn EvpScheme + Send + Sync> {
+    Box::new(Ecdsa(unsafe { EVP_sha384() }))
+}
+
+pub fn ecdsa_sha512() -> Box<dyn EvpScheme + Send + Sync> {
+    Box::new(Ecdsa(unsafe { EVP_sha512() }))
+}
+
+#[derive(Debug)]
+struct Ecdsa(*const EVP_MD);
+
+impl EvpScheme for Ecdsa {
+    fn digest(&self) -> *mut EVP_MD {
+        self.0 as *mut EVP_MD
+    }
+
+    fn configure_ctx(&self, _: &mut SignCtx) -> Option<()> {
+        Some(())
+    }
+}
+
+unsafe impl Sync for Ecdsa {}
+unsafe impl Send for Ecdsa {}
+
 /// Owning wrapper for a signing `EVP_MD_CTX`
 pub(crate) struct SignCtx {
     md_ctx: *mut EVP_MD_CTX,

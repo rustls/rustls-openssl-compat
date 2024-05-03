@@ -17,6 +17,7 @@ use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
+use crate::constants::sig_scheme_to_nid;
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
@@ -1127,6 +1128,27 @@ entry! {
             .get_peer_cert_chain()
             .map(|x509| x509.pointer())
             .unwrap_or_else(ptr::null_mut)
+    }
+}
+
+entry! {
+    pub fn _SSL_get_peer_signature_type_nid(ssl: *const SSL, psigtype_nid: *mut c_int) -> c_int {
+        if psigtype_nid.is_null() {
+            return 0;
+        }
+
+        let sigalg_nid = try_clone_arc!(ssl)
+            .get()
+            .get_last_verification_sig_scheme()
+            .and_then(sig_scheme_to_nid);
+
+        match sigalg_nid {
+            Some(nid) => {
+                unsafe { ptr::write(psigtype_nid, nid) };
+                C_INT_SUCCESS
+            }
+            None => 0,
+        }
     }
 }
 

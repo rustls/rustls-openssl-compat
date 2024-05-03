@@ -143,6 +143,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_get_ex_data_X509_STORE_CTX_idx",
     "SSL_get_options",
     "SSL_get_peer_cert_chain",
+    "SSL_get_peer_signature_type_nid",
     "SSL_get_privatekey",
     "SSL_get_rbio",
     "SSL_get_servername",

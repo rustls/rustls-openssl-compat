@@ -347,7 +347,7 @@
 | `SSL_get_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_peer_cert_chain`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_peer_finished`  |  |  |  |
-| `SSL_get_peer_signature_type_nid`  |  |  |  |
+| `SSL_get_peer_signature_type_nid`  |  |  | :white_check_mark: |
 | `SSL_get_pending_cipher`  |  |  |  |
 | `SSL_get_privatekey`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_psk_identity` [^psk] |  |  |  |

@@ -17,7 +17,7 @@ use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor};
 use rustls::{
     CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind, ProtocolVersion,
-    RootCertStore, ServerConfig, SupportedProtocolVersion,
+    RootCertStore, ServerConfig, SignatureScheme, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -1342,6 +1342,14 @@ impl Ssl {
             ConnState::Client(_, verifier) => verifier.last_result(),
             ConnState::Server(_, verifier, _) => verifier.last_result(),
             _ => X509_V_ERR_UNSPECIFIED as i64,
+        }
+    }
+
+    fn get_last_verification_sig_scheme(&self) -> Option<SignatureScheme> {
+        match &self.conn {
+            ConnState::Client(_, verifier) => verifier.last_sig_scheme(),
+            ConnState::Server(_, verifier, _) => verifier.last_sig_scheme(),
+            _ => None,
         }
     }
 

@@ -1,5 +1,5 @@
 use core::sync::atomic::{AtomicI64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use openssl_sys::{
     X509_V_ERR_CERT_HAS_EXPIRED, X509_V_ERR_CERT_NOT_YET_VALID, X509_V_ERR_CERT_REVOKED,
@@ -41,6 +41,8 @@ pub struct ServerVerifier {
     mode: VerifyMode,
 
     last_result: AtomicI64,
+
+    last_sig_scheme: RwLock<Option<SignatureScheme>>,
 }
 
 impl ServerVerifier {
@@ -56,11 +58,16 @@ impl ServerVerifier {
             verify_hostname: hostname.clone(),
             mode,
             last_result: AtomicI64::new(X509_V_ERR_UNSPECIFIED as i64),
+            last_sig_scheme: RwLock::new(None),
         }
     }
 
     pub fn last_result(&self) -> i64 {
         self.last_result.load(Ordering::Acquire)
+    }
+
+    pub fn last_sig_scheme(&self) -> Option<SignatureScheme> {
+        self.last_sig_scheme.read().ok().map(|scheme| *scheme)?
     }
 
     fn verify_server_cert_inner(
@@ -84,6 +91,12 @@ impl ServerVerifier {
         }
 
         Ok(())
+    }
+
+    fn update_sig_scheme(&self, scheme: SignatureScheme) {
+        if let Ok(mut last_scheme) = self.last_sig_scheme.write() {
+            *last_scheme = Some(scheme);
+        }
     }
 }
 
@@ -115,6 +128,7 @@ impl ServerCertVerifier for ServerVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
+        self.update_sig_scheme(dss.scheme);
         verify_tls12_signature(
             message,
             cert,
@@ -129,6 +143,7 @@ impl ServerCertVerifier for ServerVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
+        self.update_sig_scheme(dss.scheme);
         verify_tls13_signature(
             message,
             cert,
@@ -149,6 +164,7 @@ pub struct ClientVerifier {
     parent: Arc<dyn ClientCertVerifier>,
     mode: VerifyMode,
     last_result: AtomicI64,
+    last_sig_scheme: RwLock<Option<SignatureScheme>>,
 }
 
 impl ClientVerifier {
@@ -178,11 +194,22 @@ impl ClientVerifier {
             parent,
             mode,
             last_result: AtomicI64::new(initial_result as i64),
+            last_sig_scheme: RwLock::new(None),
         })
     }
 
     pub fn last_result(&self) -> i64 {
         self.last_result.load(Ordering::Acquire)
+    }
+
+    pub fn last_sig_scheme(&self) -> Option<SignatureScheme> {
+        self.last_sig_scheme.read().ok().map(|scheme| *scheme)?
+    }
+
+    fn update_sig_scheme(&self, scheme: SignatureScheme) {
+        if let Ok(mut last_scheme) = self.last_sig_scheme.write() {
+            *last_scheme = Some(scheme);
+        }
     }
 }
 
@@ -223,6 +250,7 @@ impl ClientCertVerifier for ClientVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
+        self.update_sig_scheme(dss.scheme);
         self.parent.verify_tls12_signature(message, cert, dss)
     }
 
@@ -232,6 +260,7 @@ impl ClientCertVerifier for ClientVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
+        self.update_sig_scheme(dss.scheme);
         self.parent.verify_tls13_signature(message, cert, dss)
     }
 

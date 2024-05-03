@@ -126,6 +126,10 @@ int main(int argc, char **argv) {
   printf("numeric version: %d\n", SSL_version(ssl));
   printf("verify-result: %ld\n", SSL_get_verify_result(ssl));
   printf("cipher: %s\n", SSL_CIPHER_standard_name(SSL_get_current_cipher(ssl)));
+  int cipher_nid = 0;
+  TRACE(SSL_get_peer_signature_type_nid(ssl, &cipher_nid));
+  dump_openssl_error_stack();
+  printf("cipher NID: %d\n", cipher_nid);
 
   show_peer_certificate("server", ssl);
 

@@ -329,6 +329,80 @@ fn server() {
     assert_eq!(openssl_output, rustls_output);
 }
 
+fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str) {
+    fn connect(key_type: &str, sig_algs: &str, version_flag: &str) {
+        Command::new("openssl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "s_client",
+                "-connect",
+                "localhost:5556",
+                "-sigalgs",
+                sig_algs,
+                "-CAfile",
+                &format!("test-ca/{key_type}/ca.cert"),
+                "-verify",
+                "1",
+                version_flag,
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap();
+    }
+
+    let mut openssl_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "target/server",
+                "5556",
+                &format!("test-ca/{key_type}/server.key"),
+                &format!("test-ca/{key_type}/server.cert"),
+                "unauth",
+                "none",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    connect(key_type, sig_algs, version_flag);
+
+    let openssl_output = print_output(openssl_server.take_inner().wait_with_output().unwrap());
+
+    let mut rustls_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "target/server",
+                "5556",
+                &format!("test-ca/{key_type}/server.key"),
+                &format!("test-ca/{key_type}/server.cert"),
+                "unauth",
+                "none",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    connect(key_type, sig_algs, version_flag);
+
+    let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
+    assert_eq!(openssl_output, rustls_output);
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithms() {
+    server_with_key_algorithm("rsa", "rsa_pss_rsae_sha256", "-tls1_3");
+    server_with_key_algorithm("rsa", "rsa_pss_rsae_sha384", "-tls1_3");
+    server_with_key_algorithm("rsa", "rsa_pss_rsae_sha512", "-tls1_3");
+    server_with_key_algorithm("rsa", "rsa_pkcs1_sha256", "-tls1_2");
+    server_with_key_algorithm("rsa", "rsa_pkcs1_sha384", "-tls1_2");
+    server_with_key_algorithm("rsa", "rsa_pkcs1_sha512", "-tls1_2");
+}
+
 const NGINX_LOG_LEVEL: &str = "info";
 
 #[test]

@@ -98,14 +98,15 @@ static void sess_remove_callback(SSL_CTX *ctx, SSL_SESSION *sess) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 5) {
-    printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth\n\n",
+  if (argc != 6) {
+    printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth "
+           "none|internal|external|internal+external\n\n",
            argv[0]);
     return 1;
   }
 
   const char *port = argv[1], *keyfile = argv[2], *certfile = argv[3],
-             *cacert = argv[4];
+             *cacert = argv[4], *cache = argv[5];
 
   int listener = TRACE(socket(AF_INET, SOCK_STREAM, 0));
   struct sockaddr_in us, them;
@@ -151,12 +152,21 @@ int main(int argc, char **argv) {
   SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
   dump_openssl_error_stack();
 
-  SSL_CTX_sess_set_new_cb(ctx, sess_new_callback);
-  SSL_CTX_sess_set_get_cb(ctx, sess_get_callback);
-  SSL_CTX_sess_set_remove_cb(ctx, sess_remove_callback);
-  TRACE(SSL_CTX_sess_set_cache_size(ctx, 10));
-  TRACE(SSL_CTX_sess_get_cache_size(ctx));
-  TRACE(SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_SERVER));
+  if (strstr(cache, "external")) {
+    SSL_CTX_sess_set_new_cb(ctx, sess_new_callback);
+    SSL_CTX_sess_set_get_cb(ctx, sess_get_callback);
+    SSL_CTX_sess_set_remove_cb(ctx, sess_remove_callback);
+  }
+
+  if (strstr(cache, "internal")) {
+    TRACE(SSL_CTX_sess_set_cache_size(ctx, 10));
+    TRACE(SSL_CTX_sess_get_cache_size(ctx));
+    TRACE(SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_SERVER));
+  }
+
+  if (strcmp(cache, "none") == 0) {
+    TRACE(SSL_CTX_set_session_cache_mode(ctx, 0));
+  }
 
   X509 *server_cert = NULL;
   EVP_PKEY *server_key = NULL;

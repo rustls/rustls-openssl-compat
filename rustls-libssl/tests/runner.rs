@@ -297,6 +297,7 @@ fn server() {
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
+                "internal+external",
             ])
             .stdout(Stdio::piped())
             .spawn()
@@ -315,6 +316,7 @@ fn server() {
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
+                "internal+external",
             ])
             .stdout(Stdio::piped())
             .spawn()

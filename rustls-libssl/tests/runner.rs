@@ -402,6 +402,9 @@ fn server_key_algorithms() {
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha384", "-tls1_2");
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha512", "-tls1_2");
     server_with_key_algorithm("ed25519", "ed25519", "-tls1_3");
+    server_with_key_algorithm("ecdsa-p256", "ecdsa_secp256r1_sha256", "-tls1_3");
+    server_with_key_algorithm("ecdsa-p384", "ecdsa_secp384r1_sha384", "-tls1_3");
+    server_with_key_algorithm("ecdsa-p521", "ecdsa_secp521r1_sha512", "-tls1_3");
 }
 
 const NGINX_LOG_LEVEL: &str = "info";

@@ -557,18 +557,27 @@ fn wait_for_port(port: u16) -> Option<()> {
 /// on a given `Child`, this must not read bytes from its `stdout`
 /// that appear after `expected`.
 fn wait_for_stdout(stream: &mut Child, expected: &[u8]) {
-    let stdout = stream.stdout.as_mut().unwrap();
-
-    let mut buffer = Vec::with_capacity(1024);
+    let mut buffer = Vec::with_capacity(128);
 
     loop {
         let mut input = [0u8];
-        let new = stdout.read(&mut input).unwrap();
-        assert_eq!(new, 1);
+        let new = stream.stdout.as_mut().unwrap().read(&mut input).unwrap();
+        assert_eq!(new, 1, "stdout EOF -- read so far {buffer:?}");
         buffer.push(input[0]);
 
         if buffer.ends_with(expected) {
             return;
         }
+
+        assert!(
+            buffer.len() < 128,
+            "{expected:?} did not appear in first part of {stream:?} (instead it was {buffer:?}"
+        );
+
+        match stream.try_wait() {
+            Ok(Some(status)) => panic!("process exited already with {status}"),
+            Ok(None) => {}
+            Err(e) => panic!("subprocess broken {e:?}"),
+        };
     }
 }

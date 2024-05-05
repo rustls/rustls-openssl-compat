@@ -114,8 +114,8 @@ int main(int argc, char **argv) {
   us.sin_family = AF_INET;
   us.sin_addr.s_addr = htonl(INADDR_ANY);
   us.sin_port = htons(atoi(port));
-  TRACE(bind(listener, (struct sockaddr *)&us, sizeof(us)));
-  TRACE(listen(listener, 5));
+  REQUIRE(0, bind(listener, (struct sockaddr *)&us, sizeof(us)));
+  REQUIRE(0, listen(listener, 5));
   printf("listening\n");
   fflush(stdout);
   socklen_t them_len = sizeof(them);

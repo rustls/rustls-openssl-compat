@@ -34,11 +34,11 @@ int main(int argc, char **argv) {
   }
 
   struct addrinfo *result = NULL;
-  TRACE(getaddrinfo(host, port, NULL, &result));
+  REQUIRE(0, getaddrinfo(host, port, NULL, &result));
 
   int sock = TRACE(
       socket(result->ai_family, result->ai_socktype, result->ai_protocol));
-  TRACE(connect(sock, result->ai_addr, result->ai_addrlen));
+  REQUIRE(0, connect(sock, result->ai_addr, result->ai_addrlen));
   freeaddrinfo(result);
 
   TRACE(OPENSSL_init_ssl(0, NULL));

@@ -14,6 +14,16 @@ static int trace(int rc, const char *str) {
 
 #define TRACE(fn) trace((fn), #fn)
 
+static int require(int expect_rc, int got_rc, const char *str) {
+  if (expect_rc != got_rc) {
+    printf("REQUIRED(%s) failed: wanted=%d, got=%d\n", str, expect_rc, got_rc);
+    abort();
+  }
+  return got_rc;
+}
+
+#define REQUIRE(expect, fn) require((expect), (fn), #fn)
+
 static void hexdump(const char *label, const void *buf, int n) {
   const uint8_t *ubuf = (const uint8_t *)buf;
   printf("%s (%d bytes): ", label, n);

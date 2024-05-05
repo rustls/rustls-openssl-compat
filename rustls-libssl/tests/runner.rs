@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::ops::Add;
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic;
 use std::{fs, net, thread, time};
@@ -333,7 +334,7 @@ fn server() {
     wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
     curl(port);
 
-    let openssl_output = print_output(openssl_server.take_inner().wait_with_output().unwrap());
+    let openssl_output = print_output(openssl_server.wait_with_timeout());
 
     let mut rustls_server = KillOnDrop(Some(
         Command::new("tests/maybe-valgrind.sh")
@@ -352,7 +353,7 @@ fn server() {
     wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
     curl(port);
 
-    let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
+    let rustls_output = print_output(rustls_server.wait_with_timeout());
     assert_eq!(openssl_output, rustls_output);
 }
 
@@ -398,7 +399,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
     wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
     connect(port, key_type, sig_algs, version_flag);
 
-    let openssl_output = print_output(openssl_server.take_inner().wait_with_output().unwrap());
+    let openssl_output = print_output(openssl_server.wait_with_timeout());
 
     let mut rustls_server = KillOnDrop(Some(
         Command::new("tests/maybe-valgrind.sh")
@@ -417,7 +418,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
     wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
     connect(port, key_type, sig_algs, version_flag);
 
-    let rustls_output = print_output(rustls_server.take_inner().wait_with_output().unwrap());
+    let rustls_output = print_output(rustls_server.wait_with_timeout());
     assert_eq!(openssl_output, rustls_output);
 }
 
@@ -539,6 +540,26 @@ struct KillOnDrop(Option<Child>);
 impl KillOnDrop {
     fn take_inner(&mut self) -> Child {
         self.0.take().unwrap()
+    }
+
+    fn wait_with_timeout(&mut self) -> Output {
+        let mut child = self.take_inner();
+
+        // close stdin in case child is waiting for us
+        child.stdin.take();
+
+        let timeout_secs = 30;
+        let deadline = time::SystemTime::now().add(time::Duration::from_secs(timeout_secs));
+
+        loop {
+            if time::SystemTime::now() > deadline {
+                panic!("subprocess did not end within {timeout_secs} seconds");
+            }
+            if child.try_wait().expect("subprocess broken").is_some() {
+                return child.wait_with_output().unwrap();
+            };
+            thread::sleep(time::Duration::from_millis(500));
+        }
     }
 }
 

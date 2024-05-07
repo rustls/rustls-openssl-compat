@@ -11,7 +11,11 @@ this is still required.
 # Status
 
 This project is experimental.  We have aimed for the subset of libssl
-used by curl and nginx versions as shipped with Ubuntu 22.04 LTS.
+used by:
+
+- curl on Ubuntu 22.04 LTS
+- nginx on Ubuntu 22.04 LTS and 24.04 LTS
+
 We have a [compatibility matrix](MATRIX.md) and
 [known issues](https://github.com/rustls/rustls-openssl-compat/issues).
 

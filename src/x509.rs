@@ -5,11 +5,13 @@ use std::{fs, io};
 
 use openssl_sys::{
     d2i_X509, i2d_X509, stack_st_X509, OPENSSL_free, OPENSSL_sk_new_null, OPENSSL_sk_num,
-    OPENSSL_sk_push, OPENSSL_sk_value, X509_STORE_free, X509_STORE_new, X509_free, OPENSSL_STACK,
+    OPENSSL_sk_push, OPENSSL_sk_value, X509_STORE_add_cert, X509_STORE_free,
+    X509_STORE_get0_objects, X509_STORE_get1_all_certs, X509_STORE_new, X509_free, OPENSSL_STACK,
     X509, X509_STORE,
 };
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::CertificateDer;
+use rustls::RootCertStore;
 
 use crate::error::Error;
 
@@ -233,6 +235,7 @@ impl Drop for OwnedX509 {
     }
 }
 
+#[derive(Debug)]
 pub struct OwnedX509Store {
     raw: *mut X509_STORE,
 }
@@ -243,8 +246,63 @@ impl OwnedX509Store {
         Self { raw: store }
     }
 
+    pub fn add(
+        &mut self,
+        cert_ders: impl IntoIterator<Item = CertificateDer<'static>>,
+    ) -> Result<(), Error> {
+        for cert_der in cert_ders {
+            let item = OwnedX509::parse_der(cert_der.as_ref())
+                .ok_or_else(|| Error::bad_data("cannot parse certificate"))?;
+            match unsafe { X509_STORE_add_cert(self.raw, item.borrow_ref()) } {
+                1 => {}
+                _ => {
+                    return Err(Error::bad_data("cannot X509_STORE_add_cert"));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn add_from_files(
+        &mut self,
+        file_names: impl IntoIterator<Item = PathBuf>,
+    ) -> Result<(), Error> {
+        self.add(load_certs(file_names.into_iter())?)
+    }
+
+    pub fn to_root_store(&self) -> Result<RootCertStore, rustls::Error> {
+        let ptr = unsafe { X509_STORE_get1_all_certs(self.raw) };
+
+        if ptr.is_null() {
+            return Err(rustls::Error::General(
+                "cannot retrieve trusted certs".to_string(),
+            ));
+        }
+
+        let certs = OwnedX509Stack::new(ptr);
+        let mut ret = RootCertStore::empty();
+
+        for i in 0..certs.len() {
+            ret.add(certs.item(i).der_bytes().into())?;
+        }
+
+        Ok(ret)
+    }
+
     pub fn pointer(&self) -> *mut X509_STORE {
         self.raw
+    }
+
+    pub fn len(&self) -> usize {
+        match unsafe { OPENSSL_sk_num(X509_STORE_get0_objects(self.raw) as *const OPENSSL_STACK) } {
+            -1 | 0 => 0,
+            i => i as usize,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -256,6 +314,15 @@ impl Default for OwnedX509Store {
     }
 }
 
+impl Clone for OwnedX509Store {
+    fn clone(&self) -> Self {
+        unsafe {
+            X509_STORE_up_ref(self.raw);
+        }
+        Self { raw: self.raw }
+    }
+}
+
 impl Drop for OwnedX509Store {
     fn drop(&mut self) {
         unsafe {
@@ -263,6 +330,9 @@ impl Drop for OwnedX509Store {
         }
     }
 }
+
+unsafe impl Send for OwnedX509Store {}
+unsafe impl Sync for OwnedX509Store {}
 
 pub(crate) fn load_certs<'a>(
     file_names: impl Iterator<Item = PathBuf>,
@@ -295,4 +365,5 @@ extern "C" {
     );
     fn OPENSSL_sk_dup(st: *const OPENSSL_STACK) -> *mut OPENSSL_STACK;
     fn X509_up_ref(x: *mut X509) -> c_int;
+    fn X509_STORE_up_ref(xs: *mut X509_STORE) -> c_int;
 }

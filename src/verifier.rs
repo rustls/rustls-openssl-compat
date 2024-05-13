@@ -16,10 +16,10 @@ use rustls::{
     pki_types::{CertificateDer, ServerName, UnixTime},
     server::danger::{ClientCertVerified, ClientCertVerifier},
     server::{ParsedCertificate, WebPkiClientVerifier},
-    CertificateError, DigitallySignedStruct, DistinguishedName, Error, RootCertStore,
-    SignatureScheme,
+    CertificateError, DigitallySignedStruct, DistinguishedName, Error, SignatureScheme,
 };
 
+use crate::x509::OwnedX509Store;
 use crate::VerifyMode;
 
 /// This is a verifier that implements the selection of bad ideas from OpenSSL:
@@ -29,7 +29,7 @@ use crate::VerifyMode;
 /// - that the behaviour defaults to verifying nothing
 #[derive(Debug)]
 pub struct ServerVerifier {
-    root_store: Arc<RootCertStore>,
+    x509_store: OwnedX509Store,
 
     provider: Arc<CryptoProvider>,
 
@@ -47,13 +47,13 @@ pub struct ServerVerifier {
 
 impl ServerVerifier {
     pub fn new(
-        root_store: Arc<RootCertStore>,
+        x509_store: OwnedX509Store,
         provider: Arc<CryptoProvider>,
         mode: VerifyMode,
         hostname: &Option<ServerName<'static>>,
     ) -> Self {
         Self {
-            root_store,
+            x509_store,
             provider,
             verify_hostname: hostname.clone(),
             mode,
@@ -81,10 +81,11 @@ impl ServerVerifier {
         now: UnixTime,
     ) -> Result<(), Error> {
         let end_entity = ParsedCertificate::try_from(end_entity)?;
+        let root_store = self.x509_store.to_root_store()?;
 
         verify_server_cert_signed_by_trust_anchor(
             &end_entity,
-            &self.root_store,
+            &root_store,
             intermediates,
             now,
             self.provider.signature_verification_algorithms.all,
@@ -173,14 +174,16 @@ pub struct ClientVerifier {
 
 impl ClientVerifier {
     pub fn new(
-        root_store: Arc<RootCertStore>,
+        x509_store: &OwnedX509Store,
         provider: Arc<CryptoProvider>,
         mode: VerifyMode,
     ) -> Result<Self, Error> {
+        let root_store = x509_store.to_root_store()?;
+
         let (parent, initial_result) = if !mode.server_must_attempt_client_auth() {
             (Ok(WebPkiClientVerifier::no_client_auth()), X509_V_OK)
         } else {
-            let builder = WebPkiClientVerifier::builder_with_provider(root_store, provider);
+            let builder = WebPkiClientVerifier::builder_with_provider(root_store.into(), provider);
 
             if mode.server_must_verify_client() {
                 (builder.build(), X509_V_ERR_UNSPECIFIED)

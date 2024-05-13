@@ -10,6 +10,16 @@ pub extern "C" fn X509_STORE_new() -> *mut X509_STORE {
 }
 
 #[no_mangle]
+pub extern "C" fn X509_STORE_get0_objects(s: *mut X509_STORE) -> *mut c_void {
+    ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn OPENSSL_sk_num(sk: *mut c_void) -> c_int {
+    0
+}
+
+#[no_mangle]
 pub extern "C" fn X509_STORE_free(ptr: *mut X509_STORE) {
     if ptr.is_null() {
         return;

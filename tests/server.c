@@ -130,8 +130,12 @@ int main(int argc, char **argv) {
   if (strcmp(cacert, "unauth") != 0) {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
     dump_openssl_error_stack();
+    TRACE(sk_X509_OBJECT_num(
+        X509_STORE_get0_objects(SSL_CTX_get_cert_store(ctx))));
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
+    TRACE(sk_X509_OBJECT_num(
+        X509_STORE_get0_objects(SSL_CTX_get_cert_store(ctx))));
   } else {
     printf("client auth disabled\n");
   }

@@ -17,7 +17,7 @@ use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor, ProducesTickets};
 use rustls::{
     CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind, ProtocolVersion,
-    RootCertStore, ServerConfig, SignatureScheme, SupportedProtocolVersion,
+    ServerConfig, SignatureScheme, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -416,7 +416,6 @@ pub struct SslContext {
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_depth: c_int,
-    verify_roots: RootCertStore,
     verify_x509_store: x509::OwnedX509Store,
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
@@ -447,7 +446,6 @@ impl SslContext {
             raw_options: 0,
             verify_mode: VerifyMode::default(),
             verify_depth: -1,
-            verify_roots: RootCertStore::empty(),
             verify_x509_store: OwnedX509Store::default(),
             alpn: vec![],
             default_cert_file: None,
@@ -624,12 +622,7 @@ impl SslContext {
         &mut self,
         certs: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {
-        for c in certs {
-            self.verify_roots
-                .add(c)
-                .map_err(error::Error::from_rustls)?;
-        }
-        Ok(())
+        self.verify_x509_store.add(certs)
     }
 
     fn get_x509_store(&self) -> *mut X509_STORE {
@@ -735,8 +728,8 @@ struct Ssl {
     mode: ConnMode,
     verify_mode: VerifyMode,
     verify_depth: c_int,
-    verify_roots: RootCertStore,
     verify_server_name: Option<ServerName<'static>>,
+    verify_x509_store: x509::OwnedX509Store,
     alpn: Vec<Vec<u8>>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
@@ -776,8 +769,8 @@ impl Ssl {
             mode: inner.method.mode(),
             verify_mode: inner.verify_mode,
             verify_depth: inner.verify_depth,
-            verify_roots: Self::load_verify_certs(inner)?,
             verify_server_name: None,
+            verify_x509_store: Self::load_verify_certs(inner)?,
             alpn: inner.alpn.clone(),
             alpn_callback: inner.alpn_callback.clone(),
             cert_callback: inner.cert_callback.clone(),
@@ -1027,7 +1020,7 @@ impl Ssl {
 
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(verifier::ServerVerifier::new(
-            self.verify_roots.clone().into(),
+            self.verify_x509_store.clone(),
             provider.clone(),
             self.verify_mode,
             &self.verify_server_name,
@@ -1112,7 +1105,7 @@ impl Ssl {
         let provider = Arc::new(provider::default_provider());
         let verifier = Arc::new(
             verifier::ClientVerifier::new(
-                self.verify_roots.clone().into(),
+                &self.verify_x509_store,
                 provider.clone(),
                 self.verify_mode,
             )
@@ -1435,20 +1428,18 @@ impl Ssl {
         }
     }
 
-    fn load_verify_certs(ctx: &SslContext) -> Result<RootCertStore, error::Error> {
-        let mut verify_roots = ctx.verify_roots.clone();
-
+    fn load_verify_certs(ctx: &SslContext) -> Result<x509::OwnedX509Store, error::Error> {
         // If verify_roots isn't empty then it was configured with `SSL_CTX_load_verify_file`
         // or `SSL_CTX_load_verify_dir` and we should use it as-is.
-        if !ctx.verify_roots.is_empty() {
-            return Ok(verify_roots);
+        if !ctx.verify_x509_store.is_empty() {
+            return Ok(ctx.verify_x509_store.clone());
         }
 
         // Otherwise, try to load the default cert file or cert dir.
+        let mut verify_roots = x509::OwnedX509Store::default();
+
         if let Some(default_cert_file) = &ctx.default_cert_file {
-            verify_roots.add_parsable_certificates(x509::load_certs(
-                vec![default_cert_file.to_path_buf()].into_iter(),
-            )?);
+            verify_roots.add_from_files([default_cert_file.to_path_buf()])?;
         } else if let Some(default_cert_dir) = &ctx.default_cert_dir {
             let entries = match fs::read_dir(default_cert_dir) {
                 Ok(iter) => iter,
@@ -1457,7 +1448,7 @@ impl Ssl {
             .filter_map(|entry| entry.ok())
             .map(|dir_entry| dir_entry.path());
 
-            verify_roots.add_parsable_certificates(x509::load_certs(entries)?);
+            verify_roots.add_from_files(entries)?;
         }
 
         Ok(verify_roots)

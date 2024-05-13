@@ -56,8 +56,12 @@ int main(int argc, char **argv) {
     dump_openssl_error_stack();
     assert(SSL_CTX_get_verify_mode(ctx) == SSL_VERIFY_PEER);
     assert(SSL_CTX_get_verify_callback(ctx) == NULL);
+    TRACE(sk_X509_OBJECT_num(
+        X509_STORE_get0_objects(SSL_CTX_get_cert_store(ctx))));
     TRACE(SSL_CTX_load_verify_file(ctx, cacert));
     dump_openssl_error_stack();
+    TRACE(sk_X509_OBJECT_num(
+        X509_STORE_get0_objects(SSL_CTX_get_cert_store(ctx))));
   }
   printf("SSL_CTX_get_verify_depth default %d\n",
          SSL_CTX_get_verify_depth(ctx));

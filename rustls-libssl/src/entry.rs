@@ -218,7 +218,9 @@ entry! {
                 C_INT_SUCCESS as c_long
             }
             Ok(SslCtrl::GetMaxProtoVersion) => ctx.get().get_max_protocol_version().into(),
-            Ok(SslCtrl::SetTlsExtHostname) | Ok(SslCtrl::SetTlsExtServerNameCallback) => {
+            Ok(SslCtrl::SetTlsExtHostname)
+            | Ok(SslCtrl::SetTlsExtServerNameCallback)
+            | Ok(SslCtrl::SetTlsExtTicketKeyCallback) => {
                 // not a defined operation in the OpenSSL API
                 0
             }
@@ -635,6 +637,10 @@ entry! {
                 ctx.get_mut().set_servername_callback(fp);
                 C_INT_SUCCESS as c_long
             }
+            Ok(SslCtrl::SetTlsExtTicketKeyCallback) => {
+                log::warn!("ignoring tls ext ticket key callback");
+                C_INT_SUCCESS as c_long
+            }
             _ => 0,
         }
     }
@@ -855,6 +861,7 @@ entry! {
             }
             // not a defined operation in the OpenSSL API
             Ok(SslCtrl::SetTlsExtServerNameCallback)
+            | Ok(SslCtrl::SetTlsExtTicketKeyCallback)
             | Ok(SslCtrl::SetTlsExtServerNameArg)
             | Ok(SslCtrl::SetSessCacheSize)
             | Ok(SslCtrl::GetSessCacheSize)
@@ -1885,6 +1892,7 @@ num_enum! {
         SetTlsExtServerNameCallback = 53,
         SetTlsExtServerNameArg = 54,
         SetTlsExtHostname = 55,
+        SetTlsExtTicketKeyCallback = 72,
         SetChain = 88,
         SetMinProtoVersion = 123,
         SetMaxProtoVersion = 124,

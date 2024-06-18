@@ -49,16 +49,16 @@
 | `SSL_COMP_get_name`  |  |  |  |
 | `SSL_COMP_set0_compression_methods`  |  |  |  |
 | `SSL_CONF_CTX_clear_flags`  |  |  |  |
-| `SSL_CONF_CTX_finish`  |  |  | :exclamation: [^stub] |
-| `SSL_CONF_CTX_free`  |  |  | :exclamation: [^stub] |
-| `SSL_CONF_CTX_new`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_CTX_finish`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CONF_CTX_free`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CONF_CTX_new`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CONF_CTX_set1_prefix`  |  |  |  |
-| `SSL_CONF_CTX_set_flags`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_CTX_set_flags`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CONF_CTX_set_ssl`  |  |  |  |
-| `SSL_CONF_CTX_set_ssl_ctx`  |  |  | :exclamation: [^stub] |
-| `SSL_CONF_cmd`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_CTX_set_ssl_ctx`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CONF_cmd`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CONF_cmd_argv`  |  |  |  |
-| `SSL_CONF_cmd_value_type`  |  |  | :exclamation: [^stub] |
+| `SSL_CONF_cmd_value_type`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_add1_to_CA_list`  |  |  |  |
@@ -136,7 +136,7 @@
 | `SSL_CTX_set_async_callback_arg`  |  |  |  |
 | `SSL_CTX_set_block_padding`  |  |  |  |
 | `SSL_CTX_set_cert_cb`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_set_cert_store`  |  |  | :white_check_mark: |
+| `SSL_CTX_set_cert_store`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_set_cert_verify_callback`  |  |  |  |
 | `SSL_CTX_set_cipher_list`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_ciphersuites`  | :white_check_mark: |  | :exclamation: [^stub] |
@@ -232,8 +232,8 @@
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |
 | `SSL_SESSION_get_protocol_version`  |  |  |  |
 | `SSL_SESSION_get_ticket_lifetime_hint`  |  |  |  |
-| `SSL_SESSION_get_time`  |  |  | :white_check_mark: |
-| `SSL_SESSION_get_timeout`  |  |  | :white_check_mark: |
+| `SSL_SESSION_get_time`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_SESSION_get_timeout`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_has_ticket`  |  |  |  |
 | `SSL_SESSION_is_resumable`  |  |  |  |
 | `SSL_SESSION_new`  |  |  |  |
@@ -243,15 +243,15 @@
 | `SSL_SESSION_set1_alpn_selected`  |  |  |  |
 | `SSL_SESSION_set1_hostname`  |  |  |  |
 | `SSL_SESSION_set1_id`  |  |  |  |
-| `SSL_SESSION_set1_id_context`  |  |  | :white_check_mark: |
+| `SSL_SESSION_set1_id_context`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_set1_master_key`  |  |  |  |
 | `SSL_SESSION_set1_ticket_appdata`  |  |  |  |
 | `SSL_SESSION_set_cipher`  |  |  |  |
 | `SSL_SESSION_set_ex_data`  |  |  |  |
 | `SSL_SESSION_set_max_early_data`  |  |  |  |
 | `SSL_SESSION_set_protocol_version`  |  |  |  |
-| `SSL_SESSION_set_time`  |  |  | :white_check_mark: |
-| `SSL_SESSION_set_timeout`  |  |  | :white_check_mark: |
+| `SSL_SESSION_set_time`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_SESSION_set_timeout`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_up_ref`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
@@ -314,11 +314,11 @@
 | `SSL_get0_peer_scts` [^ct] |  |  |  |
 | `SSL_get0_peername`  |  |  |  |
 | `SSL_get0_security_ex_data`  |  |  |  |
-| `SSL_get0_verified_chain`  |  |  | :white_check_mark: |
+| `SSL_get0_verified_chain`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_peer_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_session`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get1_supported_ciphers`  |  |  |  |
-| `SSL_get_SSL_CTX`  |  |  | :white_check_mark: |
+| `SSL_get_SSL_CTX`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_all_async_fds`  |  |  |  |
 | `SSL_get_async_status`  |  |  |  |
 | `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -345,9 +345,9 @@
 | `SSL_get_max_early_data`  |  |  |  |
 | `SSL_get_num_tickets`  |  |  |  |
 | `SSL_get_options`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_get_peer_cert_chain`  | :white_check_mark: |  | :white_check_mark: |
+| `SSL_get_peer_cert_chain`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_peer_finished`  |  |  |  |
-| `SSL_get_peer_signature_type_nid`  |  |  | :white_check_mark: |
+| `SSL_get_peer_signature_type_nid`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_pending_cipher`  |  |  |  |
 | `SSL_get_privatekey`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_psk_identity` [^psk] |  |  |  |
@@ -409,13 +409,13 @@
 | `SSL_rstate_string`  |  |  |  |
 | `SSL_rstate_string_long`  |  |  |  |
 | `SSL_select_next_proto`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_sendfile`  |  |  | :exclamation: [^stub] |
+| `SSL_sendfile`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_session_reused`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set0_CA_list`  |  |  |  |
-| `SSL_set0_rbio`  |  |  | :white_check_mark: |
+| `SSL_set0_rbio`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_set0_security_ex_data`  |  |  |  |
 | `SSL_set0_tmp_dh_pkey`  |  |  |  |
-| `SSL_set0_wbio`  |  |  | :white_check_mark: |
+| `SSL_set0_wbio`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_set1_host`  |  |  | :white_check_mark: |
 | `SSL_set1_param`  |  |  |  |
 | `SSL_set_SSL_CTX`  |  | :white_check_mark: | :white_check_mark: |
@@ -498,7 +498,7 @@
 | `SSL_use_certificate_file`  |  |  |  |
 | `SSL_use_psk_identity_hint` [^psk] |  |  |  |
 | `SSL_verify_client_post_handshake`  |  |  |  |
-| `SSL_version`  |  |  | :white_check_mark: |
+| `SSL_version`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_waiting_for_async`  |  |  |  |
 | `SSL_want`  |  |  | :white_check_mark: |
 | `SSL_write`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

@@ -55,7 +55,7 @@ def read_impls():
 
 impls = read_impls()
 
-# from ubuntu curl 7.81.0-1ubuntu1.15
+# Combined requirements of curl 7.81.0-1ubuntu1.15, and curl 8.5.0
 # extracted by running with LD_DEBUG=all
 CURL = set("""
 BIO_f_ssl
@@ -74,6 +74,7 @@ SSL_CTX_load_verify_file
 SSL_CTX_new
 SSL_CTX_sess_set_new_cb
 SSL_CTX_set_alpn_protos
+SSL_CTX_set_cert_store
 SSL_CTX_set_cipher_list
 SSL_CTX_set_ciphersuites
 SSL_CTX_set_default_passwd_cb
@@ -86,19 +87,23 @@ SSL_CTX_set_post_handshake_auth
 SSL_CTX_set_srp_password
 SSL_CTX_set_srp_username
 SSL_CTX_set_verify
+SSL_CTX_use_certificate
 SSL_CTX_use_certificate_chain_file
 SSL_CTX_use_certificate_file
 SSL_CTX_use_certificate
 SSL_CTX_use_PrivateKey_file
 SSL_CTX_use_PrivateKey
+SSL_CTX_use_PrivateKey_file
 SSL_free
 SSL_get0_alpn_selected
+SSL_get0_verified_chain
 SSL_get1_peer_certificate
 SSL_get_certificate
 SSL_get_current_cipher
 SSL_get_error
 SSL_get_ex_data
 SSL_get_peer_cert_chain
+SSL_get_peer_signature_type_nid
 SSL_get_privatekey
 SSL_get_shutdown
 SSL_get_verify_result
@@ -108,6 +113,8 @@ SSL_pending
 SSL_read
 SSL_SESSION_free
 SSL_set_bio
+SSL_set0_rbio
+SSL_set0_wbio
 SSL_set_connect_state
 SSL_set_ex_data
 SSL_set_fd

@@ -124,7 +124,7 @@ SSL_write
 TLS_client_method
 """.split())
 
-# from ubuntu nginx 1.18.0-6ubuntu14.4
+# Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0
 # extracted by running with LD_DEBUG=all
 NGINX = set("""
 d2i_SSL_SESSION
@@ -134,6 +134,13 @@ SSL_CIPHER_description
 SSL_CIPHER_find
 SSL_CIPHER_get_name
 SSL_clear_options
+SSL_CONF_cmd
+SSL_CONF_cmd_value_type
+SSL_CONF_CTX_finish
+SSL_CONF_CTX_free
+SSL_CONF_CTX_new
+SSL_CONF_CTX_set_flags
+SSL_CONF_CTX_set_ssl_ctx
 SSL_ctrl
 SSL_CTX_callback_ctrl
 SSL_CTX_clear_options
@@ -168,12 +175,14 @@ SSL_CTX_set_session_id_context
 SSL_CTX_set_timeout
 SSL_CTX_set_verify_depth
 SSL_CTX_set_verify
+SSL_CTX_set_verify_depth
 SSL_CTX_use_certificate
 SSL_CTX_use_PrivateKey
 SSL_do_handshake
 SSL_free
 SSL_get0_alpn_selected
 SSL_get0_next_proto_negotiated
+SSL_get0_verified_chain
 SSL_get1_peer_certificate
 SSL_get1_session
 SSL_get_certificate
@@ -182,10 +191,12 @@ SSL_get_error
 SSL_get_ex_data
 SSL_get_ex_data_X509_STORE_CTX_idx
 SSL_get_options
+SSL_get_peer_cert_chain
 SSL_get_rbio
 SSL_get_servername
 SSL_get_session
 SSL_get_shutdown
+SSL_get_SSL_CTX
 SSL_get_verify_result
 SSL_get_version
 SSL_get_wbio
@@ -195,10 +206,17 @@ SSL_load_client_CA_file
 SSL_new
 SSL_read_early_data
 SSL_read
+SSL_read_early_data
 SSL_select_next_proto
+SSL_sendfile
 SSL_SESSION_free
 SSL_SESSION_get_id
+SSL_SESSION_get_time
+SSL_SESSION_get_timeout
 SSL_session_reused
+SSL_SESSION_set1_id_context
+SSL_SESSION_set_time
+SSL_SESSION_set_timeout
 SSL_SESSION_up_ref
 SSL_set_accept_state
 SSL_set_connect_state
@@ -211,11 +229,14 @@ SSL_set_shutdown
 SSL_set_SSL_CTX
 SSL_set_verify_depth
 SSL_set_verify
+SSL_set_verify_depth
 SSL_shutdown
 SSL_use_certificate
 SSL_use_PrivateKey
+SSL_version
 SSL_write_early_data
 SSL_write
+SSL_write_early_data
 TLS_method
 """.split())
 

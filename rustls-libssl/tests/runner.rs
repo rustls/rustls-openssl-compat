@@ -561,6 +561,111 @@ fn nginx() {
     drop(nginx_server);
 }
 
+#[test]
+#[ignore]
+fn nginx_1_24() {
+    let (major, minor) = nginx_version();
+    if major != 1 || minor < 24 {
+        println!("skipping Nginx 1.24 tests, installed version is {major}.{minor}.x");
+        return;
+    }
+
+    fs::create_dir_all("target/nginx-tmp/1_24/html").unwrap();
+    fs::write(
+        "target/nginx-tmp/1_24/server.conf",
+        include_str!("nginx_1_24.conf"),
+    )
+    .unwrap();
+
+    let nginx_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "nginx",
+                "-g",
+                &format!("error_log stderr {NGINX_LOG_LEVEL};"),
+                "-p",
+                "./target/nginx-tmp/1_24",
+                "-c",
+                "server.conf",
+            ])
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_port(8447);
+    wait_for_port(8448);
+
+    // TLS 1.2 to the TLS 1.3 only port should fail w/ exit code 35
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "--tls-max",
+                "1.2",
+                "https://localhost:8447/ssl-agreed"
+            ])
+            .stdout(Stdio::piped())
+            .status()
+            .unwrap()
+            .code()
+            .unwrap(),
+        35
+    );
+    // TLS 1.3 to the TLS 1.3 only port should succeed.
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "--tlsv1.3",
+                "https://localhost:8447/ssl-agreed"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap()
+            .stdout,
+        "protocol:TLSv1.3,cipher:TLS_AES_256_GCM_SHA384\n".as_bytes()
+    );
+
+    // TLS 1.3 to the TLS 1.2 only port should fail w/ exit code 35
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "--tlsv1.3",
+                "https://localhost:8448/ssl-agreed"
+            ])
+            .stdout(Stdio::piped())
+            .status()
+            .unwrap()
+            .code()
+            .unwrap(),
+        35
+    );
+    // TLS 1.2 to the TLS 1.2 only port should succeed.
+    assert_eq!(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "--tlsv1.2",
+                "https://localhost:8448/ssl-agreed"
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap()
+            .stdout,
+        "protocol:TLSv1.2,cipher:ECDHE-RSA-AES256-GCM-SHA384\n".as_bytes()
+    );
+
+    drop(nginx_server);
+}
+
 // Return the major and minor version components of the Nginx binary in `$PATH`.
 fn nginx_version() -> (u32, u32) {
     let nginx_version_output = Command::new("nginx").args(["-v"]).output().unwrap();

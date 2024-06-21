@@ -48,17 +48,17 @@
 | `SSL_COMP_get_id`  |  |  |  |
 | `SSL_COMP_get_name`  |  |  |  |
 | `SSL_COMP_set0_compression_methods`  |  |  |  |
-| `SSL_CONF_CTX_clear_flags`  |  |  |  |
-| `SSL_CONF_CTX_finish`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CONF_CTX_free`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CONF_CTX_new`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CONF_CTX_set1_prefix`  |  |  |  |
-| `SSL_CONF_CTX_set_flags`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CONF_CTX_set_ssl`  |  |  |  |
-| `SSL_CONF_CTX_set_ssl_ctx`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CONF_cmd`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CONF_CTX_clear_flags`  |  |  | :white_check_mark: |
+| `SSL_CONF_CTX_finish`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CONF_CTX_free`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CONF_CTX_new`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CONF_CTX_set1_prefix`  |  |  | :white_check_mark: |
+| `SSL_CONF_CTX_set_flags`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CONF_CTX_set_ssl`  |  |  | :white_check_mark: |
+| `SSL_CONF_CTX_set_ssl_ctx`  |  | :white_check_mark: | :white_check_mark: |
+| `SSL_CONF_cmd`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CONF_cmd_argv`  |  |  |  |
-| `SSL_CONF_cmd_value_type`  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CONF_cmd_value_type`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_SRP_CTX_free` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_SRP_CTX_init` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_add1_to_CA_list`  |  |  |  |

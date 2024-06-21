@@ -43,6 +43,7 @@ mod ex_data;
 #[macro_use]
 #[allow(unused_macros, dead_code, unused_imports)]
 mod ffi;
+mod conf;
 #[cfg(miri)]
 #[allow(non_camel_case_types, dead_code)]
 mod miri;

@@ -22,13 +22,13 @@ use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
 use crate::ffi::{
-    clone_arc, free_arc, free_arc_into_inner, str_from_cstring, to_arc_mut_ptr, try_clone_arc,
-    try_from, try_mut_slice_int, try_ref_from_ptr, try_slice, try_slice_int, try_str, Castable,
-    OwnershipArc, OwnershipRef,
+    clone_arc, free_arc, free_arc_into_inner, free_box, str_from_cstring, string_from_cstring,
+    to_arc_mut_ptr, to_boxed_mut_ptr, try_clone_arc, try_from, try_mut_slice_int, try_ref_from_ptr,
+    try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipBox, OwnershipRef,
 };
 use crate::not_thread_safe::NotThreadSafe;
 use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
-use crate::{HandshakeState, ShutdownResult};
+use crate::{conf, HandshakeState, ShutdownResult};
 
 /// Makes a entry function definition.
 ///
@@ -1706,6 +1706,95 @@ impl Castable for SSL_SESSION {
     type RustType = NotThreadSafe<SSL_SESSION>;
 }
 
+entry! {
+    pub fn _SSL_CONF_CTX_new() -> *mut SSL_CONF_CTX {
+        to_boxed_mut_ptr(NotThreadSafe::new(conf::SslConfigCtx::new()))
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_free(cctx: *mut SSL_CONF_CTX) {
+        free_box(cctx);
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_finish(cctx: *mut SSL_CONF_CTX) -> c_int {
+        match try_ref_from_ptr!(cctx).get_mut().finish() {
+            true => C_INT_SUCCESS,
+            false => 0,
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_set_flags(cctx: *mut SSL_CONF_CTX, flags: c_uint) -> c_uint {
+        try_ref_from_ptr!(cctx).get_mut().set_flags(flags).into()
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_clear_flags(cctx: *mut SSL_CONF_CTX, flags: c_uint) -> c_uint {
+        try_ref_from_ptr!(cctx).get_mut().clear_flags(flags).into()
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_set1_prefix(cctx: *mut SSL_CONF_CTX, prefix: *mut c_char) -> c_int {
+        try_ref_from_ptr!(cctx)
+            .get_mut()
+            .set_prefix(try_str!(prefix));
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_cmd(cctx: *mut SSL_CONF_CTX, cmd: *mut c_char, value: *mut c_char) -> c_int {
+        // Note: we use string_from_cstring here instead of try_str! because some commands
+        //       may allow NULL as a value.
+        let value = string_from_cstring(value);
+        try_ref_from_ptr!(cctx)
+            .get_mut()
+            .cmd(try_str!(cmd), value.as_deref())
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_cmd_value_type(cctx: *mut SSL_CONF_CTX, cmd: *mut c_char) -> c_int {
+        try_ref_from_ptr!(cctx)
+            .get()
+            .cmd_value_type(try_str!(cmd))
+            .into()
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_set_ssl(cctx: *mut SSL_CONF_CTX, ssl: *mut SSL) {
+        let cctx = try_ref_from_ptr!(cctx).get_mut();
+        match ssl.is_null() {
+            true => cctx.validation_only(),
+            false => cctx.apply_to_ssl(try_clone_arc!(ssl)),
+        }
+    }
+}
+
+entry! {
+    pub fn _SSL_CONF_CTX_set_ssl_ctx(cctx: *mut SSL_CONF_CTX, ctx: *mut SSL_CTX) {
+        let cctx = try_ref_from_ptr!(cctx).get_mut();
+        match ctx.is_null() {
+            true => cctx.validation_only(),
+            false => cctx.apply_to_ctx(try_clone_arc!(ctx)),
+        }
+    }
+}
+
+pub type SSL_CONF_CTX = conf::SslConfigCtx;
+
+impl Castable for SSL_CONF_CTX {
+    type Ownership = OwnershipBox; // SSL_CONF_CTX does not do reference counting.
+    type RustType = NotThreadSafe<conf::SslConfigCtx>;
+}
+
 /// Normal OpenSSL return value convention success indicator.
 ///
 /// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
@@ -1971,38 +2060,6 @@ entry_stub! {
 entry_stub! {
     pub fn _SSL_set_post_handshake_auth(_s: *mut SSL, _val: c_int);
 }
-
-// no configuration command support
-
-entry_stub! {
-    pub fn _SSL_CONF_CTX_new() -> *mut SSL_CONF_CTX;
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_CTX_free(_cctx: *mut SSL_CONF_CTX);
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_CTX_finish(_cctx: *mut SSL_CONF_CTX) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_CTX_set_flags(_cctx: *mut SSL_CONF_CTX, _flags: c_uint) -> c_uint;
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_CTX_set_ssl_ctx(_cctx: *mut SSL_CONF_CTX, _ctx: *mut SSL_CTX);
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_cmd(_ctx: *mut SSL_CONF_CTX, _opt: *mut c_char, _value: *mut c_char) -> c_int;
-}
-
-entry_stub! {
-    pub fn _SSL_CONF_cmd_value_type(_ctx: *mut SSL_CONF_CTX, _opt: *mut c_char) -> c_int;
-}
-
-pub struct SSL_CONF_CTX;
 
 // No kTLS/sendfile support
 

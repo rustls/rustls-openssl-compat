@@ -256,6 +256,27 @@ fn client_real_world() {
 
 #[test]
 #[ignore]
+fn config() {
+    let openssl_output = Command::new("tests/maybe-valgrind.sh")
+        .args(["target/config"])
+        .env("LD_LIBRARY_PATH", "")
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    let rustls_output = Command::new("tests/maybe-valgrind.sh")
+        .args(["target/config"])
+        .stdout(Stdio::piped())
+        .output()
+        .map(print_output)
+        .unwrap();
+
+    assert_eq!(openssl_output, rustls_output);
+}
+
+#[test]
+#[ignore]
 fn constants() {
     let openssl_output = Command::new("tests/maybe-valgrind.sh")
         .args(["target/constants"])

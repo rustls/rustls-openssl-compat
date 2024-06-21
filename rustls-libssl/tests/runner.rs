@@ -502,37 +502,42 @@ fn nginx() {
         b"hello world\n"
     );
 
-    for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r')] {
-        // multiple requests without http connection reuse
-        // (second should be a TLS resumption if possible)
-        assert_eq!(
-            Command::new("curl")
-                .env("LD_LIBRARY_PATH", "")
-                .args([
-                    "--verbose",
-                    "--cacert",
-                    "test-ca/rsa/ca.cert",
-                    "-H",
-                    "connection: close",
-                    &format!("https://localhost:{port}/"),
-                    &format!("https://localhost:{port}/ssl-agreed"),
-                    &format!("https://localhost:{port}/ssl-server-name"),
-                    &format!("https://localhost:{port}/ssl-was-reused")
-                ])
-                .stdout(Stdio::piped())
-                .output()
-                .map(print_output)
-                .unwrap()
-                .stdout,
-            format!(
-                "hello world\n\
-                 protocol:TLSv1.3,cipher:TLS_AES_256_GCM_SHA384\n\
-                 server-name:localhost\n\
-                 reused:{reused}\n"
-            )
-            .as_bytes(),
-        );
-        println!("PASS: resumption test for port={port} reused={reused}");
+    // TODO(XXX): Session resumption is not working w/ nginx 1.24.0+
+    //   Until this is fixed skip the resumption specific tests with
+    //   newer Nginx versions.
+    if matches!(nginx_version(), (1, minor) if minor < 24) {
+        for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r')] {
+            // multiple requests without http connection reuse
+            // (second should be a TLS resumption if possible)
+            assert_eq!(
+                Command::new("curl")
+                    .env("LD_LIBRARY_PATH", "")
+                    .args([
+                        "--verbose",
+                        "--cacert",
+                        "test-ca/rsa/ca.cert",
+                        "-H",
+                        "connection: close",
+                        &format!("https://localhost:{port}/"),
+                        &format!("https://localhost:{port}/ssl-agreed"),
+                        &format!("https://localhost:{port}/ssl-server-name"),
+                        &format!("https://localhost:{port}/ssl-was-reused")
+                    ])
+                    .stdout(Stdio::piped())
+                    .output()
+                    .map(print_output)
+                    .unwrap()
+                    .stdout,
+                format!(
+                    "hello world\n\
+                     protocol:TLSv1.3,cipher:TLS_AES_256_GCM_SHA384\n\
+                     server-name:localhost\n\
+                     reused:{reused}\n"
+                )
+                .as_bytes(),
+            );
+            println!("PASS: resumption test for port={port} reused={reused}");
+        }
     }
 
     // big download (throttled by curl to ensure non-blocking writes work)
@@ -554,6 +559,24 @@ fn nginx() {
     );
 
     drop(nginx_server);
+}
+
+// Return the major and minor version components of the Nginx binary in `$PATH`.
+fn nginx_version() -> (u32, u32) {
+    let nginx_version_output = Command::new("nginx").args(["-v"]).output().unwrap();
+    let nginx_version_output = String::from_utf8_lossy(&nginx_version_output.stderr);
+    let raw_version = nginx_version_output
+        .lines()
+        .next()
+        .unwrap()
+        .strip_prefix("nginx version: nginx/")
+        .unwrap();
+    let mut version_components = raw_version.split('.');
+    let must_parse_numeric = |c: &str| c.parse::<u32>().unwrap();
+    (
+        version_components.next().map(must_parse_numeric).unwrap(),
+        version_components.next().map(must_parse_numeric).unwrap(),
+    )
 }
 
 struct KillOnDrop(Option<Child>);

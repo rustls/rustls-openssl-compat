@@ -6,7 +6,7 @@ use rustls::ProtocolVersion;
 
 use crate::error::Error;
 use crate::not_thread_safe::NotThreadSafe;
-use crate::{Ssl, SslContext};
+use crate::{Ssl, SslContext, VerifyMode};
 
 #[derive(Default)]
 pub(super) struct SslConfigCtx {
@@ -118,6 +118,57 @@ impl SslConfigCtx {
             }
             State::ApplyingToSsl(ssl) => {
                 ssl.get_mut().set_max_protocol_version(ver);
+                ActionResult::Applied
+            }
+        })
+    }
+
+    fn verify_mode(&mut self, raw_mode: Option<&str>) -> Result<ActionResult, Error> {
+        // If there's a SSL_CTX or SSL set then we want to mutate the existing verify_mode.
+        let mut verify_mode = match &self.state {
+            State::Validating => VerifyMode::default(),
+            State::ApplyingToSsl(ssl) => ssl.get().verify_mode,
+            State::ApplyingToCtx(ctx) => ctx.get().verify_mode,
+        };
+
+        let raw_mode = match raw_mode {
+            Some(raw_mode) => raw_mode,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+
+        if !self.flags.is_server() && !self.flags.is_client() {
+            return Err(Error::bad_data("neither a client or a server"));
+        }
+
+        // "The value argument is a comma separated list of flags to set."
+        let mode_parts = raw_mode.split(',').collect::<Vec<&str>>();
+        for part in mode_parts {
+            match (part, self.flags.is_server()) {
+                // "Peer enables peer verification: for clients only."
+                ("Peer", false) => verify_mode.0 |= VerifyMode::PEER,
+                // "Request requests but does not require a certificate from the client.  Servers only."
+                ("Request", true) => verify_mode.0 |= VerifyMode::PEER,
+                // "Require requests and requires a certificate from the client: an error occurs if the
+                // client does not present a certificate. Servers only."
+                ("Require", true) => {
+                    verify_mode.0 |= VerifyMode::PEER | VerifyMode::FAIL_IF_NO_PEER_CERT
+                }
+                // We do not implement Once, RequestPostHandshake and RequiresPostHandshake,
+                // but don't error if provided.
+                ("Once" | "RequestPostHandshake" | "RequirePostHandshake", _) => {}
+                _ => return Err(Error::bad_data("unrecognized verify mode")),
+            }
+        }
+
+        Ok(match &self.state {
+            // OpenSSL returns "2" for this case...
+            State::Validating => ActionResult::Applied,
+            State::ApplyingToCtx(ctx) => {
+                ctx.get_mut().set_verify(verify_mode);
+                ActionResult::Applied
+            }
+            State::ApplyingToSsl(ssl) => {
+                ssl.get_mut().set_verify(verify_mode);
                 ActionResult::Applied
             }
         })
@@ -256,6 +307,8 @@ type CommandAction = fn(&mut SslConfigCtx, value: Option<&str>) -> Result<Action
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
 enum ActionResult {
+    /// The action required a value but was provided NULL.
+    ValueRequired = -3,
     /// The action value was recognized, but not applied.
     ///
     /// For example, if no `SSL_CTX` has been set a [`CommandAction`] may return `NotApplied` after
@@ -339,5 +392,12 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         flags: Flags(Flags::ANY),
         value_type: ValueType::String,
         action: SslConfigCtx::max_protocol,
+    },
+    Command {
+        name_file: Some("VerifyMode"),
+        name_cmdline: None,
+        flags: Flags(Flags::ANY),
+        value_type: ValueType::String,
+        action: SslConfigCtx::verify_mode,
     },
 ];

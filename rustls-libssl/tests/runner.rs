@@ -502,7 +502,7 @@ fn nginx() {
         b"hello world\n"
     );
 
-    for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r')] {
+    for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r'), (8449, 'r')] {
         // multiple requests without http connection reuse
         // (second should be a TLS resumption if possible)
         assert_eq!(

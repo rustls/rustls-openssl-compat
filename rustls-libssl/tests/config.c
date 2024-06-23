@@ -20,6 +20,8 @@ static const char *supported_cmds[] = {
 
     "-max_protocol", CUSTOM_PREFIX "max_protocol",
     "MaxProtocol",   CUSTOM_PREFIX "MaxProtocol",
+
+    "VerifyMode",    CUSTOM_PREFIX "VerifyMode",
 };
 
 #define NUM_SUPPORTED_CMDS (sizeof(supported_cmds) / sizeof(supported_cmds[0]))
@@ -148,6 +150,86 @@ void test_min_max_versions(void) {
   SSL_free(ssl);
 }
 
+static const char *verify_modes[] = {
+    NULL,   "",        "Ludicrous", "Ludicrous,Absurd",
+    "Peer", "Request", "Require",   "Request,Require",
+};
+
+#define NUM_VERIFY_MODES (sizeof(verify_modes) / sizeof(verify_modes[0]))
+
+void set_verify_modes(SSL_CONF_CTX *cctx, SSL_CTX *ctx, SSL *ssl) {
+  for (unsigned long i = 0; i < NUM_VERIFY_MODES; i++) {
+    const char *mode = verify_modes[i];
+    int res = SSL_CONF_cmd(cctx, "VerifyMode", mode);
+    printf("\t\tcmd VerifyMode '%s' returns %d\n", mode == NULL ? "NULL" : mode,
+           res);
+    if (ctx != NULL) {
+      printf("\t\tSSL_CTX_get_verify_mode %d\n", SSL_CTX_get_verify_mode(ctx));
+    }
+    if (ssl != NULL) {
+      printf("\t\tSSL_get_verify_mode %d\n", SSL_get_verify_mode(ssl));
+    }
+  }
+}
+
+void test_verify_mode(void) {
+  SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();
+  assert(cctx != NULL);
+
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
+  printf("\tPre-ctx (not client or server):\n");
+  set_verify_modes(cctx, NULL, NULL);
+
+  printf("\tPre-ctx (client):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
+  set_verify_modes(cctx, NULL, NULL);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CLIENT);
+
+  printf("\tPre-ctx (server):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
+  set_verify_modes(cctx, NULL, NULL);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_SERVER);
+
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+  assert(ctx != NULL);
+  SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+
+  printf("\tWith ctx (not client or server):\n");
+  set_verify_modes(cctx, ctx, NULL);
+
+  printf("\tWith ctx (client):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
+  set_verify_modes(cctx, ctx, NULL);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CLIENT);
+
+  printf("\tWith ctx (server):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
+  set_verify_modes(cctx, ctx, NULL);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_SERVER);
+
+  SSL *ssl = SSL_new(ctx);
+  assert(ssl != NULL);
+  SSL_CONF_CTX_set_ssl(cctx, ssl);
+
+  printf("\tWith ssl (not client or server):\n");
+  set_verify_modes(cctx, NULL, ssl);
+
+  printf("\tWith ssl (client):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
+  set_verify_modes(cctx, NULL, ssl);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CLIENT);
+
+  printf("\tWith ssl (server):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
+  set_verify_modes(cctx, NULL, ssl);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_SERVER);
+
+  assert(SSL_CONF_CTX_finish(cctx));
+  SSL_CONF_CTX_free(cctx);
+  SSL_CTX_free(ctx);
+  SSL_free(ssl);
+}
+
 int main(void) {
   printf("Supported commands:\n");
   printf("no base flags, default prefix:\n");
@@ -170,4 +252,7 @@ int main(void) {
 
   printf("Min/Max version:\n");
   test_min_max_versions();
+
+  printf("VerifyMode:\n");
+  test_verify_mode();
 }

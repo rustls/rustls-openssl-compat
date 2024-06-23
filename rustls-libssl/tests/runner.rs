@@ -613,6 +613,8 @@ fn nginx_1_24() {
         35
     );
     // TLS 1.3 to the TLS 1.3 only port should succeed.
+    // The RSA CA cert should allow verification to succeed, showing the overrides of
+    // the ED25519 ssl_certificate/ssl_certificate_key directives worked.
     assert_eq!(
         Command::new("curl")
             .env("LD_LIBRARY_PATH", "")

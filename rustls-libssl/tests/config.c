@@ -22,7 +22,12 @@ static const char *supported_cmds[] = {
     "MaxProtocol",   CUSTOM_PREFIX "MaxProtocol",
 
     "VerifyMode",    CUSTOM_PREFIX "VerifyMode",
-};
+
+    "-cert",         CUSTOM_PREFIX "cert",
+    "Certificate",   CUSTOM_PREFIX "Certificate",
+
+    "-key",          CUSTOM_PREFIX "key",
+    "PrivateKey",    CUSTOM_PREFIX "PrivateKey"};
 
 #define NUM_SUPPORTED_CMDS (sizeof(supported_cmds) / sizeof(supported_cmds[0]))
 
@@ -230,6 +235,54 @@ void test_verify_mode(void) {
   SSL_free(ssl);
 }
 
+void set_cert_and_key(SSL_CONF_CTX *cctx) {
+  // Note: we don't test invalid values here - our implementation diverges
+  //       slightly due to early processing of the cert/key pair.
+  printf("\t\tcmd Certificate NULL returns %d\n",
+         SSL_CONF_cmd(cctx, "Certificate", NULL));
+  printf("\t\tcmd Certificate 'test-ca/rsa/server.cert' returns %d\n",
+         SSL_CONF_cmd(cctx, "Certificate", "test-ca/rsa/server.cert"));
+
+  printf("\t\tcmd PrivateKey NULL returns %d\n",
+         SSL_CONF_cmd(cctx, "PrivateKey", NULL));
+  printf("\t\tcmd PrivateKey 'test-ca/rsa/server.key' returns %d\n",
+         SSL_CONF_cmd(cctx, "PrivateKey", "test-ca/rsa/server.key"));
+}
+
+void test_certificate_and_private_key(void) {
+  SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();
+  assert(cctx != NULL);
+
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
+  printf("\tPre-ctx (not certificate flag):\n");
+  set_cert_and_key(cctx);
+
+  printf("\tPre-ctx (certificate flag):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+  set_cert_and_key(cctx);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+  assert(ctx != NULL);
+  SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+
+  printf("\tWith ctx (not certificate flag):\n");
+  set_cert_and_key(cctx);
+
+  printf("\tWith ctx (certificate flag):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+  set_cert_and_key(cctx);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+
+  // Note: we do not test with `SSL_CONF_set_ssl()` here - we lack
+  //       support for the `Certificate` command updating an `SSL`
+  //       struct at this time.
+
+  assert(SSL_CONF_CTX_finish(cctx));
+  SSL_CONF_CTX_free(cctx);
+  SSL_CTX_free(ctx);
+}
+
 int main(void) {
   printf("Supported commands:\n");
   printf("no base flags, default prefix:\n");
@@ -255,4 +308,7 @@ int main(void) {
 
   printf("VerifyMode:\n");
   test_verify_mode();
+
+  printf("Certificate/PrivateKey:\n");
+  test_certificate_and_private_key();
 }

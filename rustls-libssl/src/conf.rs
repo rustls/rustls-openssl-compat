@@ -516,4 +516,13 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         value_type: ValueType::File,
         action: SslConfigCtx::verify_ca_file,
     },
+    // Some commands that would be reasonable to implement in the future:
+    //  - ClientCAFile/ClientCAPath
+    //  - Options
+    //    - SessionTicket/-no_ticket
+    //    - CANames (?)
+    //  - Groups/-groups
+    //  - SignatureAlgorithms/-sigalgs
+    //  - RequestCAFile
+    //  - Ciphersuites/-ciphersuites
 ];

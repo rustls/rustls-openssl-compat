@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use rustls::ProtocolVersion;
 
+use crate::entry::{use_cert_chain_file, use_private_key_file, FILETYPE_PEM};
 use crate::error::Error;
 use crate::not_thread_safe::NotThreadSafe;
 use crate::{Ssl, SslContext, VerifyMode};
@@ -174,6 +175,51 @@ impl SslConfigCtx {
         })
     }
 
+    fn certificate(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
+        let path = match path {
+            Some(path) => path,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+        let cert_chain = use_cert_chain_file(path)?;
+
+        Ok(match &self.state {
+            State::Validating => ActionResult::Applied,
+            State::ApplyingToCtx(ctx) => {
+                // the "Certificate" command after `SSL_CONF_CTX_set_ssl_ctx` is documented as using
+                // `SSL_CTX_use_certificate_chain_file`.
+                ctx.get_mut().stage_certificate_chain(cert_chain);
+                ActionResult::Applied
+            }
+            State::ApplyingToSsl(_) => {
+                // the "Certificate" command after `SSL_CONF_CTX_set_ssl` is documented as using
+                // `SSL_use_certificate_file` - this is NYI for rustls-libssl.
+                return Err(Error::not_supported(
+                    "Certificate with SSL structure not supported",
+                ));
+            }
+        })
+    }
+
+    fn private_key(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
+        let path = match path {
+            Some(path) => path,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+        let key = use_private_key_file(path, FILETYPE_PEM)?;
+
+        match &self.state {
+            State::Validating => Ok(ActionResult::Applied),
+            State::ApplyingToCtx(ctx) => {
+                ctx.get_mut().commit_private_key(key)?;
+                Ok(ActionResult::Applied)
+            }
+            State::ApplyingToSsl(ssl) => {
+                ssl.get_mut().commit_private_key(key)?;
+                Ok(ActionResult::Applied)
+            }
+        }
+    }
+
     fn parse_protocol_version(proto: Option<&str>) -> Option<u16> {
         Some(match proto {
             Some("None") => 0,
@@ -226,8 +272,8 @@ pub(super) enum ValueType {
     Unknown = 0x0,
     /// The option value is a string without any specific structure.
     String = 0x1,
-    // The option value is a filename.
-    //File = 0x2,
+    /// The option value is a filename.
+    File = 0x2,
     // The option value is a directory name.
     //Dir = 0x3,
     // The option value is not used.
@@ -399,5 +445,19 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         flags: Flags(Flags::ANY),
         value_type: ValueType::String,
         action: SslConfigCtx::verify_mode,
+    },
+    Command {
+        name_file: Some("Certificate"),
+        name_cmdline: Some("cert"),
+        flags: Flags(Flags::CERTIFICATE),
+        value_type: ValueType::File,
+        action: SslConfigCtx::certificate,
+    },
+    Command {
+        name_file: Some("PrivateKey"),
+        name_cmdline: Some("key"),
+        flags: Flags(Flags::CERTIFICATE),
+        value_type: ValueType::File,
+        action: SslConfigCtx::private_key,
     },
 ];

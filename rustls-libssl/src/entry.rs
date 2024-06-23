@@ -416,36 +416,42 @@ entry! {
         file_name: *const c_char,
     ) -> c_int {
         let ctx = try_clone_arc!(ctx);
-        let file_name = try_str!(file_name);
-
-        let mut file_reader = match fs::File::open(file_name) {
-            Ok(content) => io::BufReader::new(content),
-            Err(err) => return Error::from_io(err).raise().into(),
+        let chain = match use_cert_chain_file(try_str!(file_name)) {
+            Ok(chain) => chain,
+            Err(err) => return err.raise().into(),
         };
-
-        let mut chain = Vec::new();
-
-        for cert in rustls_pemfile::certs(&mut file_reader) {
-            let cert = match cert {
-                Ok(cert) => cert,
-                Err(err) => {
-                    log::trace!("Failed to parse {file_name:?}: {err:?}");
-                    return Error::from_io(err).raise().into();
-                }
-            };
-
-            match OwnedX509::parse_der(cert.as_ref()) {
-                Some(_) => chain.push(cert),
-                None => {
-                    log::trace!("Failed to parse DER certificate");
-                    return Error::bad_data("certificate").raise().into();
-                }
-            }
-        }
 
         ctx.get_mut().stage_certificate_chain(chain);
         C_INT_SUCCESS
     }
+}
+
+pub(crate) fn use_cert_chain_file(file_name: &str) -> Result<Vec<CertificateDer<'static>>, Error> {
+    let mut file_reader = match fs::File::open(file_name) {
+        Ok(content) => io::BufReader::new(content),
+        Err(err) => return Err(Error::from_io(err)),
+    };
+
+    let mut chain = Vec::new();
+    for cert in rustls_pemfile::certs(&mut file_reader) {
+        let cert = match cert {
+            Ok(cert) => cert,
+            Err(err) => {
+                log::trace!("Failed to parse {file_name:?}: {err:?}");
+                return Err(Error::from_io(err));
+            }
+        };
+
+        match OwnedX509::parse_der(cert.as_ref()) {
+            Some(_) => chain.push(cert),
+            None => {
+                log::trace!("Failed to parse DER certificate");
+                return Err(Error::bad_data("certificate"));
+            }
+        }
+    }
+
+    Ok(chain)
 }
 
 entry! {
@@ -464,7 +470,7 @@ entry! {
     }
 }
 
-fn use_private_key_file(file_name: &str, file_type: c_int) -> Result<EvpPkey, Error> {
+pub(crate) fn use_private_key_file(file_name: &str, file_type: c_int) -> Result<EvpPkey, Error> {
     let der_data = match file_type {
         FILETYPE_PEM => {
             let mut file_reader = match fs::File::open(file_name) {
@@ -1806,7 +1812,7 @@ impl Castable for SSL_CONF_CTX {
 /// Compare [`crate::ffi::MysteriouslyOppositeReturnValue`].
 const C_INT_SUCCESS: c_int = 1;
 
-const FILETYPE_PEM: c_int = 1;
+pub(crate) const FILETYPE_PEM: c_int = 1;
 const FILETYPE_DER: c_int = 2;
 
 const SSL_MAX_SID_CTX_LENGTH: usize = 32;

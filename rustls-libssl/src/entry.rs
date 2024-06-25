@@ -1363,6 +1363,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get_verify_mode(ssl: *const SSL) -> c_int {
+        try_clone_arc!(ssl).get().get_verify_mode().into()
+    }
+}
+
+entry! {
     pub fn _SSL_set_verify_depth(ssl: *mut SSL, depth: c_int) {
         try_clone_arc!(ssl).get_mut().set_verify_depth(depth)
     }

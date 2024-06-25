@@ -890,6 +890,10 @@ impl Ssl {
         self.verify_mode = mode;
     }
 
+    fn get_verify_mode(&self) -> VerifyMode {
+        self.verify_mode
+    }
+
     fn set_verify_depth(&mut self, depth: c_int) {
         self.verify_depth = depth;
     }

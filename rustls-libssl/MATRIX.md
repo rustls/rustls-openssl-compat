@@ -379,7 +379,7 @@
 | `SSL_get_state`  |  |  | :white_check_mark: |
 | `SSL_get_verify_callback`  |  |  |  |
 | `SSL_get_verify_depth`  |  |  | :white_check_mark: |
-| `SSL_get_verify_mode`  |  |  |  |
+| `SSL_get_verify_mode`  |  |  | :white_check_mark: |
 | `SSL_get_verify_result`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_version`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_wbio`  |  | :white_check_mark: | :white_check_mark: |

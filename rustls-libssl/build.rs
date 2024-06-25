@@ -61,6 +61,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_clear_options",
     "SSL_CONF_cmd",
     "SSL_CONF_cmd_value_type",
+    "SSL_CONF_CTX_clear_flags",
     "SSL_CONF_CTX_finish",
     "SSL_CONF_CTX_free",
     "SSL_CONF_CTX_new",

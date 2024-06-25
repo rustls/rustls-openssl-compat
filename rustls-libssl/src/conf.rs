@@ -220,6 +220,48 @@ impl SslConfigCtx {
         }
     }
 
+    fn verify_ca_path(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
+        let path = match path {
+            Some(path) => path,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+
+        match &self.state {
+            State::Validating => Ok(ActionResult::Applied),
+            State::ApplyingToCtx(ctx) => {
+                ctx.get_mut().default_cert_dir = Some(path.into());
+                Ok(ActionResult::Applied)
+            }
+            State::ApplyingToSsl(_) => {
+                // NYI: would require setting a constructed `RootCertStore` on the `Ssl` instance.
+                Err(Error::not_supported(
+                    "VerifyCAPath with SSL structure not supported",
+                ))
+            }
+        }
+    }
+
+    fn verify_ca_file(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
+        let path = match path {
+            Some(path) => path,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+
+        match &self.state {
+            State::Validating => Ok(ActionResult::Applied),
+            State::ApplyingToCtx(ctx) => {
+                ctx.get_mut().default_cert_file = Some(path.into());
+                Ok(ActionResult::Applied)
+            }
+            State::ApplyingToSsl(_) => {
+                // NYI: would require setting a constructed `RootCertStore` on the `Ssl` instance.
+                Err(Error::not_supported(
+                    "VerifyCAFile with SSL structure not supported",
+                ))
+            }
+        }
+    }
+
     fn parse_protocol_version(proto: Option<&str>) -> Option<u16> {
         Some(match proto {
             Some("None") => 0,
@@ -274,8 +316,8 @@ pub(super) enum ValueType {
     String = 0x1,
     /// The option value is a filename.
     File = 0x2,
-    // The option value is a directory name.
-    //Dir = 0x3,
+    /// The option value is a directory name.
+    Dir = 0x3,
     // The option value is not used.
     //None = 0x4,
 }
@@ -459,5 +501,19 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         flags: Flags(Flags::CERTIFICATE),
         value_type: ValueType::File,
         action: SslConfigCtx::private_key,
+    },
+    Command {
+        name_file: Some("VerifyCAPath"),
+        name_cmdline: Some("verifyCApath"),
+        flags: Flags(Flags::CERTIFICATE),
+        value_type: ValueType::Dir,
+        action: SslConfigCtx::verify_ca_path,
+    },
+    Command {
+        name_file: Some("VerifyCAFile"),
+        name_cmdline: Some("verifyCAfile"),
+        flags: Flags(Flags::CERTIFICATE),
+        value_type: ValueType::File,
+        action: SslConfigCtx::verify_ca_file,
     },
 ];

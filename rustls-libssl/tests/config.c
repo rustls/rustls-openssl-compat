@@ -14,20 +14,38 @@ static const int conf_flags[] = {SSL_CONF_FLAG_SERVER, SSL_CONF_FLAG_CLIENT,
 
 #define NUM_FLAGS (sizeof(conf_flags) / sizeof(conf_flags[0]))
 
-static const char *supported_cmds[] = {
-    "-min_protocol", CUSTOM_PREFIX "min_protocol",
-    "MinProtocol",   CUSTOM_PREFIX "MinProtocol",
+static const char *supported_cmds[] = {"-min_protocol",
+                                       CUSTOM_PREFIX "min_protocol",
+                                       "MinProtocol",
+                                       CUSTOM_PREFIX "MinProtocol",
 
-    "-max_protocol", CUSTOM_PREFIX "max_protocol",
-    "MaxProtocol",   CUSTOM_PREFIX "MaxProtocol",
+                                       "-max_protocol",
+                                       CUSTOM_PREFIX "max_protocol",
+                                       "MaxProtocol",
+                                       CUSTOM_PREFIX "MaxProtocol",
 
-    "VerifyMode",    CUSTOM_PREFIX "VerifyMode",
+                                       "VerifyMode",
+                                       CUSTOM_PREFIX "VerifyMode",
 
-    "-cert",         CUSTOM_PREFIX "cert",
-    "Certificate",   CUSTOM_PREFIX "Certificate",
+                                       "-cert",
+                                       CUSTOM_PREFIX "cert",
+                                       "Certificate",
+                                       CUSTOM_PREFIX "Certificate",
 
-    "-key",          CUSTOM_PREFIX "key",
-    "PrivateKey",    CUSTOM_PREFIX "PrivateKey"};
+                                       "-key",
+                                       CUSTOM_PREFIX "key",
+                                       "PrivateKey",
+                                       CUSTOM_PREFIX "PrivateKey"
+
+                                                     "-verifyCApath",
+                                       CUSTOM_PREFIX "verifyCApath",
+                                       "VerifyCAPath",
+                                       CUSTOM_PREFIX "VerifyCAPath",
+
+                                       "-verifyCAfile",
+                                       CUSTOM_PREFIX "verifyCAfile",
+                                       "VerifyCAFile",
+                                       CUSTOM_PREFIX "VerifyCAFile"};
 
 #define NUM_SUPPORTED_CMDS (sizeof(supported_cmds) / sizeof(supported_cmds[0]))
 
@@ -283,6 +301,55 @@ void test_certificate_and_private_key(void) {
   SSL_CTX_free(ctx);
 }
 
+void set_verify_ca(SSL_CONF_CTX *cctx) {
+  // Note: we don't test invalid values here - our implementation diverges
+  //       slightly due to later processing of the cert file/dir.
+  printf("\t\tcmd VerifyCAPath NULL returns %d\n",
+         SSL_CONF_cmd(cctx, "VerifyCAPath", NULL));
+  printf("\t\tcmd VerifyCAPath 'test-ca/rsa' returns %d\n",
+         SSL_CONF_cmd(cctx, "VerifyCAPath", "test-ca/rsa"));
+
+  printf("\t\tcmd VerifyCAFile NULL returns %d\n",
+         SSL_CONF_cmd(cctx, "VerifyCAFile", NULL));
+  printf("\t\tcmd VerifyCAFile 'test-ca/rsa/ca.cert' returns %d\n",
+         SSL_CONF_cmd(cctx, "VerifyCAFile", "test-ca/rsa/ca.cert"));
+}
+
+void test_verify_ca_path_file(void) {
+  SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();
+  assert(cctx != NULL);
+
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
+
+  printf("\tPre-ctx (not certificate flag):\n");
+  set_verify_ca(cctx);
+
+  printf("\tPre-ctx (certificate flag):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+  set_verify_ca(cctx);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+  assert(ctx != NULL);
+  SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+
+  printf("\tWith ctx (not certificate flag):\n");
+  set_verify_ca(cctx);
+
+  printf("\tWith ctx (certificate flag):\n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+  set_verify_ca(cctx);
+  SSL_CONF_CTX_clear_flags(cctx, SSL_CONF_FLAG_CERTIFICATE);
+
+  // Note: we do not test with `SSL_CONF_set_ssl()` here - we lack
+  //       support for the `Certificate` command updating an `SSL`
+  //       struct at this time.
+
+  assert(SSL_CONF_CTX_finish(cctx));
+  SSL_CONF_CTX_free(cctx);
+  SSL_CTX_free(ctx);
+}
+
 int main(void) {
   printf("Supported commands:\n");
   printf("no base flags, default prefix:\n");
@@ -311,4 +378,7 @@ int main(void) {
 
   printf("Certificate/PrivateKey:\n");
   test_certificate_and_private_key();
+
+  printf("VerifyCAPath/VerifyCAFile:\n");
+  test_verify_ca_path_file();
 }

@@ -170,21 +170,17 @@ impl SslConfigCtx {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
-#[allow(dead_code)] // TODO(XXX): Remove once other value types are used.
 pub(super) enum ValueType {
     /// The option is unrecognized.
     Unknown = 0x0,
     /// The option value is a string without any specific structure.
     String = 0x1,
-    /// The option value is a filename.
-    File = 0x2,
-    /// The option value is a directory name.
-    Dir = 0x3,
-    /// The option value is not used.
-    None = 0x4,
-    /// The option is an X509 store
-    // NOTE(XXX): This one is missing from the OpenSSL man pages.
-    Store = 0x5,
+    // The option value is a filename.
+    //File = 0x2,
+    // The option value is a directory name.
+    //Dir = 0x3,
+    // The option value is not used.
+    //None = 0x4,
 }
 
 impl From<ValueType> for c_int {
@@ -259,12 +255,12 @@ type CommandAction = fn(&mut SslConfigCtx, value: Option<&str>) -> Result<Action
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
-#[allow(dead_code)] // TODO(XXX): Remove with first usage of NotApplied.
 enum ActionResult {
     /// The action value was recognized, but not applied.
     ///
     /// For example, if no `SSL_CTX` has been set a [`CommandAction`] may return `NotApplied` after
     /// validating the command value.
+    #[allow(dead_code)] // TODO(XXX): remove with first ref.
     NotApplied = 1,
     /// The action value was recognized and applied.
     Applied = 2,
@@ -279,7 +275,6 @@ impl From<ActionResult> for c_int {
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub(super) struct Flags(c_uint);
 
-#[allow(dead_code)] // TODO(XXX): Remove once all flags are used.
 impl Flags {
     const ANY: c_uint = 0x0;
 
@@ -290,6 +285,7 @@ impl Flags {
     const SERVER: c_uint = 0x8;
     const SHOW_ERRORS: c_uint = 0x10;
     const CERTIFICATE: c_uint = 0x20;
+    #[allow(dead_code)] // TODO(XXX): Remove once REQUIRE_PRIVATE is used.
     const REQUIRE_PRIVATE: c_uint = 0x40;
 
     fn is_cmdline(&self) -> bool {
@@ -312,6 +308,7 @@ impl Flags {
         self.0 & Self::CERTIFICATE == Self::CERTIFICATE
     }
 
+    #[allow(dead_code)] // TODO(XXX): Remove once REQUIRE_PRIVATE is used.
     fn is_require_private(&self) -> bool {
         self.0 & Self::REQUIRE_PRIVATE == Self::REQUIRE_PRIVATE
     }

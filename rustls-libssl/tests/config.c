@@ -3,6 +3,7 @@
  */
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include <openssl/ssl.h>
@@ -403,6 +404,92 @@ void test_no_ticket(void) {
   SSL_free(ssl);
 }
 
+void set_options_values(SSL_CONF_CTX *cctx, SSL_CTX *ctx, SSL *ssl,
+                        uint64_t opts, const char *values) {
+  // Put the CTX and SSL_CTX into a known options state beforehand.
+  if (ctx != NULL) {
+    SSL_CTX_clear_options(ctx, UINT64_MAX);
+    SSL_CTX_set_options(ctx, opts);
+    printf("\t\tSSL_CTX_get_options before: 0x%lx\n", SSL_CTX_get_options(ctx));
+  }
+  if (ssl != NULL) {
+    SSL_clear_options(ssl, UINT64_MAX);
+    SSL_set_options(ssl, opts);
+    printf("\t\tSSL_get_options before: 0x%lx\n", SSL_get_options(ssl));
+  }
+
+  // Apply the Options command
+  printf("\t\tSSL_CONF_cmd Options %s == %d\n",
+         values == NULL ? "NULL" : values,
+         SSL_CONF_cmd(cctx, "Options", values));
+
+  if (ctx != NULL) {
+    printf("\t\tSSL_CTX_get_options after: 0x%lx\n", SSL_CTX_get_options(ctx));
+  }
+  if (ssl != NULL) {
+    printf("\t\tSSL_get_options after: 0x%lx\n", SSL_get_options(ssl));
+  }
+}
+
+void test_options_session_ticket_variations(SSL_CONF_CTX *cctx, SSL_CTX *ctx,
+                                            SSL *ssl) {
+  // Try NULL
+  set_options_values(cctx, ctx, ssl, 0, NULL);
+  // NOTE: we don't try invalid/unknown values because Rustls will ignore them
+  // without error
+  //    while OpenSSL will erorr.
+
+  // Test enabling the option when it has not been disabled, and when it has
+  // been disabled
+  set_options_values(cctx, ctx, ssl, 0, "SessionTicket");
+  set_options_values(cctx, ctx, ssl, SSL_OP_NO_TICKET, "SessionTicket");
+
+  // Test disabling the option when it has been enabled, and when it has not
+  // been enabled
+  set_options_values(cctx, ctx, ssl, SSL_OP_NO_TICKET, "-SessionTicket");
+  set_options_values(cctx, ctx, ssl, 0, "-SessionTicket");
+
+  // Test enabling and disabling the option in the same command for both initial
+  // states
+  set_options_values(cctx, ctx, ssl, 0, "SessionTicket,-SessionTicket");
+  set_options_values(cctx, ctx, ssl, SSL_OP_NO_TICKET,
+                     "SessionTicket,-SessionTicket");
+  set_options_values(cctx, ctx, ssl, SSL_OP_NO_TICKET,
+                     "-SessionTicket,SessionTicket");
+  set_options_values(cctx, ctx, ssl, 0, "-SessionTicket,SessionTicket");
+}
+
+void test_options_session_ticket(void) {
+  SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();
+  assert(cctx != NULL);
+
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
+
+  printf("\tPre-ctx, no server flag:\n");
+  test_options_session_ticket_variations(cctx, NULL, NULL);
+
+  printf("\tPre-ctx, with server flag: \n");
+  SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
+  test_options_session_ticket_variations(cctx, NULL, NULL);
+
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+  assert(ctx != NULL);
+  SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+  printf("\tWith ctx\n");
+  test_options_session_ticket_variations(cctx, ctx, NULL);
+
+  SSL *ssl = SSL_new(ctx);
+  assert(ssl != NULL);
+  SSL_CONF_CTX_set_ssl(cctx, ssl);
+  printf("\tWith ssl\n");
+  test_options_session_ticket_variations(cctx, NULL, ssl);
+
+  assert(SSL_CONF_CTX_finish(cctx));
+  SSL_CONF_CTX_free(cctx);
+  SSL_CTX_free(ctx);
+  SSL_free(ssl);
+}
+
 int main(void) {
   printf("Supported commands:\n");
   printf("no base flags, default prefix:\n");
@@ -437,4 +524,7 @@ int main(void) {
 
   printf("no_ticket\n");
   test_no_ticket();
+
+  printf("Options SessionTicket\n");
+  test_options_session_ticket();
 }

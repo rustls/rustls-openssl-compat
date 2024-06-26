@@ -279,6 +279,44 @@ impl SslConfigCtx {
         Ok(ActionResult::NotApplied)
     }
 
+    fn options(&mut self, opts: Option<&str>) -> Result<ActionResult, Error> {
+        let opts = match opts {
+            Some(path) => path,
+            None => return Ok(ActionResult::ValueRequired),
+        };
+
+        for part in opts.split(',').map(|part| part.trim()) {
+            let flag = match part.starts_with('-') {
+                true => OptionFlag::Disable,
+                false => OptionFlag::Enable,
+            };
+            match part {
+                "SessionTicket" | "-SessionTicket" => self.session_ticket_option(flag)?,
+                _ => {}
+            }
+        }
+
+        Ok(ActionResult::Applied)
+    }
+
+    fn session_ticket_option(&mut self, flag: OptionFlag) -> Result<(), Error> {
+        if !self.flags.is_server() {
+            return Err(Error::bad_data(
+                "SessionTicket is only supported for servers",
+            ));
+        }
+        let opts = match &self.state {
+            State::ApplyingToCtx(ctx) => &mut ctx.get_mut().raw_options,
+            State::ApplyingToSsl(ssl) => &mut ssl.get_mut().raw_options,
+            State::Validating => return Ok(()),
+        };
+        match flag {
+            OptionFlag::Disable => *opts |= crate::SSL_OP_NO_TICKET,
+            OptionFlag::Enable => *opts &= !crate::SSL_OP_NO_TICKET,
+        }
+        Ok(())
+    }
+
     fn parse_protocol_version(proto: Option<&str>) -> Option<u16> {
         Some(match proto {
             Some("None") => 0,
@@ -481,6 +519,14 @@ impl From<Flags> for c_uint {
     }
 }
 
+/// Representation of whether an "Options" value flag should be enabled or disabled.
+enum OptionFlag {
+    /// The option flag value begins with '-' indicating it should be disabled.
+    Disable,
+    /// The option flag does not begin with '-' indicating it should be enabled.
+    Enable,
+}
+
 /// All the [`Command`]s that are supported by [`SslConfigCtx`].
 const SUPPORTED_COMMANDS: &[Command] = &[
     Command {
@@ -539,10 +585,16 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         value_type: ValueType::None,
         action: SslConfigCtx::no_tickets,
     },
+    Command {
+        name_file: Some("Options"),
+        name_cmdline: None,
+        flags: Flags(Flags::ANY),
+        value_type: ValueType::String,
+        action: SslConfigCtx::options,
+    },
     // Some commands that would be reasonable to implement in the future:
     //  - ClientCAFile/ClientCAPath
     //  - Options
-    //    - SessionTicket
     //    - CANames (?)
     //  - Groups/-groups
     //  - SignatureAlgorithms/-sigalgs

@@ -262,6 +262,23 @@ impl SslConfigCtx {
         }
     }
 
+    fn no_tickets(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
+        debug_assert!(path.is_none());
+
+        match &self.state {
+            State::Validating => {}
+            State::ApplyingToCtx(ctx) => {
+                ctx.get_mut().set_options(crate::SSL_OP_NO_TICKET);
+            }
+            State::ApplyingToSsl(ssl) => {
+                ssl.get_mut().set_options(crate::SSL_OP_NO_TICKET);
+            }
+        };
+
+        // OpenSSL's implementation returns 1 (NotApplied) even when applying (???)
+        Ok(ActionResult::NotApplied)
+    }
+
     fn parse_protocol_version(proto: Option<&str>) -> Option<u16> {
         Some(match proto {
             Some("None") => 0,
@@ -318,8 +335,8 @@ pub(super) enum ValueType {
     File = 0x2,
     /// The option value is a directory name.
     Dir = 0x3,
-    // The option value is not used.
-    //None = 0x4,
+    /// The option value is not used.
+    None = 0x4,
 }
 
 impl From<ValueType> for c_int {
@@ -401,7 +418,6 @@ enum ActionResult {
     ///
     /// For example, if no `SSL_CTX` has been set a [`CommandAction`] may return `NotApplied` after
     /// validating the command value.
-    #[allow(dead_code)] // TODO(XXX): remove with first ref.
     NotApplied = 1,
     /// The action value was recognized and applied.
     Applied = 2,
@@ -516,10 +532,17 @@ const SUPPORTED_COMMANDS: &[Command] = &[
         value_type: ValueType::File,
         action: SslConfigCtx::verify_ca_file,
     },
+    Command {
+        name_file: None,
+        name_cmdline: Some("no_ticket"),
+        flags: Flags(Flags::ANY),
+        value_type: ValueType::None,
+        action: SslConfigCtx::no_tickets,
+    },
     // Some commands that would be reasonable to implement in the future:
     //  - ClientCAFile/ClientCAPath
     //  - Options
-    //    - SessionTicket/-no_ticket
+    //    - SessionTicket
     //    - CANames (?)
     //  - Groups/-groups
     //  - SignatureAlgorithms/-sigalgs

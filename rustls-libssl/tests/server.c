@@ -100,7 +100,7 @@ static void sess_remove_callback(SSL_CTX *ctx, SSL_SESSION *sess) {
 int main(int argc, char **argv) {
   if (argc != 6) {
     printf("%s <port> <key-file> <cert-chain-file> <cacert>|unauth "
-           "none|internal|external|internal+external\n\n",
+           "none|internal|external|internal+external|ticket\n\n",
            argv[0]);
     return 1;
   }
@@ -152,6 +152,10 @@ int main(int argc, char **argv) {
   SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
   dump_openssl_error_stack();
 
+  // Default to no tickets.
+  SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET);
+  TRACE(SSL_CTX_set_num_tickets(ctx, 0));
+
   if (strstr(cache, "external")) {
     SSL_CTX_sess_set_new_cb(ctx, sess_new_callback);
     SSL_CTX_sess_set_get_cb(ctx, sess_get_callback);
@@ -167,6 +171,12 @@ int main(int argc, char **argv) {
   if (strcmp(cache, "none") == 0) {
     TRACE(SSL_CTX_set_session_cache_mode(ctx, 0));
   }
+
+  if (strcmp(cache, "ticket") == 0) {
+    SSL_CTX_clear_options(ctx, SSL_OP_NO_TICKET);
+    TRACE(SSL_CTX_set_num_tickets(ctx, 3));
+  }
+  TRACE(SSL_CTX_get_num_tickets(ctx));
 
   X509 *server_cert = NULL;
   EVP_PKEY *server_key = NULL;
@@ -184,6 +194,7 @@ int main(int argc, char **argv) {
          SSL_get_privatekey(ssl) == server_key ? "same as" : "differs to");
   printf("SSL_new: SSL_get_certificate %s SSL_CTX_get0_certificate\n",
          SSL_get_certificate(ssl) == server_cert ? "same as" : "differs to");
+  TRACE(SSL_get_num_tickets(ssl));
 
   ssl_ex_data_idx_message = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
   TRACE(SSL_set_ex_data(ssl, ssl_ex_data_idx_message, "hello from SSL!"));

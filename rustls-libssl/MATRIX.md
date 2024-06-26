@@ -96,7 +96,7 @@
 | `SSL_CTX_get_info_callback`  |  |  |  |
 | `SSL_CTX_get_keylog_callback`  |  |  |  |
 | `SSL_CTX_get_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_get_num_tickets`  |  |  |  |
+| `SSL_CTX_get_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_CTX_get_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_quiet_shutdown`  |  |  |  |
 | `SSL_CTX_get_record_padding_callback_arg`  |  |  |  |
@@ -165,7 +165,7 @@
 | `SSL_CTX_set_next_proto_select_cb` [^nextprotoneg] | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_next_protos_advertised_cb` [^nextprotoneg] |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_not_resumable_session_callback`  |  |  |  |
-| `SSL_CTX_set_num_tickets`  |  |  |  |
+| `SSL_CTX_set_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_CTX_set_options`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_post_handshake_auth`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_psk_client_callback` [^psk] |  |  |  |
@@ -343,7 +343,7 @@
 | `SSL_get_info_callback`  |  |  |  |
 | `SSL_get_key_update_type`  |  |  |  |
 | `SSL_get_max_early_data`  |  |  |  |
-| `SSL_get_num_tickets`  |  |  |  |
+| `SSL_get_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_get_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_peer_cert_chain`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_peer_finished`  |  |  |  |
@@ -444,7 +444,7 @@
 | `SSL_set_max_early_data`  |  |  |  |
 | `SSL_set_msg_callback`  |  |  |  |
 | `SSL_set_not_resumable_session_callback`  |  |  |  |
-| `SSL_set_num_tickets`  |  |  |  |
+| `SSL_set_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_set_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_post_handshake_auth`  |  |  | :exclamation: [^stub] |
 | `SSL_set_psk_client_callback` [^psk] |  |  |  |

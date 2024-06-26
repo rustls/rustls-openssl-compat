@@ -1690,7 +1690,7 @@ impl EnabledVersions {
     }
 }
 
-const SSL_OP_NO_TICKET: u64 = 1 << 14; // See ssl.h
+pub(crate) const SSL_OP_NO_TICKET: u64 = 1 << 14; // See ssl.h
 
 #[cfg(test)]
 mod tests {

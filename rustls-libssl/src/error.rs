@@ -174,6 +174,13 @@ impl From<Error> for c_int {
     }
 }
 
+impl From<Error> for usize {
+    fn from(_: Error) -> Self {
+        // ditto
+        0
+    }
+}
+
 impl From<Error> for MysteriouslyOppositeReturnValue {
     fn from(_: Error) -> Self {
         // for a small subset of OpenSSL functions (return 1 on error)

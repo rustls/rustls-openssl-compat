@@ -376,6 +376,46 @@ fn server() {
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
     assert_eq!(openssl_output, rustls_output);
+
+    let mut openssl_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "target/server",
+                &port_str,
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+                "ticket",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    curl(port);
+
+    let openssl_output = print_output(openssl_server.wait_with_timeout());
+
+    let mut rustls_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "target/server",
+                &port_str,
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+                "ticket",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    curl(port);
+
+    let rustls_output = print_output(rustls_server.wait_with_timeout());
+    assert_eq!(openssl_output, rustls_output);
 }
 
 fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str) {
@@ -502,7 +542,13 @@ fn nginx() {
         b"hello world\n"
     );
 
-    for (port, reused) in [(8443, '.'), (8444, 'r'), (8445, 'r'), (8446, 'r'), (8449, 'r')] {
+    for (port, reused) in [
+        (8443, '.'),
+        (8444, 'r'),
+        (8445, 'r'),
+        (8446, 'r'),
+        (8449, 'r'),
+    ] {
         // multiple requests without http connection reuse
         // (second should be a TLS resumption if possible)
         assert_eq!(

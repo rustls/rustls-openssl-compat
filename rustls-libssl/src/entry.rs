@@ -177,6 +177,19 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_set_num_tickets(ctx: *mut SSL_CTX, num_tickets: usize) -> c_int {
+        try_clone_arc!(ctx).get_mut().set_num_tickets(num_tickets);
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
+    pub fn _SSL_CTX_get_num_tickets(ctx: *const SSL_CTX) -> usize {
+        try_clone_arc!(ctx).get().get_num_tickets()
+    }
+}
+
+entry! {
     pub fn _SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long {
         let ctx = try_clone_arc!(ctx);
 
@@ -869,6 +882,19 @@ entry! {
 entry! {
     pub fn _SSL_set_options(ssl: *mut SSL, op: u64) -> u64 {
         try_clone_arc!(ssl).get_mut().set_options(op)
+    }
+}
+
+entry! {
+    pub fn _SSL_set_num_tickets(ssl: *mut SSL, num_tickets: usize) -> c_int {
+        try_clone_arc!(ssl).get_mut().set_num_tickets(num_tickets);
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
+    pub fn _SSL_get_num_tickets(ssl: *const SSL) -> usize {
+        try_clone_arc!(ssl).get().get_num_tickets()
     }
 }
 

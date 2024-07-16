@@ -10,14 +10,14 @@ use std::sync::Arc;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, stack_st_X509_NAME, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, EVP_PKEY,
-    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
+    stack_st_X509, stack_st_X509_NAME, NID_undef, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name,
+    EVP_PKEY, OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
 };
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
-use crate::constants::sig_scheme_to_nid;
+use crate::constants::{named_group_to_nid, sig_scheme_to_nid};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
@@ -221,7 +221,8 @@ entry! {
             Ok(SslCtrl::GetMaxProtoVersion) => ctx.get().get_max_protocol_version().into(),
             Ok(SslCtrl::SetTlsExtHostname)
             | Ok(SslCtrl::SetTlsExtServerNameCallback)
-            | Ok(SslCtrl::SetTlsExtTicketKeyCallback) => {
+            | Ok(SslCtrl::SetTlsExtTicketKeyCallback)
+            | Ok(SslCtrl::GetNegotiatedGroup) => {
                 // not a defined operation in the OpenSSL API
                 0
             }
@@ -860,6 +861,11 @@ entry! {
                 ssl.get_mut().stage_certificate_chain(chain);
                 C_INT_SUCCESS as i64
             }
+            Ok(SslCtrl::GetNegotiatedGroup) => ssl
+                .get()
+                .get_negotiated_key_exchange_group()
+                .and_then(|group| named_group_to_nid(group.name()))
+                .unwrap_or(NID_undef) as c_long,
             // not a defined operation in the OpenSSL API
             Ok(SslCtrl::SetTlsExtServerNameCallback)
             | Ok(SslCtrl::SetTlsExtTicketKeyCallback)
@@ -1920,6 +1926,7 @@ num_enum! {
         SetMaxProtoVersion = 124,
         GetMinProtoVersion = 130,
         GetMaxProtoVersion = 131,
+        GetNegotiatedGroup = 134,
     }
 }
 

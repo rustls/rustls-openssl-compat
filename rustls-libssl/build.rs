@@ -214,4 +214,5 @@ const ENTRYPOINTS: &[&str] = &[
     "TLS_client_method",
     "TLS_method",
     "TLS_server_method",
+    "X509_check_private_key",
 ];

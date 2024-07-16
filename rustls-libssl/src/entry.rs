@@ -27,6 +27,7 @@ use crate::ffi::{
     try_slice, try_slice_int, try_str, Castable, OwnershipArc, OwnershipBox, OwnershipRef,
 };
 use crate::not_thread_safe::NotThreadSafe;
+use crate::sign::OpenSslCertifiedKey;
 use crate::x509::{load_certs, OwnedX509, OwnedX509Stack};
 use crate::{conf, HandshakeState, ShutdownResult};
 
@@ -1838,6 +1839,27 @@ pub type SSL_CONF_CTX = conf::SslConfigCtx;
 impl Castable for SSL_CONF_CTX {
     type Ownership = OwnershipBox; // SSL_CONF_CTX does not do reference counting.
     type RustType = NotThreadSafe<conf::SslConfigCtx>;
+}
+
+entry! {
+    pub fn _X509_check_private_key(cert: *mut X509, pkey: *mut EVP_PKEY) -> c_int {
+        if cert.is_null() || pkey.is_null() {
+            return 0;
+        }
+
+        let chain = vec![CertificateDer::from(
+            OwnedX509::new_incref(cert).der_bytes(),
+        )];
+        let Ok(certified_key) = OpenSslCertifiedKey::new(chain, EvpPkey::new_incref(pkey)) else {
+            return 0;
+        };
+
+        if certified_key.keys_match() {
+            C_INT_SUCCESS
+        } else {
+            0
+        }
+    }
 }
 
 /// Normal OpenSSL return value convention success indicator.

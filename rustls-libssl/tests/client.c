@@ -79,6 +79,7 @@ int main(int argc, char **argv) {
     TRACE(SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM));
     client_key = SSL_CTX_get0_privatekey(ctx);
     client_cert = SSL_CTX_get0_certificate(ctx);
+    TRACE(X509_check_private_key(client_cert, client_key));
   }
 
   TRACE(SSL_CTX_set_alpn_protos(ctx, (const uint8_t *)"\x02hi\x05world", 9));

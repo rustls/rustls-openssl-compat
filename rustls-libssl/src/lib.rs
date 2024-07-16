@@ -12,7 +12,7 @@ use openssl_sys::{
     X509_STORE, X509_V_ERR_UNSPECIFIED,
 };
 use rustls::client::Resumption;
-use rustls::crypto::aws_lc_rs as provider;
+use rustls::crypto::{aws_lc_rs as provider, SupportedKxGroup};
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor, ProducesTickets};
 use rustls::{
@@ -1376,6 +1376,11 @@ impl Ssl {
         self.conn()
             .and_then(|conn| conn.negotiated_cipher_suite())
             .map(|suite| suite.suite())
+    }
+
+    fn get_negotiated_key_exchange_group(&self) -> Option<&'static dyn SupportedKxGroup> {
+        self.conn()
+            .and_then(|conn| conn.negotiated_key_exchange_group())
     }
 
     fn get_last_verification_result(&self) -> i64 {

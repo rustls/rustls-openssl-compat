@@ -1,10 +1,10 @@
 use core::ffi::{c_int, CStr};
 use openssl_sys::{
     NID_X9_62_prime256v1, NID_rsaEncryption, NID_rsassaPss, NID_secp384r1, NID_secp521r1,
-    NID_ED25519, NID_ED448,
+    NID_ED25519, NID_ED448, NID_X25519, NID_X448,
 };
 
-use rustls::{AlertDescription, SignatureScheme};
+use rustls::{AlertDescription, NamedGroup, SignatureScheme};
 
 pub fn alert_desc_to_long_string(value: c_int) -> &'static CStr {
     match AlertDescription::from(value as u8) {
@@ -99,6 +99,37 @@ pub fn sig_scheme_to_nid(scheme: SignatureScheme) -> Option<c_int> {
         ED25519 => Some(NID_ED25519),
         ED448 => Some(NID_ED448),
         // Omitted: SHA1 legacy schemes.
+        _ => None,
+    }
+}
+
+pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
+    use NamedGroup::*;
+
+    // See NID_ffhdhe* from obj_mac.h - openssl-sys does not have
+    // constants for these to import.
+    const NID_FFDHE2048: c_int = 1126;
+    const NID_FFDHE3072: c_int = 1127;
+    const NID_FFDHE4096: c_int = 1128;
+    const NID_FFDHE6144: c_int = 1129;
+    const NID_FFDHE8192: c_int = 1130;
+
+    // See TLSEXT_nid_unknown from tls1.h - openssl-sys does not
+    // have a constant for this to import.
+    const TLSEXT_NID_UNKNOWN: c_int = 0x1000000;
+
+    match group {
+        secp256r1 => Some(NID_X9_62_prime256v1),
+        secp384r1 => Some(NID_secp384r1),
+        secp521r1 => Some(NID_secp521r1),
+        X25519 => Some(NID_X25519),
+        X448 => Some(NID_X448),
+        FFDHE2048 => Some(NID_FFDHE2048),
+        FFDHE3072 => Some(NID_FFDHE3072),
+        FFDHE4096 => Some(NID_FFDHE4096),
+        FFDHE6144 => Some(NID_FFDHE6144),
+        FFDHE8192 => Some(NID_FFDHE8192),
+        Unknown(id) => Some(TLSEXT_NID_UNKNOWN | id as c_int),
         _ => None,
     }
 }

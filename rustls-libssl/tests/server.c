@@ -228,6 +228,7 @@ int main(int argc, char **argv) {
   TRACE(SSL_get_peer_signature_type_nid(ssl, &cipher_nid));
   dump_openssl_error_stack();
   printf("cipher NID: %d\n", cipher_nid);
+  printf("negotiated group NID: %ld\n", SSL_get_negotiated_group(ssl));
 
   printf("SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),

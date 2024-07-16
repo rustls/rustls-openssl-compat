@@ -184,6 +184,7 @@ int main(int argc, char **argv) {
   TRACE(SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM));
   server_key = SSL_CTX_get0_privatekey(ctx);
   server_cert = SSL_CTX_get0_certificate(ctx);
+  TRACE(X509_check_private_key(server_cert, server_key));
 
   printf("SSL_CTX_get_max_early_data default %lu\n",
          (unsigned long)SSL_CTX_get_max_early_data(ctx));

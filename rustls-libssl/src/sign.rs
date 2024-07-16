@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use openssl_sys::{EVP_PKEY, X509};
 use rustls::client::ResolvesClientCert;
-use rustls::pki_types::CertificateDer;
+use rustls::pki_types::{CertificateDer, SubjectPublicKeyInfoDer};
 use rustls::server::{ClientHello, ResolvesServerCert};
 use rustls::sign;
 use rustls::{SignatureAlgorithm, SignatureScheme};
@@ -88,19 +88,39 @@ impl CertifiedKeySet {
 }
 
 #[derive(Clone, Debug)]
-struct OpenSslCertifiedKey {
+pub(super) struct OpenSslCertifiedKey {
     key: EvpPkey,
     openssl_chain: OwnedX509Stack,
     rustls_chain: Vec<CertificateDer<'static>>,
 }
 
 impl OpenSslCertifiedKey {
-    fn new(chain: Vec<CertificateDer<'static>>, key: EvpPkey) -> Result<Self, error::Error> {
+    pub(super) fn new(
+        chain: Vec<CertificateDer<'static>>,
+        key: EvpPkey,
+    ) -> Result<Self, error::Error> {
         Ok(Self {
             key,
             openssl_chain: OwnedX509Stack::from_rustls(&chain)?,
             rustls_chain: chain,
         })
+    }
+
+    pub(super) fn keys_match(&self) -> bool {
+        match sign::CertifiedKey::new(
+            self.rustls_chain.clone(),
+            Arc::new(OpenSslKey(self.key.clone())),
+        )
+        .keys_match()
+        {
+            // Note: we allow "Unknown" to be treated as success here. This is returned
+            //   when it wasn't possible to get the SPKI for the private key, and so we
+            //   aren't certain if it matches or not.
+            Ok(()) | Err(rustls::Error::InconsistentKeys(rustls::InconsistentKeys::Unknown)) => {
+                true
+            }
+            _ => false,
+        }
     }
 
     fn borrow_cert(&self) -> *mut X509 {
@@ -243,6 +263,12 @@ impl sign::SigningKey for OpenSslKey {
             }
             _ => None,
         }
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
+        Some(SubjectPublicKeyInfoDer::from(
+            self.0.subject_public_key_info(),
+        ))
     }
 
     fn algorithm(&self) -> SignatureAlgorithm {

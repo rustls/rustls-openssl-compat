@@ -67,13 +67,19 @@ format-check:
 		-name '*.[c|h]' | \
 		xargs clang-format --dry-run -Werror -i
 
-package: package-deb
+package: package-deb package-rpm
 
 package-deb: dist/nfpm.yaml target/release/libssl.so.3 target/VERSION
 	mkdir --parents target/dist
 	env VERSION=$(shell $(CARGO) get package.version) \
 	    VERSION_PRERELEASE=$(shell $(CARGO) get package.version --pre) \
 	    nfpm package --config $< --target target/dist --packager deb
+
+package-rpm: dist/nfpm.yaml target/release/libssl.so.3 target/VERSION
+	mkdir --parents target/dist
+	env VERSION=$(shell $(CARGO) get package.version) \
+	    VERSION_PRERELEASE=$(shell $(CARGO) get package.version --pre) \
+	    nfpm package --config $< --target target/dist --packager rpm
 
 target/VERSION: ALWAYS
 	echo "This is rustls-libssl `git describe --always`\nDate: `date`\nIncorporating:" > $@

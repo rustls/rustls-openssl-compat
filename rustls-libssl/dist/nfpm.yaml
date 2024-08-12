@@ -12,8 +12,6 @@ vendor: "rustls project"
 homepage: "https://github.com/rustls/rustls-openssl-compat"
 license: "Apache-2.0"
 
-depends:
-- libssl3
 recommends:
 - nginx
 - curl
@@ -33,3 +31,11 @@ contents:
 
 - src: target/VERSION
   dst: /usr/share/rustls-libssl/
+
+overrides:
+  deb:
+    depends:
+    - libssl3
+  rpm:
+    depends:
+    - openssl-devel

@@ -2148,6 +2148,64 @@ entry_stub! {
     ) -> c_long;
 }
 
+// No custom extension support
+// (used by nginx to implement quic)
+
+entry_stub! {
+    pub fn _SSL_CTX_has_client_custom_ext(_ctx: *const SSL_CTX, _ext_type: c_uint) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_add_custom_ext(
+        _ctx: *mut SSL_CTX,
+        _ext_type: c_uint,
+        _context: c_uint,
+        _add_cb: SSL_custom_ext_add_cb_ex,
+        _free_cb: SSL_custom_ext_free_cb_ex,
+        _add_arg: *mut c_void,
+        _parse_cb: SSL_custom_ext_parse_cb_ex,
+        _parse_arg: *mut c_void,
+    ) -> c_int;
+}
+
+type SSL_custom_ext_add_cb_ex = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        ext_type: c_uint,
+        context: c_uint,
+        out: *mut *const c_uchar,
+        outlen: *mut usize,
+        x: *mut X509,
+        chainidx: usize,
+        al: *mut c_int,
+        add_arg: *mut c_void,
+    ) -> c_int,
+>;
+
+type SSL_custom_ext_parse_cb_ex = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        ext_type: c_uint,
+        context: c_uint,
+        in_: *const c_uchar,
+        inlen: usize,
+        x: *mut X509,
+        chainidx: usize,
+        al: *mut c_int,
+        parse_arg: *mut c_void,
+    ) -> c_int,
+>;
+
+type SSL_custom_ext_free_cb_ex = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        ext_type: c_uint,
+        context: c_uint,
+        out: *const c_uchar,
+        add_arg: *mut c_void,
+    ),
+>;
+
 // ---------------------
 
 #[cfg(test)]

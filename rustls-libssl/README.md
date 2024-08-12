@@ -3,15 +3,14 @@
 </p>
 
 rustls-libssl is a partial reimplementation of the OpenSSL 3 libssl ABI.
-It is written in rust and uses rustls.  It does not replace libcrypto:
+It is written in rust and uses rustls. It does not replace libcrypto:
 this is still required.
 
 [![rustls-libssl](https://github.com/rustls/rustls-openssl-compat/actions/workflows/libssl.yaml/badge.svg)](https://github.com/rustls/rustls-openssl-compat/actions/workflows/libssl.yaml)
 
 # Status
 
-This project is experimental.  We have aimed for the subset of libssl
-used by:
+We have aimed for the subset of libssl used by:
 
 - curl on Ubuntu 22.04 LTS
 - nginx on Ubuntu 22.04 LTS and 24.04 LTS
@@ -45,10 +44,3 @@ $ sudo service nginx restart
 
 `rustls-libssl-nginx enable` installs a systemd drop-in in `/etc/systemd/system/nginx.service.d/`.
 `rustls-libssl-nginx disable` undoes that.
-
-# Changelog
-The detailed list of changes in each release can be found at
-https://github.com/rustls/rustls-openssl-compat/releases.
-
-# License
-rustls-libssl is distributed under the Apache-2.0 license. See [LICENSE](LICENSE).

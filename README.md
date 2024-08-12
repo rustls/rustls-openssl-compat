@@ -1,10 +1,25 @@
-# rustls-openssl-compat
+# Rustls OpenSSL Compatibility Layer
 
-This is the planned home of several rustls to OpenSSL compatibility layers.
-Currently here:
+OpenSSL consists of several libraries. We offer a safer version of OpenSSL's `libssl` (TLS support), and we intend to eventually offer a safer version of OpenSSL's `libcrypto` (cryptography support).
 
-- **[rustls-libssl](rustls-libssl/)**: an implementation of the OpenSSL libssl ABI in terms of rustls.
+## rustls-libssl
 
-Not yet here:
+This is ready for use with Nginx on Ubuntu 22.04 and later. Using it is as simple as:
 
-- **rustls-libcrypto**: an implementation of rustls `CryptoProvider` in terms of OpenSSL's libcrypto.
+```
+$ wget https://github.com/rustls/rustls-openssl-compat/releases/latest/download/rustls-libssl_amd64.deb
+$ sudo dpkg -i rustls-libssl_amd64.deb
+$ sudo rustls-libssl-nginx enable
+$ sudo systemctl daemon-reload
+$ sudo service nginx restart
+```
+
+Get more information about our implementation of libssl's ABI from the [rustls-libssl README](rustls-libssl/).
+
+## rustls-libcrypto
+
+This will be implemented using rustls `CryptoProvider`.
+
+# Change Log
+
+We offer a [detailed list of changes](https://github.com/rustls/rustls-openssl-compat/releases) in each release.

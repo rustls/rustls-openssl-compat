@@ -913,6 +913,15 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_max_early_data(ssl: *mut SSL, max_early_data: u32) -> c_int {
+        try_clone_arc!(ssl)
+            .get_mut()
+            .set_max_early_data(max_early_data);
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _SSL_set_alpn_protos(
         ssl: *mut SSL,
         protos: *const c_uchar,

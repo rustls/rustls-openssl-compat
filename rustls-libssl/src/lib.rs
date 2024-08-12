@@ -831,6 +831,10 @@ impl Ssl {
         self.num_tickets = num
     }
 
+    fn set_max_early_data(&mut self, max: u32) {
+        self.max_early_data = max;
+    }
+
     fn clear_options(&mut self, clear: u64) -> u64 {
         self.raw_options &= !clear;
         self.raw_options

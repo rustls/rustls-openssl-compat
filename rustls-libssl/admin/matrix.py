@@ -124,14 +124,15 @@ SSL_write
 TLS_client_method
 """.split())
 
-# Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0
-# extracted by running with LD_DEBUG=all
+# Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0,
+# and fedora nginx 1.26.1-1.fc40.  extracted by running with LD_DEBUG=all
 NGINX = set("""
 d2i_SSL_SESSION
 i2d_SSL_SESSION
 OPENSSL_init_ssl
 SSL_CIPHER_description
 SSL_CIPHER_find
+SSL_CIPHER_get_id
 SSL_CIPHER_get_name
 SSL_clear_options
 SSL_CONF_cmd
@@ -142,6 +143,7 @@ SSL_CONF_CTX_new
 SSL_CONF_CTX_set_flags
 SSL_CONF_CTX_set_ssl_ctx
 SSL_ctrl
+SSL_CTX_add_custom_ext
 SSL_CTX_callback_ctrl
 SSL_CTX_clear_options
 SSL_CTX_ctrl
@@ -155,6 +157,7 @@ SSL_CTX_get_timeout
 SSL_CTX_get_verify_callback
 SSL_CTX_get_verify_depth
 SSL_CTX_get_verify_mode
+SSL_CTX_has_client_custom_ext
 SSL_CTX_load_verify_locations
 SSL_CTX_new
 SSL_CTX_remove_session
@@ -168,6 +171,7 @@ SSL_CTX_set_cipher_list
 SSL_CTX_set_client_CA_list
 SSL_CTX_set_ex_data
 SSL_CTX_set_info_callback
+SSL_CTX_set_keylog_callback
 SSL_CTX_set_max_early_data
 SSL_CTX_set_next_protos_advertised_cb
 SSL_CTX_set_options
@@ -219,9 +223,12 @@ SSL_SESSION_set_time
 SSL_SESSION_set_timeout
 SSL_SESSION_up_ref
 SSL_set_accept_state
+SSL_set_bio
 SSL_set_connect_state
 SSL_set_ex_data
 SSL_set_fd
+SSL_set_max_early_data
+SSL_set_msg_callback
 SSL_set_options
 SSL_set_quiet_shutdown
 SSL_set_session

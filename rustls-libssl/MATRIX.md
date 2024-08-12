@@ -35,7 +35,7 @@
 | `SSL_CIPHER_get_cipher_nid`  |  |  |  |
 | `SSL_CIPHER_get_digest_nid`  |  |  |  |
 | `SSL_CIPHER_get_handshake_digest`  |  |  |  |
-| `SSL_CIPHER_get_id`  |  |  | :white_check_mark: |
+| `SSL_CIPHER_get_id`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CIPHER_get_kx_nid`  |  |  |  |
 | `SSL_CIPHER_get_name`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CIPHER_get_protocol_id`  |  |  | :white_check_mark: |
@@ -64,7 +64,7 @@
 | `SSL_CTX_add1_to_CA_list`  |  |  |  |
 | `SSL_CTX_add_client_CA`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_add_client_custom_ext`  |  |  |  |
-| `SSL_CTX_add_custom_ext`  |  |  |  |
+| `SSL_CTX_add_custom_ext`  |  | :white_check_mark: |  |
 | `SSL_CTX_add_server_custom_ext`  |  |  |  |
 | `SSL_CTX_add_session`  |  |  |  |
 | `SSL_CTX_callback_ctrl`  |  | :white_check_mark: | :white_check_mark: |
@@ -108,7 +108,7 @@
 | `SSL_CTX_get_verify_callback`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_mode`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_has_client_custom_ext`  |  |  |  |
+| `SSL_CTX_has_client_custom_ext`  |  | :white_check_mark: |  |
 | `SSL_CTX_load_verify_dir`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_load_verify_file`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_load_verify_locations`  |  | :white_check_mark: | :white_check_mark: |
@@ -159,7 +159,7 @@
 | `SSL_CTX_set_ex_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_generate_session_id`  |  |  |  |
 | `SSL_CTX_set_info_callback`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CTX_set_keylog_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
+| `SSL_CTX_set_keylog_callback`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_max_early_data`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_next_proto_select_cb` [^nextprotoneg] | :white_check_mark: |  | :exclamation: [^stub] |
@@ -424,7 +424,7 @@
 | `SSL_set_alpn_protos`  |  |  | :white_check_mark: |
 | `SSL_set_async_callback`  |  |  |  |
 | `SSL_set_async_callback_arg`  |  |  |  |
-| `SSL_set_bio`  | :white_check_mark: |  | :white_check_mark: |
+| `SSL_set_bio`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_block_padding`  |  |  |  |
 | `SSL_set_cert_cb`  |  |  |  |
 | `SSL_set_cipher_list`  |  |  |  |
@@ -441,8 +441,8 @@
 | `SSL_set_generate_session_id`  |  |  |  |
 | `SSL_set_hostflags`  |  |  |  |
 | `SSL_set_info_callback`  |  |  |  |
-| `SSL_set_max_early_data`  |  |  |  |
-| `SSL_set_msg_callback`  |  |  |  |
+| `SSL_set_max_early_data`  |  | :white_check_mark: |  |
+| `SSL_set_msg_callback`  |  | :white_check_mark: |  |
 | `SSL_set_not_resumable_session_callback`  |  |  |  |
 | `SSL_set_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_set_options`  |  | :white_check_mark: | :white_check_mark: |

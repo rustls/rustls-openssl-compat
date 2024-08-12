@@ -64,7 +64,7 @@
 | `SSL_CTX_add1_to_CA_list`  |  |  |  |
 | `SSL_CTX_add_client_CA`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_add_client_custom_ext`  |  |  |  |
-| `SSL_CTX_add_custom_ext`  |  | :white_check_mark: |  |
+| `SSL_CTX_add_custom_ext`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_add_server_custom_ext`  |  |  |  |
 | `SSL_CTX_add_session`  |  |  |  |
 | `SSL_CTX_callback_ctrl`  |  | :white_check_mark: | :white_check_mark: |
@@ -108,7 +108,7 @@
 | `SSL_CTX_get_verify_callback`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_get_verify_mode`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_CTX_has_client_custom_ext`  |  | :white_check_mark: |  |
+| `SSL_CTX_has_client_custom_ext`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_load_verify_dir`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_load_verify_file`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CTX_load_verify_locations`  |  | :white_check_mark: | :white_check_mark: |

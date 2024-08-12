@@ -85,7 +85,7 @@ target/VERSION: ALWAYS
 	echo "This is rustls-libssl `git describe --always`\nDate: `date`\nIncorporating:" > $@
 	$(CARGO) tree >> $@
 
-test-package: test-package-deb-22 test-package-deb-24
+test-package: test-package-deb-22 test-package-deb-24 test-package-fedora-40
 
 test-package-deb-22: package-deb
 	mkdir --parents target/dist/test/ubuntu-22
@@ -111,6 +111,20 @@ test-package-deb-24: package-deb
 	    target/dist/test/ubuntu-24
 	docker build --tag $@ target/dist/test/ubuntu-24
 	cd target/dist/test/ubuntu-24 && ./run-test.sh $@
+
+test-package-fedora-40: package-rpm
+	mkdir --parents target/dist/test/fedora-40
+	cp target/dist/rustls-libssl-*.rpm \
+	    dist/test/deb-ubuntu-22/* \
+	    test-ca/rsa/server.key \
+	    test-ca/rsa/server.cert \
+	    test-ca/rsa/ca.cert \
+	    target/dist/test/fedora-40
+	# copy rpm-fedora-40 files on top of deb-ubuntu-22 ones
+	cp dist/test/rpm-fedora-40/* \
+	    target/dist/test/fedora-40
+	docker build --tag $@ target/dist/test/fedora-40
+	cd target/dist/test/fedora-40 && ./run-test.sh $@
 
 ALWAYS: ;
 

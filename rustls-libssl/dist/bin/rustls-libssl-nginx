@@ -3,12 +3,12 @@
 NGINX_DROP_IN_DIR=/etc/systemd/system/nginx.service.d/
 DROP_IN=/usr/share/rustls-libssl/50-rustls-libssl.conf
 
-distro=$(. /etc/lsb-release && echo $DISTRIB_ID || echo "Unknown")
+distro=$(. /etc/os-release && echo $ID || echo "Unknown")
 
 case $distro in
-"Debian")
+"debian")
   ;;
-"Ubuntu")
+"ubuntu")
   ;;
 *)
   echo "Warning: Distro may be unsupported"

@@ -2030,6 +2030,10 @@ entry_stub! {
     pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func);
 }
 
+entry_stub! {
+    pub fn _SSL_set_msg_callback(_ssl: *mut SSL, _cb: SSL_CTX_msg_cb_func);
+}
+
 pub type SSL_CTX_msg_cb_func = Option<
     unsafe extern "C" fn(
         write_p: c_int,

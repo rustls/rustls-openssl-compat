@@ -15,6 +15,7 @@ used by:
 
 - curl on Ubuntu 22.04 LTS
 - nginx on Ubuntu 22.04 LTS and 24.04 LTS
+- nginx on Fedora 40
 
 We have a [compatibility matrix](MATRIX.md) and
 [known issues](https://github.com/rustls/rustls-openssl-compat/issues).
@@ -22,9 +23,18 @@ We have a [compatibility matrix](MATRIX.md) and
 # Usage
 
 ## Installation
+Ubuntu/Debian users:
+
 ```shell
 $ wget https://github.com/rustls/rustls-openssl-compat/releases/latest/download/rustls-libssl_amd64.deb
 $ sudo dpkg -i rustls-libssl_amd64.deb
+```
+
+or Fedora/Redhat users:
+
+```shell
+$ wget https://github.com/rustls/rustls-openssl-compat/releases/latest/download/rustls-libssl.x86_64.rpm
+$ sudo yum localinstall -y rustls-libssl.x86_64.rpm
 ```
 
 Using curl:

@@ -56,12 +56,9 @@ pub struct OpenSslInitSettings;
 type OPENSSL_INIT_SETTINGS = OpenSslInitSettings;
 
 entry! {
-    pub fn _OPENSSL_init_ssl(_opts: u64, settings: *const OPENSSL_INIT_SETTINGS) -> c_int {
+    pub fn _OPENSSL_init_ssl(_opts: u64, _settings: *const OPENSSL_INIT_SETTINGS) -> c_int {
         const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-        if !settings.is_null() {
-            return Error::not_supported("settings").raise().into();
-        }
         env_logger::init();
         log::trace!("OPENSSL_init_ssl in rustls-libssl {VERSION}");
         C_INT_SUCCESS

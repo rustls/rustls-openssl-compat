@@ -10,10 +10,6 @@ on:
   schedule:
     - cron: '15 12 * * 3'
 
-defaults:
-  run:
-    working-directory: rustls-libssl
-
 jobs:
   build:
     name: Build+test
@@ -263,5 +259,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.package }} package built on ${{ matrix.container }} ${{ matrix.version }}
-          path: rustls-libssl/target/dist/*.${{ matrix.package }}
+          path: target/dist/*.${{ matrix.package }}
           if-no-files-found: error

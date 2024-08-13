@@ -1,4 +1,5 @@
 CARGO ?= cargo
+NFPM ?= nfpm
 CARGOFLAGS += --locked
 
 CFLAGS := -Werror -Wall -Wextra -Wpedantic -g $(shell pkg-config --cflags openssl)
@@ -73,13 +74,13 @@ package-deb: dist/nfpm.yaml target/release/libssl.so.3 target/VERSION
 	mkdir --parents target/dist
 	env VERSION=$(shell $(CARGO) get package.version) \
 	    VERSION_PRERELEASE=$(shell $(CARGO) get package.version --pre) \
-	    nfpm package --config $< --target target/dist --packager deb
+	    $(NFPM) package --config $< --target target/dist --packager deb
 
 package-rpm: dist/nfpm.yaml target/release/libssl.so.3 target/VERSION
 	mkdir --parents target/dist
 	env VERSION=$(shell $(CARGO) get package.version) \
 	    VERSION_PRERELEASE=$(shell $(CARGO) get package.version --pre) \
-	    nfpm package --config $< --target target/dist --packager rpm
+	    $(NFPM) package --config $< --target target/dist --packager rpm
 
 target/VERSION: ALWAYS
 	echo "This is rustls-libssl `git describe --always`\nDate: `date`\nIncorporating:" > $@

@@ -200,3 +200,68 @@ jobs:
 
       - name: Test packages
         run: make test-package PROFILE=release
+
+  release_packages:
+    name: Produce release packages
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}:${{ matrix.version }}
+    strategy:
+      matrix:
+        include:
+          - container: fedora
+            version: 40
+            package: rpm
+          - container: ubuntu
+            version: 24.04
+            package: deb
+        # nb. ubuntu:22.04 has a too-old golang to build nfpm
+        # we could install an upstream golang if we want to
+        # package there.
+
+    steps:
+      - name: Install prerequisites (apt)
+        if: matrix.package == 'deb'
+        working-directory: /
+        run: |
+          apt-get update
+          apt-get install -y curl build-essential git
+
+      - name: Install prerequisites (yum)
+        if: matrix.package == 'rpm'
+        working-directory: /
+        run: |
+          yum install -y curl make automake gcc gcc-c++ kernel-devel git
+
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install stable rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies (apt)
+        if: matrix.package == 'deb'
+        run: |
+          apt-get update
+          apt-get install -y openssl libssl3 libssl-dev lld golang-go
+          cargo install cargo-get
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Install build dependencies (yum)
+        if: matrix.package == 'rpm'
+        run: |
+          yum install -y openssl openssl-devel lld go
+          cargo install cargo-get
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Build package
+        run: |
+          make package-${{ matrix.package }} PROFILE=release NFPM=$HOME/go/bin/nfpm
+
+      - name: Archive package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }} package built on ${{ matrix.container }} ${{ matrix.version }}
+          path: rustls-libssl/target/dist/*.${{ matrix.package }}
+          if-no-files-found: error

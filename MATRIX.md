@@ -475,7 +475,7 @@
 | `SSL_set_trust`  |  |  |  |
 | `SSL_set_verify`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_set_verify_depth`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_set_verify_result`  |  |  |  |
+| `SSL_set_verify_result`  |  |  | :white_check_mark: |
 | `SSL_set_wfd` [^sock] |  |  |  |
 | `SSL_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_srp_server_param_with_username` [^deprecatedin_3_0] [^srp] |  |  |  |

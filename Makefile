@@ -62,6 +62,7 @@ format:
 	find src tests \
 		-name '*.[c|h]' | \
 		xargs clang-format -i
+	admin/format
 
 format-check:
 	find src tests \

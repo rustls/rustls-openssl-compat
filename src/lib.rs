@@ -1395,6 +1395,14 @@ impl Ssl {
         }
     }
 
+    fn set_last_verification_result(&self, v: i64) {
+        match &self.conn {
+            ConnState::Client(_, verifier) => verifier.update_last_result(v),
+            ConnState::Server(_, verifier, _) => verifier.update_last_result(v),
+            _ => {}
+        }
+    }
+
     fn get_last_verification_sig_scheme(&self) -> Option<SignatureScheme> {
         match &self.conn {
             ConnState::Client(_, verifier) => verifier.last_sig_scheme(),

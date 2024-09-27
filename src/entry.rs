@@ -10,8 +10,9 @@ use std::sync::Arc;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
-    stack_st_X509, stack_st_X509_NAME, NID_undef, OPENSSL_malloc, TLSEXT_NAMETYPE_host_name,
-    EVP_PKEY, OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
+    stack_st_SSL_CIPHER, stack_st_X509, stack_st_X509_NAME, stack_st_void, NID_undef,
+    OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
+    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
 };
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
@@ -74,6 +75,20 @@ entry! {
 entry! {
     pub fn _SSL_alert_desc_string(value: c_int) -> *const c_char {
         crate::constants::alert_desc_to_short_string(value).as_ptr() as *const c_char
+    }
+}
+
+entry! {
+    pub fn _SSL_alert_type_string(value: c_int) -> *const c_char {
+        crate::constants::alert_level_to_short_string(u8::try_from(value).unwrap_or_default())
+            .as_ptr() as *const c_char
+    }
+}
+
+entry! {
+    pub fn _SSL_alert_type_string_long(value: c_int) -> *const c_char {
+        crate::constants::alert_level_to_long_string(u8::try_from(value).unwrap_or_default())
+            .as_ptr() as *const c_char
     }
 }
 
@@ -942,6 +957,15 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_cipher_list(_ssl: *mut SSL, str: *const c_char) -> c_int {
+        match try_str!(str) {
+            "HIGH:!aNULL:!MD5" => C_INT_SUCCESS,
+            _ => Error::not_supported("SSL_set_cipher_list").raise().into(),
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_set_connect_state(ssl: *mut SSL) {
         try_clone_arc!(ssl).get_mut().set_client_mode()
     }
@@ -1268,6 +1292,12 @@ entry! {
 entry! {
     pub fn _SSL_get_verify_result(ssl: *const SSL) -> c_long {
         try_clone_arc!(ssl).get().get_last_verification_result()
+    }
+}
+
+entry! {
+    pub fn _SSL_set_verify_result(ssl: *mut SSL, v: c_long) {
+        try_clone_arc!(ssl).get().set_last_verification_result(v)
     }
 }
 
@@ -1969,6 +1999,14 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_set_session_id_context(
+        _ssl: *mut SSL,
+        _sid_ctx: *const c_uchar,
+        _sid_ctx_len: c_uint,
+    ) -> c_int;
+}
+
+entry_stub! {
     pub fn _SSL_CTX_remove_session(_ssl: *const SSL, _session: *mut SSL_SESSION) -> c_int;
 }
 
@@ -1994,6 +2032,67 @@ entry_stub! {
         _type_: c_int,
     ) -> c_int;
 }
+
+entry_stub! {
+    pub fn _SSL_CTX_set_tlsext_ticket_key_evp_cb(
+        _ctx: *mut SSL_CTX,
+        _fp: SSL_CTX_tlsext_ticket_key_evp_cb_func,
+    ) -> c_int;
+}
+
+pub type SSL_CTX_tlsext_ticket_key_evp_cb_func = Option<
+    unsafe extern "C" fn(
+        _ssl: *mut SSL,
+        _key_name: *mut c_uchar,
+        _iv: *mut c_uchar,
+        _ctx: *mut EVP_CIPHER_CTX,
+        _hctx: *mut HMAC_CTX,
+        _enc: c_int,
+    ) -> c_int,
+>;
+
+entry_stub! {
+    pub fn _SSL_CTX_set_client_hello_cb(
+        _ctx: *mut SSL_CTX,
+        _cb: SSL_client_hello_cb_func,
+        _arg: *mut c_void,
+    );
+}
+
+pub type SSL_client_hello_cb_func =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
+
+entry_stub! {
+    pub fn _SSL_state_string(_ssl: *const SSL) -> *const c_char;
+}
+
+entry_stub! {
+    pub fn _SSL_state_string_long(_ssl: *const SSL) -> *const c_char;
+}
+
+entry_stub! {
+    pub fn _SSL_peek(_ssl: *mut SSL, _buf: *mut c_void, _num: c_int) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get_shared_ciphers(
+        _ssl: *const SSL,
+        _buf: *mut c_char,
+        _size: c_int,
+    ) -> *mut c_char;
+}
+
+entry_stub! {
+    pub fn _SSL_get_ciphers(_ssl: *const SSL) -> *mut stack_st_SSL_CIPHER;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_client_cert_cb(_ctx: *mut SSL_CTX, _cb: SSL_client_cert_cb_func);
+}
+
+pub type SSL_client_cert_cb_func = Option<
+    unsafe extern "C" fn(_ssl: *mut SSL, _x509: *mut *mut X509, _pkey: *mut *mut EVP_PKEY) -> c_int,
+>;
 
 // The SSL_CTX X509_STORE isn't being meaningfully used yet.
 entry_stub! {
@@ -2028,6 +2127,17 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_load_client_CA_file(_file: *const c_char) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
+    pub fn _SSL_get_client_CA_list(_ssl: *const SSL) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
+    pub fn _SSL_add_file_cert_subjects_to_stack(
+        _stack: *mut stack_st_X509_NAME,
+        _file: *const c_char,
+    ) -> c_int;
 }
 
 // no individual message logging
@@ -2136,6 +2246,45 @@ entry_stub! {
     pub fn _SSL_CTX_set_srp_username(_ctx: *mut SSL_CTX, _name: *mut c_char) -> c_int;
 }
 
+entry_stub! {
+    pub fn _SSL_CTX_set_srp_username_callback(
+        _ctx: *mut SSL_CTX,
+        _cb: SSL_srp_username_cb_func,
+    ) -> c_int;
+}
+
+pub type SSL_srp_username_cb_func =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _ad: *mut c_int, _arg: *mut c_void) -> c_int>;
+
+entry_stub! {
+    pub fn _SSL_set_srp_server_param(
+        _s: *mut SSL,
+        _n: *const BIGNUM,
+        _g: *const BIGNUM,
+        _sa: *const BIGNUM,
+        _v: *const BIGNUM,
+        _info: *const c_char,
+    ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_CTX_set_srp_cb_arg(_ctx: *mut SSL_CTX, _arg: *mut c_void) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get_srp_username(_ssl: *mut SSL) -> *mut c_char;
+}
+
+entry_stub! {
+    pub fn _SSL_get_srp_userinfo(_ssl: *mut SSL) -> *mut c_char;
+}
+
+// no DH ciphersuites
+
+entry_stub! {
+    pub fn _SSL_CTX_set0_tmp_dh_pkey(_ctx: *mut SSL_CTX, _dhpkey: *mut EVP_PKEY) -> c_int;
+}
+
 // no post-handshake auth
 
 entry_stub! {
@@ -2144,6 +2293,16 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_set_post_handshake_auth(_s: *mut SSL, _val: c_int);
+}
+
+entry_stub! {
+    pub fn _SSL_verify_client_post_handshake(_ssl: *mut SSL) -> c_int;
+}
+
+// no renegotiation
+
+entry_stub! {
+    pub fn _SSL_renegotiate(_ssl: *mut SSL) -> c_int;
 }
 
 // No kTLS/sendfile support
@@ -2156,6 +2315,17 @@ entry_stub! {
         _size: usize,
         _flags: c_int,
     ) -> c_long;
+}
+
+// No access to individual certificate extensions
+
+entry_stub! {
+    pub fn _SSL_client_hello_get0_ext(
+        _ssl: *mut SSL,
+        _type: c_uint,
+        _out: *mut *const c_uchar,
+        _outlen: *mut usize,
+    ) -> c_int;
 }
 
 // No custom extension support
@@ -2215,6 +2385,27 @@ type SSL_custom_ext_free_cb_ex = Option<
         add_arg: *mut c_void,
     ),
 >;
+
+// No low level protocol details.
+
+entry_stub! {
+    pub fn _SSL_get_finished(_ssl: *const SSL, _buf: *mut c_void, _count: usize) -> usize;
+}
+
+entry_stub! {
+    pub fn _SSL_get_peer_finished(_ssl: *const SSL, _buf: *mut c_void, _count: usize) -> usize;
+}
+
+// No TLS 1.2 protocol compression.
+
+entry_stub! {
+    pub fn _SSL_SESSION_get_compress_id(_ssl: *mut SSL) -> c_int;
+}
+
+entry_stub! {
+    // nb: should return stack_st_SSL_COMP, but this isn't defined in openssl-sys
+    pub fn _SSL_COMP_get_compression_methods() -> *mut stack_st_void;
+}
 
 // ---------------------
 

@@ -66,6 +66,10 @@ impl ServerVerifier {
         self.last_result.load(Ordering::Acquire)
     }
 
+    pub fn update_last_result(&self, v: i64) {
+        self.last_result.store(v, Ordering::Relaxed);
+    }
+
     pub fn last_sig_scheme(&self) -> Option<SignatureScheme> {
         self.last_sig_scheme.read().ok().map(|scheme| *scheme)?
     }
@@ -200,6 +204,10 @@ impl ClientVerifier {
 
     pub fn last_result(&self) -> i64 {
         self.last_result.load(Ordering::Acquire)
+    }
+
+    pub fn update_last_result(&self, v: i64) {
+        self.last_result.store(v, Ordering::Relaxed);
     }
 
     pub fn last_sig_scheme(&self) -> Option<SignatureScheme> {

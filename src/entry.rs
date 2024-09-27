@@ -1295,6 +1295,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_verify_result(ssl: *mut SSL, v: c_long) {
+        try_clone_arc!(ssl).get().set_last_verification_result(v)
+    }
+}
+
+entry! {
     pub fn _SSL_get_certificate(ssl: *const SSL) -> *mut X509 {
         try_clone_arc!(ssl).get().get_certificate()
     }

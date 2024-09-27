@@ -427,7 +427,7 @@
 | `SSL_set_bio`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_block_padding`  |  |  |  |
 | `SSL_set_cert_cb`  |  |  |  |
-| `SSL_set_cipher_list`  |  |  |  |
+| `SSL_set_cipher_list`  |  |  | :white_check_mark: |
 | `SSL_set_ciphersuites`  |  |  |  |
 | `SSL_set_client_CA_list`  |  |  |  |
 | `SSL_set_connect_state`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

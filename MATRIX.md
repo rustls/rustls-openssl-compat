@@ -265,8 +265,8 @@
 | `SSL_add_store_cert_subjects_to_stack`  |  |  |  |
 | `SSL_alert_desc_string`  |  |  | :white_check_mark: |
 | `SSL_alert_desc_string_long`  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_alert_type_string`  |  |  |  |
-| `SSL_alert_type_string_long`  |  |  |  |
+| `SSL_alert_type_string`  |  |  | :white_check_mark: |
+| `SSL_alert_type_string_long`  |  |  | :white_check_mark: |
 | `SSL_alloc_buffers`  |  |  |  |
 | `SSL_bytes_to_cipher_list`  |  |  |  |
 | `SSL_callback_ctrl`  |  |  |  |

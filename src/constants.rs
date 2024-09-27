@@ -4,6 +4,7 @@ use openssl_sys::{
     NID_ED25519, NID_ED448, NID_X25519, NID_X448,
 };
 
+use rustls::internal::msgs::enums::AlertLevel;
 use rustls::{AlertDescription, NamedGroup, SignatureScheme};
 
 pub fn alert_desc_to_long_string(value: c_int) -> &'static CStr {
@@ -85,6 +86,22 @@ pub fn alert_desc_to_short_string(value: c_int) -> &'static CStr {
         // AlertDescription::MissingExtension => c"missing extension",
         // AlertDescription::CertificateRequired => c"certificate required",
         _ => c"UK",
+    }
+}
+
+pub fn alert_level_to_short_string(value: u8) -> &'static CStr {
+    match AlertLevel::from(value) {
+        AlertLevel::Warning => c"W",
+        AlertLevel::Fatal => c"F",
+        _ => c"U",
+    }
+}
+
+pub fn alert_level_to_long_string(value: u8) -> &'static CStr {
+    match AlertLevel::from(value) {
+        AlertLevel::Warning => c"warning",
+        AlertLevel::Fatal => c"fatal",
+        _ => c"unknown",
     }
 }
 

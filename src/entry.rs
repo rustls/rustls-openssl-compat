@@ -956,6 +956,15 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_set_cipher_list(_ssl: *mut SSL, str: *const c_char) -> c_int {
+        match try_str!(str) {
+            "HIGH:!aNULL:!MD5" => C_INT_SUCCESS,
+            _ => Error::not_supported("SSL_set_cipher_list").raise().into(),
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_set_connect_state(ssl: *mut SSL) {
         try_clone_arc!(ssl).get_mut().set_client_mode()
     }

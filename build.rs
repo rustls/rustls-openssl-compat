@@ -195,6 +195,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_set_accept_state",
     "SSL_set_alpn_protos",
     "SSL_set_bio",
+    "SSL_set_cipher_list",
     "SSL_set_connect_state",
     "SSL_set_ex_data",
     "SSL_set_fd",

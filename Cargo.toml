@@ -13,6 +13,6 @@ crate-type = ["cdylib"]
 env_logger = "0.10"
 log = "0.4"
 openssl-probe = "0.1"
-openssl-sys = "0.9.98"
+openssl-sys = "0.9"
 rustls = "0.23.5"
 rustls-pemfile = "2"

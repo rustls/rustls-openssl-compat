@@ -44,7 +44,7 @@
 | `SSL_CIPHER_standard_name`  |  |  | :white_check_mark: |
 | `SSL_COMP_add_compression_method`  |  |  |  |
 | `SSL_COMP_get0_name`  |  |  |  |
-| `SSL_COMP_get_compression_methods`  |  |  |  |
+| `SSL_COMP_get_compression_methods`  |  |  | :exclamation: [^stub] |
 | `SSL_COMP_get_id`  |  |  |  |
 | `SSL_COMP_get_name`  |  |  |  |
 | `SSL_COMP_set0_compression_methods`  |  |  |  |
@@ -126,7 +126,7 @@
 | `SSL_CTX_set0_CA_list`  |  |  |  |
 | `SSL_CTX_set0_ctlog_store` [^ct] |  |  |  |
 | `SSL_CTX_set0_security_ex_data`  |  |  |  |
-| `SSL_CTX_set0_tmp_dh_pkey`  |  |  |  |
+| `SSL_CTX_set0_tmp_dh_pkey`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set1_cert_store`  |  |  |  |
 | `SSL_CTX_set1_param`  |  |  |  |
 | `SSL_CTX_set_allow_early_data_cb`  |  |  |  |
@@ -141,9 +141,9 @@
 | `SSL_CTX_set_cipher_list`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_ciphersuites`  | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_client_CA_list`  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_CTX_set_client_cert_cb`  |  |  |  |
+| `SSL_CTX_set_client_cert_cb`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_client_cert_engine` [^engine] |  |  |  |
-| `SSL_CTX_set_client_hello_cb`  |  |  |  |
+| `SSL_CTX_set_client_hello_cb`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_cookie_generate_cb`  |  |  |  |
 | `SSL_CTX_set_cookie_verify_cb`  |  |  |  |
 | `SSL_CTX_set_ct_validation_callback` [^ct] |  |  |  |
@@ -181,19 +181,19 @@
 | `SSL_CTX_set_security_level`  |  |  |  |
 | `SSL_CTX_set_session_id_context`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_session_ticket_cb`  |  |  |  |
-| `SSL_CTX_set_srp_cb_arg` [^deprecatedin_3_0] [^srp] |  |  |  |
+| `SSL_CTX_set_srp_cb_arg` [^deprecatedin_3_0] [^srp] |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_srp_client_pwd_callback` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_set_srp_password` [^deprecatedin_3_0] [^srp] | :white_check_mark: |  | :exclamation: [^stub] |
 | `SSL_CTX_set_srp_strength` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_set_srp_username` [^deprecatedin_3_0] [^srp] | :white_check_mark: |  | :exclamation: [^stub] |
-| `SSL_CTX_set_srp_username_callback` [^deprecatedin_3_0] [^srp] |  |  |  |
+| `SSL_CTX_set_srp_username_callback` [^deprecatedin_3_0] [^srp] |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_srp_verify_param_callback` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_CTX_set_ssl_version` [^deprecatedin_3_0] |  |  |  |
 | `SSL_CTX_set_stateless_cookie_generate_cb`  |  |  |  |
 | `SSL_CTX_set_stateless_cookie_verify_cb`  |  |  |  |
 | `SSL_CTX_set_timeout`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_tlsext_max_fragment_length`  |  |  |  |
-| `SSL_CTX_set_tlsext_ticket_key_evp_cb`  |  |  |  |
+| `SSL_CTX_set_tlsext_ticket_key_evp_cb`  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_tlsext_use_srtp` [^srtp] |  |  |  |
 | `SSL_CTX_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  |
 | `SSL_CTX_set_trust`  |  |  |  |
@@ -224,7 +224,7 @@
 | `SSL_SESSION_get0_peer`  |  |  |  |
 | `SSL_SESSION_get0_ticket`  |  |  |  |
 | `SSL_SESSION_get0_ticket_appdata`  |  |  |  |
-| `SSL_SESSION_get_compress_id`  |  |  |  |
+| `SSL_SESSION_get_compress_id`  |  |  | :exclamation: [^stub] |
 | `SSL_SESSION_get_ex_data`  |  |  |  |
 | `SSL_SESSION_get_id`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_get_master_key`  |  |  |  |
@@ -260,7 +260,7 @@
 | `SSL_add1_to_CA_list`  |  |  |  |
 | `SSL_add_client_CA`  |  |  |  |
 | `SSL_add_dir_cert_subjects_to_stack`  |  |  |  |
-| `SSL_add_file_cert_subjects_to_stack`  |  |  |  |
+| `SSL_add_file_cert_subjects_to_stack`  |  |  | :exclamation: [^stub] |
 | `SSL_add_ssl_module`  |  |  |  |
 | `SSL_add_store_cert_subjects_to_stack`  |  |  |  |
 | `SSL_alert_desc_string`  |  |  | :white_check_mark: |
@@ -277,7 +277,7 @@
 | `SSL_clear_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_client_hello_get0_ciphers`  |  |  |  |
 | `SSL_client_hello_get0_compression_methods`  |  |  |  |
-| `SSL_client_hello_get0_ext`  |  |  |  |
+| `SSL_client_hello_get0_ext`  |  |  | :exclamation: [^stub] |
 | `SSL_client_hello_get0_legacy_version`  |  |  |  |
 | `SSL_client_hello_get0_random`  |  |  |  |
 | `SSL_client_hello_get0_session_id`  |  |  |  |
@@ -324,8 +324,8 @@
 | `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_changed_async_fds`  |  |  |  |
 | `SSL_get_cipher_list`  |  |  |  |
-| `SSL_get_ciphers`  |  |  |  |
-| `SSL_get_client_CA_list`  |  |  |  |
+| `SSL_get_ciphers`  |  |  | :exclamation: [^stub] |
+| `SSL_get_client_CA_list`  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_ciphers`  |  |  |  |
 | `SSL_get_client_random`  |  |  |  |
 | `SSL_get_current_cipher`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -339,14 +339,14 @@
 | `SSL_get_ex_data`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_ex_data_X509_STORE_CTX_idx`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_fd`  |  |  |  |
-| `SSL_get_finished`  |  |  |  |
+| `SSL_get_finished`  |  |  | :exclamation: [^stub] |
 | `SSL_get_info_callback`  |  |  |  |
 | `SSL_get_key_update_type`  |  |  |  |
 | `SSL_get_max_early_data`  |  |  |  |
 | `SSL_get_num_tickets`  |  |  | :white_check_mark: |
 | `SSL_get_options`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_peer_cert_chain`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_peer_finished`  |  |  |  |
+| `SSL_get_peer_finished`  |  |  | :exclamation: [^stub] |
 | `SSL_get_peer_signature_type_nid`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get_pending_cipher`  |  |  |  |
 | `SSL_get_privatekey`  | :white_check_mark: |  | :white_check_mark: |
@@ -365,15 +365,15 @@
 | `SSL_get_servername`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_servername_type`  |  |  | :white_check_mark: |
 | `SSL_get_session`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_get_shared_ciphers`  |  |  |  |
+| `SSL_get_shared_ciphers`  |  |  | :exclamation: [^stub] |
 | `SSL_get_shared_sigalgs`  |  |  |  |
 | `SSL_get_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_sigalgs`  |  |  |  |
 | `SSL_get_signature_type_nid`  |  |  |  |
 | `SSL_get_srp_N` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_get_srp_g` [^deprecatedin_3_0] [^srp] |  |  |  |
-| `SSL_get_srp_userinfo` [^deprecatedin_3_0] [^srp] |  |  |  |
-| `SSL_get_srp_username` [^deprecatedin_3_0] [^srp] |  |  |  |
+| `SSL_get_srp_userinfo` [^deprecatedin_3_0] [^srp] |  |  | :exclamation: [^stub] |
+| `SSL_get_srp_username` [^deprecatedin_3_0] [^srp] |  |  | :exclamation: [^stub] |
 | `SSL_get_srtp_profiles` [^srtp] |  |  |  |
 | `SSL_get_ssl_method`  |  |  |  |
 | `SSL_get_state`  |  |  | :white_check_mark: |
@@ -397,13 +397,13 @@
 | `SSL_load_client_CA_file_ex`  |  |  |  |
 | `SSL_new`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_new_session_ticket`  |  |  |  |
-| `SSL_peek`  |  |  |  |
+| `SSL_peek`  |  |  | :exclamation: [^stub] |
 | `SSL_peek_ex`  |  |  |  |
 | `SSL_pending`  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_read`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_read_early_data`  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_read_ex`  |  |  |  |
-| `SSL_renegotiate`  |  |  |  |
+| `SSL_renegotiate`  |  |  | :exclamation: [^stub] |
 | `SSL_renegotiate_abbreviated`  |  |  |  |
 | `SSL_renegotiate_pending`  |  |  |  |
 | `SSL_rstate_string`  |  |  |  |
@@ -461,12 +461,12 @@
 | `SSL_set_security_callback`  |  |  |  |
 | `SSL_set_security_level`  |  |  |  |
 | `SSL_set_session`  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_set_session_id_context`  |  |  |  |
+| `SSL_set_session_id_context`  |  |  | :exclamation: [^stub] |
 | `SSL_set_session_secret_cb`  |  |  |  |
 | `SSL_set_session_ticket_ext`  |  |  |  |
 | `SSL_set_session_ticket_ext_cb`  |  |  |  |
 | `SSL_set_shutdown`  |  | :white_check_mark: | :white_check_mark: |
-| `SSL_set_srp_server_param` [^deprecatedin_3_0] [^srp] |  |  |  |
+| `SSL_set_srp_server_param` [^deprecatedin_3_0] [^srp] |  |  | :exclamation: [^stub] |
 | `SSL_set_srp_server_param_pw` [^deprecatedin_3_0] [^srp] |  |  |  |
 | `SSL_set_ssl_method`  |  |  |  |
 | `SSL_set_tlsext_max_fragment_length`  |  |  |  |
@@ -479,8 +479,8 @@
 | `SSL_set_wfd` [^sock] |  |  |  |
 | `SSL_shutdown`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_srp_server_param_with_username` [^deprecatedin_3_0] [^srp] |  |  |  |
-| `SSL_state_string`  |  |  |  |
-| `SSL_state_string_long`  |  |  |  |
+| `SSL_state_string`  |  |  | :exclamation: [^stub] |
+| `SSL_state_string_long`  |  |  | :exclamation: [^stub] |
 | `SSL_stateless`  |  |  |  |
 | `SSL_test_functions` [^unit_test] |  |  |  |
 | `SSL_trace` [^ssl_trace] |  |  |  |
@@ -497,7 +497,7 @@
 | `SSL_use_certificate_chain_file`  |  |  |  |
 | `SSL_use_certificate_file`  |  |  |  |
 | `SSL_use_psk_identity_hint` [^psk] |  |  |  |
-| `SSL_verify_client_post_handshake`  |  |  |  |
+| `SSL_verify_client_post_handshake`  |  |  | :exclamation: [^stub] |
 | `SSL_version`  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_waiting_for_async`  |  |  |  |
 | `SSL_want`  |  |  | :white_check_mark: |

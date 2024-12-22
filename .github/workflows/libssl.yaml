@@ -20,8 +20,7 @@ jobs:
           - stable
           - beta
           - nightly
-        # TODO(XXX): consider replacing ubuntu-24.04 w/ ubuntu-latest when appropriate
-        os: [ubuntu-24.04, ubuntu-22.04]
+        os: [ubuntu-latest, ubuntu-22.04]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -173,7 +172,7 @@ jobs:
 
   packaging:
     name: Packaging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

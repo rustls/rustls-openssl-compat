@@ -359,7 +359,7 @@ void test_verify_ca_path_file(void) {
   SSL_CTX_free(ctx);
 }
 
-#define NO_TICKET_SET(X) (((X)&SSL_OP_NO_TICKET) == SSL_OP_NO_TICKET)
+#define NO_TICKET_SET(X) (((X) & SSL_OP_NO_TICKET) == SSL_OP_NO_TICKET)
 
 void test_no_ticket(void) {
   SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();

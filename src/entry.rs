@@ -1470,7 +1470,7 @@ type SSL_CIPHER = crate::SslCipher;
 entry! {
     pub fn _SSL_CIPHER_find(_ssl: *const SSL, ptr: *const c_uchar) -> *const SSL_CIPHER {
         let slice = try_slice!(ptr, 2);
-        let id = (slice[0] as u16) << 8 | (slice[1] as u16);
+        let id = ((slice[0] as u16) << 8) | (slice[1] as u16);
         crate::SslCipher::find_by_id(rustls::CipherSuite::from(id))
             .map(|cipher| cipher as *const SSL_CIPHER)
             .unwrap_or_else(ptr::null)

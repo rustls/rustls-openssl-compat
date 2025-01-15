@@ -17,7 +17,7 @@ use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
-use crate::constants::{named_group_to_nid, sig_scheme_to_nid};
+use crate::constants::{named_group_to_nid, sig_scheme_to_type_nid};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
@@ -1192,7 +1192,7 @@ entry! {
         let sigalg_nid = try_clone_arc!(ssl)
             .get()
             .get_last_verification_sig_scheme()
-            .and_then(sig_scheme_to_nid);
+            .and_then(sig_scheme_to_type_nid);
 
         match sigalg_nid {
             Some(nid) => {

@@ -1,7 +1,7 @@
 use core::ffi::{c_int, CStr};
 use openssl_sys::{
-    NID_X9_62_prime256v1, NID_rsaEncryption, NID_rsassaPss, NID_secp384r1, NID_secp521r1,
-    NID_ED25519, NID_ED448, NID_X25519, NID_X448,
+    NID_X9_62_id_ecPublicKey, NID_X9_62_prime256v1, NID_rsaEncryption, NID_rsassaPss,
+    NID_secp384r1, NID_secp521r1, NID_ED25519, NID_ED448, NID_X25519, NID_X448,
 };
 
 use rustls::{AlertDescription, NamedGroup, SignatureScheme};
@@ -88,14 +88,14 @@ pub fn alert_desc_to_short_string(value: c_int) -> &'static CStr {
     }
 }
 
-pub fn sig_scheme_to_nid(scheme: SignatureScheme) -> Option<c_int> {
+pub fn sig_scheme_to_type_nid(scheme: SignatureScheme) -> Option<c_int> {
     use SignatureScheme::*;
     match scheme {
         RSA_PKCS1_SHA256 | RSA_PKCS1_SHA384 | RSA_PKCS1_SHA512 => Some(NID_rsaEncryption),
         RSA_PSS_SHA256 | RSA_PSS_SHA384 | RSA_PSS_SHA512 => Some(NID_rsassaPss),
-        ECDSA_NISTP256_SHA256 => Some(NID_X9_62_prime256v1),
-        ECDSA_NISTP384_SHA384 => Some(NID_secp384r1),
-        ECDSA_NISTP521_SHA512 => Some(NID_secp521r1),
+        ECDSA_NISTP256_SHA256 | ECDSA_NISTP384_SHA384 | ECDSA_NISTP521_SHA512 => {
+            Some(NID_X9_62_id_ecPublicKey)
+        }
         ED25519 => Some(NID_ED25519),
         ED448 => Some(NID_ED448),
         // Omitted: SHA1 legacy schemes.

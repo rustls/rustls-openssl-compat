@@ -2216,6 +2216,12 @@ type SSL_custom_ext_free_cb_ex = Option<
     ),
 >;
 
+// TODO: this could be implemented accurately by storing the SNI
+// of the originating connection (but only for TLS1.2) in the `SslSession`
+entry_stub! {
+    pub fn _SSL_SESSION_get0_hostname(_sess: *const SSL_SESSION) -> *const c_char;
+}
+
 // ---------------------
 
 #[cfg(test)]

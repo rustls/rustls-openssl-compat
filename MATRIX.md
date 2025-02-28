@@ -219,7 +219,7 @@
 | `SSL_SESSION_free`  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_get0_alpn_selected`  |  |  |  |
 | `SSL_SESSION_get0_cipher`  |  |  |  |
-| `SSL_SESSION_get0_hostname`  |  |  |  |
+| `SSL_SESSION_get0_hostname`  |  |  | :exclamation: [^stub] |
 | `SSL_SESSION_get0_id_context`  |  |  |  |
 | `SSL_SESSION_get0_peer`  |  |  |  |
 | `SSL_SESSION_get0_ticket`  |  |  |  |

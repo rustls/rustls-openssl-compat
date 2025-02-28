@@ -178,6 +178,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_select_next_proto",
     "SSL_sendfile",
     "SSL_SESSION_free",
+    "SSL_SESSION_get0_hostname",
     "SSL_SESSION_get_id",
     "SSL_SESSION_get_time",
     "SSL_SESSION_get_timeout",

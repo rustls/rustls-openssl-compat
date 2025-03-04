@@ -14,7 +14,8 @@ use openssl_sys::{
     OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
     OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
 };
-use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
@@ -462,12 +463,12 @@ pub(crate) fn use_cert_chain_file(file_name: &str) -> Result<Vec<CertificateDer<
     };
 
     let mut chain = Vec::new();
-    for cert in rustls_pemfile::certs(&mut file_reader) {
+    for cert in CertificateDer::pem_reader_iter(&mut file_reader) {
         let cert = match cert {
             Ok(cert) => cert,
             Err(err) => {
                 log::trace!("Failed to parse {file_name:?}: {err:?}");
-                return Err(Error::from_io(err));
+                return Err(Error::from_pem(err));
             }
         };
 
@@ -507,15 +508,11 @@ pub(crate) fn use_private_key_file(file_name: &str, file_type: c_int) -> Result<
                 Err(err) => return Err(Error::from_io(err)),
             };
 
-            match rustls_pemfile::private_key(&mut file_reader) {
-                Ok(Some(key)) => key,
-                Ok(None) => {
-                    log::trace!("No keys found in {file_name:?}");
-                    return Err(Error::bad_data("pem file"));
-                }
+            match PrivateKeyDer::from_pem_reader(&mut file_reader) {
+                Ok(key) => key,
                 Err(err) => {
                     log::trace!("Failed to read {file_name:?}: {err:?}");
-                    return Err(Error::from_io(err));
+                    return Err(Error::from_pem(err));
                 }
             }
         }

@@ -3,6 +3,7 @@ use core::ptr;
 use std::ffi::CString;
 
 use openssl_sys::{ERR_new, ERR_set_error, ERR_RFLAGS_OFFSET, ERR_RFLAG_FATAL};
+use rustls::pki_types::pem;
 use rustls::AlertDescription;
 
 // See openssl/err.h for the source of these magic numbers.
@@ -97,6 +98,14 @@ impl Error {
                 reason: Reason::OperationFailed,
                 string: Some(err.to_string()),
             },
+        }
+    }
+
+    pub fn from_pem(err: pem::Error) -> Self {
+        Self {
+            lib: Lib::User,
+            reason: Reason::OperationFailed,
+            string: Some(err.to_string()),
         }
     }
 

@@ -329,11 +329,13 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
+    use rustls::pki_types::pem::PemObject;
+    use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+
     #[test]
     fn supports_rsaencryption_keys() {
         let der =
-            rustls_pemfile::private_key(&mut &include_bytes!("../test-ca/rsa/server.key")[..])
-                .unwrap()
+            PrivateKeyDer::from_pem_reader(&mut &include_bytes!("../test-ca/rsa/server.key")[..])
                 .unwrap();
         let key = EvpPkey::new_from_der_bytes(der).unwrap();
         println!("{key:?}");
@@ -391,15 +393,10 @@ mod tests {
             let key_der = std::fs::read(key_path).unwrap();
             let cert_der = std::fs::read(cert_path).unwrap();
 
-            let key_der = rustls_pemfile::private_key(&mut Cursor::new(key_der))
-                .unwrap()
-                .unwrap();
+            let key_der = PrivateKeyDer::from_pem_reader(&mut Cursor::new(&key_der)).unwrap();
             let key = EvpPkey::new_from_der_bytes(key_der).unwrap();
 
-            let cert_der = rustls_pemfile::certs(&mut Cursor::new(cert_der))
-                .next()
-                .unwrap()
-                .unwrap();
+            let cert_der = CertificateDer::from_pem_reader(&mut Cursor::new(cert_der)).unwrap();
             let parsed_cert = rustls::server::ParsedCertificate::try_from(&cert_der).unwrap();
 
             let cert_spki = parsed_cert.subject_public_key_info();

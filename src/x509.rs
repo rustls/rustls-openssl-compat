@@ -8,6 +8,7 @@ use openssl_sys::{
     OPENSSL_sk_push, OPENSSL_sk_value, X509_STORE_free, X509_STORE_new, X509_free, OPENSSL_STACK,
     X509, X509_STORE,
 };
+use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::CertificateDer;
 
 use crate::error::Error;
@@ -273,12 +274,12 @@ pub(crate) fn load_certs<'a>(
             Err(err) => return Err(Error::from_io(err).raise()),
         };
 
-        for cert in rustls_pemfile::certs(&mut file_reader) {
+        for cert in CertificateDer::pem_reader_iter(&mut file_reader) {
             match cert {
                 Ok(cert) => certs.push(cert),
                 Err(err) => {
                     log::trace!("Failed to parse {file_name:?}: {err:?}");
-                    return Err(Error::from_io(err).raise());
+                    return Err(Error::from_pem(err).raise());
                 }
             };
         }

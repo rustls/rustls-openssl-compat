@@ -10,7 +10,7 @@ name = "ssl"
 crate-type = ["cdylib"]
 
 [dependencies]
-env_logger = "0.10"
+env_logger = "0.11"
 log = "0.4"
 openssl-probe = "0.1"
 openssl-sys = "0.9"

@@ -278,6 +278,7 @@ pub static SSL_BIO_METHOD: bio_method_st = bio_method_st {
 
 // This is a public interface between libcrypto and libssl, but is
 // defined in `internal/bio.h`.  Hmm.
+#[allow(non_camel_case_types)]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct bio_method_st {

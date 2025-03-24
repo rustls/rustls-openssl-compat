@@ -1,4 +1,5 @@
 use core::ffi::{c_char, c_int, c_long, c_void, CStr};
+use core::ptr;
 use std::io;
 
 // nb. cannot use any BIO types from openssl_sys: it doesn't
@@ -57,7 +58,7 @@ impl Bio {
                 //
                 // If neither the rbio or wbio have changed from their
                 // previous values then nothing is done.
-                if rbio == self.read && wbio == self.write {
+                if ptr::eq(rbio, self.read) && ptr::eq(wbio, self.write) {
                     return;
                 }
 
@@ -65,7 +66,7 @@ impl Bio {
                 // different to their previously set values then one reference
                 // is consumed for the rbio and one reference is consumed for
                 // the wbio.
-                if rbio != wbio && rbio != self.read && wbio != self.write {
+                if !ptr::eq(rbio, wbio) && !ptr::eq(rbio, self.read) && !ptr::eq(wbio, self.write) {
                     self.set_read(rbio);
                     self.set_write(wbio);
                     return;
@@ -74,7 +75,7 @@ impl Bio {
                 // If the rbio and wbio parameters are the same and the rbio
                 // is not the same as the previously set value then one reference
                 // is consumed for the rbio.
-                if rbio == wbio && rbio != self.read {
+                if ptr::eq(rbio, wbio) && !ptr::eq(rbio, self.read) {
                     unsafe {
                         BIO_up_ref(rbio);
                     }
@@ -86,7 +87,7 @@ impl Bio {
                 // If the rbio and wbio parameters are the same and the rbio
                 // is the same as the previously set value, then no additional
                 // references are consumed.
-                if rbio == wbio && rbio == self.read {
+                if ptr::eq(rbio, wbio) && ptr::eq(rbio, self.read) {
                     // (er, what about self.write though?)
                     return;
                 }
@@ -95,7 +96,7 @@ impl Bio {
                 // is the same as the previously set value then one reference
                 // is consumed for the wbio and no references are consumed for
                 // the rbio.
-                if rbio != wbio && rbio == self.read {
+                if !ptr::eq(rbio, wbio) && ptr::eq(rbio, self.read) {
                     self.set_write(wbio);
                     return;
                 }
@@ -105,7 +106,10 @@ impl Bio {
                 // wbio values were the same as each other then one reference
                 // is consumed for the rbio and no references are consumed for
                 // the wbio.
-                if rbio != wbio && wbio == self.write && self.read == self.write {
+                if !ptr::eq(rbio, wbio)
+                    && ptr::eq(wbio, self.write)
+                    && ptr::eq(self.read, self.write)
+                {
                     self.set_read(rbio);
                     return;
                 }
@@ -114,7 +118,10 @@ impl Bio {
                 // is the same as the previously set value and the old rbio and
                 // wbio values were different to each other, then one reference
                 // is consumed for the rbio and one reference is consumed for the wbio.
-                if rbio != wbio && wbio == self.write && self.read != self.write {
+                if !ptr::eq(rbio, wbio)
+                    && ptr::eq(wbio, self.write)
+                    && !ptr::eq(self.read, self.write)
+                {
                     self.set_read(rbio);
                     self.set_write(wbio);
                 }
@@ -136,7 +143,7 @@ impl Bio {
     ///
     /// `wbio` must be non-NULL.
     fn set_write(&mut self, wbio: *mut BIO) {
-        if wbio != self.write {
+        if !ptr::eq(wbio, self.write) {
             unsafe { BIO_free_all(self.write) };
             self.write = wbio;
         } else {
@@ -151,7 +158,7 @@ impl Bio {
     ///
     /// `rbio` must be non-NULL.
     fn set_read(&mut self, rbio: *mut BIO) {
-        if rbio != self.read {
+        if !ptr::eq(rbio, self.read) {
             unsafe { BIO_free_all(self.read) };
             self.read = rbio;
         } else {

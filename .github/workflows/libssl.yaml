@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: '15 12 * * *'
 
+env:
+  nfpm_version: '2.42.0'
+
 jobs:
   build:
     name: Build+test
@@ -187,8 +190,8 @@ jobs:
 
       - name: Install nfpm
         run: |
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-          echo PATH=$PATH:$HOME/go/bin >> $GITHUB_ENV
+          curl -L -O https://github.com/goreleaser/nfpm/releases/download/v${{ env.nfpm_version }}/nfpm_${{ env.nfpm_version }}_amd64.deb
+          sudo dpkg -i nfpm_${{ env.nfpm_version }}_amd64.deb
 
       - name: Build packages
         run: make package PROFILE=release
@@ -209,9 +212,6 @@ jobs:
           - container: ubuntu
             version: 24.04
             package: deb
-        # nb. ubuntu:22.04 has a too-old golang to build nfpm
-        # we could install an upstream golang if we want to
-        # package there.
 
     steps:
       - name: Install prerequisites (apt)
@@ -241,18 +241,20 @@ jobs:
           apt-get update
           apt-get install -y openssl libssl3 libssl-dev lld golang-go
           cargo install cargo-get
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          curl -L -O https://github.com/goreleaser/nfpm/releases/download/v${{ env.nfpm_version }}/nfpm_${{ env.nfpm_version }}_amd64.deb
+          dpkg -i nfpm_${{ env.nfpm_version }}_amd64.deb
 
       - name: Install build dependencies (yum)
         if: matrix.package == 'rpm'
         run: |
           yum install -y openssl openssl-devel lld go
           cargo install cargo-get
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          curl -L -O https://github.com/goreleaser/nfpm/releases/download/v${{ env.nfpm_version }}/nfpm-${{ env.nfpm_version }}-1.x86_64.rpm
+          rpm -ivh ./nfpm-${{ env.nfpm_version }}-1.x86_64.rpm
 
       - name: Build package
         run: |
-          make package-${{ matrix.package }} PROFILE=release NFPM=$HOME/go/bin/nfpm
+          make package-${{ matrix.package }} PROFILE=release
 
       - name: Archive package
         uses: actions/upload-artifact@v4

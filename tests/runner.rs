@@ -352,7 +352,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
     curl(port);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -371,7 +371,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
     curl(port);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -392,7 +392,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
     curl(port);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -411,7 +411,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
     curl(port);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -457,7 +457,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(openssl_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
     connect(port, key_type, sig_algs, version_flag);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -476,7 +476,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(rustls_server.0.as_mut().unwrap(), b"listening\n");
+    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
     connect(port, key_type, sig_algs, version_flag);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -798,13 +798,18 @@ fn wait_for_port(port: u16) -> Option<()> {
 /// To ensure this function can be used several times in succession
 /// on a given `Child`, this must not read bytes from its `stdout`
 /// that appear after `expected`.
-fn wait_for_stdout(stream: &mut Child, expected: &[u8]) {
+fn wait_for_stdout(proc: &mut KillOnDrop, which: &str, expected: &[u8]) {
     let mut buffer = Vec::with_capacity(128);
+    let child = proc.0.as_mut().unwrap();
 
     loop {
         let mut input = [0u8];
-        let new = stream.stdout.as_mut().unwrap().read(&mut input).unwrap();
-        assert_eq!(new, 1, "stdout EOF -- read so far {buffer:?}");
+        let new = child.stdout.as_mut().unwrap().read(&mut input).unwrap();
+        if new != 1 {
+            println!("{which} child stdout premature EOF -- read so far {buffer:?}");
+            print_output(proc.take_inner().wait_with_output().unwrap());
+            panic!();
+        }
         buffer.push(input[0]);
 
         if buffer.ends_with(expected) {
@@ -813,13 +818,13 @@ fn wait_for_stdout(stream: &mut Child, expected: &[u8]) {
 
         assert!(
             buffer.len() < 128,
-            "{expected:?} did not appear in first part of {stream:?} (instead it was {buffer:?}"
+            "{expected:?} did not appear in first part of {which} {child:?} (instead it was {buffer:?}"
         );
 
-        match stream.try_wait() {
-            Ok(Some(status)) => panic!("process exited already with {status}"),
+        match child.try_wait() {
+            Ok(Some(status)) => panic!("{which} process exited already with {status}"),
             Ok(None) => {}
-            Err(e) => panic!("subprocess broken {e:?}"),
+            Err(e) => panic!("{which} subprocess broken {e:?}"),
         };
     }
 }

@@ -17,6 +17,8 @@ static int trace(int rc, const char *str) {
 static int require(int expect_rc, int got_rc, const char *str) {
   if (expect_rc != got_rc) {
     printf("REQUIRED(%s) failed: wanted=%d, got=%d\n", str, expect_rc, got_rc);
+    fflush(stdout);
+    fflush(stderr);
     abort();
   }
   return got_rc;

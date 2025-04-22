@@ -82,6 +82,9 @@ impl ServerVerifier {
     ) -> Result<(), Error> {
         let end_entity = ParsedCertificate::try_from(end_entity)?;
         let root_store = self.x509_store.to_root_store()?;
+        if root_store.is_empty() {
+            log::warn!("X509_STORE has no cached certificates");
+        }
 
         verify_server_cert_signed_by_trust_anchor(
             &end_entity,

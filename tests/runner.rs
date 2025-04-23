@@ -320,13 +320,13 @@ fn ciphers() {
 #[test]
 #[ignore]
 fn server() {
-    let (port, port_str) = choose_port();
-
     fn curl(port: u16) {
         Command::new("curl")
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "-v",
+                "--header",
+                "Host: localhost",
                 "--cacert",
                 "test-ca/rsa/ca.cert",
                 &format!("https://localhost:{port}/"),
@@ -342,7 +342,7 @@ fn server() {
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
@@ -352,7 +352,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
+    let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
     curl(port);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -361,7 +361,7 @@ fn server() {
         Command::new("tests/maybe-valgrind.sh")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
@@ -371,7 +371,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
+    let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
     curl(port);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -382,7 +382,7 @@ fn server() {
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
@@ -392,7 +392,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
+    let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
     curl(port);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -401,7 +401,7 @@ fn server() {
         Command::new("tests/maybe-valgrind.sh")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 "test-ca/rsa/server.key",
                 "test-ca/rsa/server.cert",
                 "unauth",
@@ -411,7 +411,7 @@ fn server() {
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
+    let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
     curl(port);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -440,14 +440,12 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
             .unwrap();
     }
 
-    let (port, port_str) = choose_port();
-
     let mut openssl_server = KillOnDrop(Some(
         Command::new("tests/maybe-valgrind.sh")
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 &format!("test-ca/{key_type}/server.key"),
                 &format!("test-ca/{key_type}/server.cert"),
                 "unauth",
@@ -457,7 +455,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut openssl_server, "openssl server", b"listening\n");
+    let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
     connect(port, key_type, sig_algs, version_flag);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
@@ -466,7 +464,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
         Command::new("tests/maybe-valgrind.sh")
             .args([
                 "target/server",
-                &port_str,
+                "0",
                 &format!("test-ca/{key_type}/server.key"),
                 &format!("test-ca/{key_type}/server.cert"),
                 "unauth",
@@ -476,7 +474,7 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
             .spawn()
             .unwrap(),
     ));
-    wait_for_stdout(&mut rustls_server, "rustls server", b"listening\n");
+    let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
     connect(port, key_type, sig_algs, version_flag);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
@@ -838,14 +836,16 @@ fn wait_for_port(port: u16) -> Option<()> {
     }
 }
 
-/// Read from the `Child`'s `stdout` until the string `expected` is seen.
+/// Read from the `Child`'s `stdout` until it says which port is is listening on.
 ///
 /// To ensure this function can be used several times in succession
 /// on a given `Child`, this must not read bytes from its `stdout`
 /// that appear after `expected`.
-fn wait_for_stdout(proc: &mut KillOnDrop, which: &str, expected: &[u8]) {
-    let mut buffer = Vec::with_capacity(128);
+fn wait_for_port_announcement(proc: &mut KillOnDrop, which: &str) -> u16 {
+    let mut buffer = String::new();
     let child = proc.0.as_mut().unwrap();
+
+    let expected = "listening on ";
 
     loop {
         let mut input = [0u8];
@@ -855,10 +855,12 @@ fn wait_for_stdout(proc: &mut KillOnDrop, which: &str, expected: &[u8]) {
             print_output(proc.take_inner().wait_with_output().unwrap());
             panic!();
         }
-        buffer.push(input[0]);
+        buffer.push(input[0] as char);
 
-        if buffer.ends_with(expected) {
-            return;
+        if buffer.contains(expected) && buffer.ends_with("\n") {
+            let last_line = buffer.lines().last().unwrap();
+            let port = last_line.strip_prefix(expected).unwrap();
+            return port.parse().unwrap();
         }
 
         assert!(

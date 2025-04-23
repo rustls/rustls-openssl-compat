@@ -116,7 +116,9 @@ int main(int argc, char **argv) {
   us.sin_port = htons(atoi(port));
   REQUIRE(0, bind(listener, (struct sockaddr *)&us, sizeof(us)));
   REQUIRE(0, listen(listener, 5));
-  printf("listening\n");
+  socklen_t us_len = sizeof(us);
+  REQUIRE(0, getsockname(listener, (struct sockaddr *)&us, &us_len));
+  printf("listening on %d\n", ntohs(us.sin_port));
   fflush(stdout);
   socklen_t them_len = sizeof(them);
   int sock = TRACE(accept(listener, (struct sockaddr *)&them, &them_len));

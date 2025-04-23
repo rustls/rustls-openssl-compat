@@ -485,16 +485,61 @@ fn server_with_key_algorithm(key_type: &str, sig_algs: &str, version_flag: &str)
 
 #[test]
 #[ignore]
-fn server_key_algorithms() {
+fn server_key_algorithm_rsa_pss_rsae_sha256() {
     server_with_key_algorithm("rsa", "rsa_pss_rsae_sha256", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_rsa_pss_rsae_sha384() {
     server_with_key_algorithm("rsa", "rsa_pss_rsae_sha384", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_rsa_pss_rsae_sha512() {
     server_with_key_algorithm("rsa", "rsa_pss_rsae_sha512", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_rsa_pkcs1_sha256() {
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha256", "-tls1_2");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_rsa_pkcs1_sha384() {
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha384", "-tls1_2");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_rsa_pkcs1_sha512() {
     server_with_key_algorithm("rsa", "rsa_pkcs1_sha512", "-tls1_2");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_ed25519() {
     server_with_key_algorithm("ed25519", "ed25519", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_ecdsa_secp256r1_sha256() {
     server_with_key_algorithm("ecdsa-p256", "ecdsa_secp256r1_sha256", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_ecdsa_secp384r1_sha384() {
     server_with_key_algorithm("ecdsa-p384", "ecdsa_secp384r1_sha384", "-tls1_3");
+}
+
+#[test]
+#[ignore]
+fn server_key_algorithm_ecdsa_secp521r1_sha512() {
     server_with_key_algorithm("ecdsa-p521", "ecdsa_secp521r1_sha512", "-tls1_3");
 }
 

@@ -14,10 +14,7 @@ fn main() {
         for symbol in ENTRYPOINTS {
             // Rename underscore-prefixed symbols (produced by rust code) to
             // unprefixed symbols (manipulated by our version file).
-            println!(
-                "cargo:rustc-cdylib-link-arg=-Wl,--defsym={}=_{}",
-                symbol, symbol
-            );
+            println!("cargo:rustc-cdylib-link-arg=-Wl,--defsym={symbol}=_{symbol}",);
         }
     }
 }

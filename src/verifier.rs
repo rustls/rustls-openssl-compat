@@ -282,28 +282,18 @@ impl ClientCertVerifier for ClientVerifier {
 }
 
 fn translate_verify_result(result: &Result<(), Error>) -> i32 {
+    use CertificateError::*;
     match result {
         Ok(()) => X509_V_OK,
-        Err(Error::InvalidCertificate(CertificateError::UnknownIssuer)) => {
-            X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
-        }
-        Err(Error::InvalidCertificate(CertificateError::NotValidYet))
-        | Err(Error::InvalidCertificate(CertificateError::NotValidYetContext { .. })) => {
-            X509_V_ERR_CERT_NOT_YET_VALID
-        }
-        Err(Error::InvalidCertificate(CertificateError::Expired))
-        | Err(Error::InvalidCertificate(CertificateError::ExpiredContext { .. })) => {
-            X509_V_ERR_CERT_HAS_EXPIRED
-        }
-        Err(Error::InvalidCertificate(CertificateError::Revoked)) => X509_V_ERR_CERT_REVOKED,
-        Err(Error::InvalidCertificate(
-            CertificateError::InvalidPurpose | CertificateError::InvalidPurposeContext { .. },
-        )) => X509_V_ERR_INVALID_PURPOSE,
-        Err(Error::InvalidCertificate(CertificateError::NotValidForName))
-        | Err(Error::InvalidCertificate(CertificateError::NotValidForNameContext { .. })) => {
-            X509_V_ERR_HOSTNAME_MISMATCH
-        }
-        // TODO: more mappings can go here
+        Err(Error::InvalidCertificate(error)) => match error {
+            UnknownIssuer => X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY,
+            NotValidYet | NotValidYetContext { .. } => X509_V_ERR_CERT_NOT_YET_VALID,
+            Expired | ExpiredContext { .. } => X509_V_ERR_CERT_HAS_EXPIRED,
+            Revoked => X509_V_ERR_CERT_REVOKED,
+            InvalidPurpose | InvalidPurposeContext { .. } => X509_V_ERR_INVALID_PURPOSE,
+            NotValidForName | NotValidForNameContext { .. } => X509_V_ERR_HOSTNAME_MISMATCH,
+            _ => X509_V_ERR_UNSPECIFIED,
+        },
         Err(_) => X509_V_ERR_UNSPECIFIED,
     }
 }

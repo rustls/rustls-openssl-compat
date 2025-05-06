@@ -296,9 +296,9 @@ fn translate_verify_result(result: &Result<(), Error>) -> i32 {
             X509_V_ERR_CERT_HAS_EXPIRED
         }
         Err(Error::InvalidCertificate(CertificateError::Revoked)) => X509_V_ERR_CERT_REVOKED,
-        Err(Error::InvalidCertificate(CertificateError::InvalidPurpose)) => {
-            X509_V_ERR_INVALID_PURPOSE
-        }
+        Err(Error::InvalidCertificate(
+            CertificateError::InvalidPurpose | CertificateError::InvalidPurposeContext { .. },
+        )) => X509_V_ERR_INVALID_PURPOSE,
         Err(Error::InvalidCertificate(CertificateError::NotValidForName))
         | Err(Error::InvalidCertificate(CertificateError::NotValidForNameContext { .. })) => {
             X509_V_ERR_HOSTNAME_MISMATCH

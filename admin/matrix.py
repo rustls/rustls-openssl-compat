@@ -1,63 +1,74 @@
 #!/usr/bin/env python3
 
 # from openssl 3.0.0 util/libssl.num
-lines = open('admin/libssl.num', 'r').readlines()
+lines = open("admin/libssl.num", "r").readlines()
 
 items = {}
 
 for l in lines:
     l = l.strip()
-    if not l or l[0] == '#':
+    if not l or l[0] == "#":
         continue
     name, ord, ver, flags = l.split()
-    exist, _, type, flags = flags.split(':')
-    flags = set(flags.strip().split(','))
-    flags.discard('')
-    assert type == 'FUNCTION'
-    if exist == 'EXIST':
+    exist, _, type, flags = flags.split(":")
+    flags = set(flags.strip().split(","))
+    flags.discard("")
+    assert type == "FUNCTION"
+    if exist == "EXIST":
         items[name] = flags
 
-def flags(f):
-    r = ['[^%s]' % x.lower() for x in sorted(f)]
 
-    return ' '.join(r)
+def flags(f):
+    r = ["[^%s]" % x.lower() for x in sorted(f)]
+
+    return " ".join(r)
+
 
 def curl_p(name):
-    return ':white_check_mark:' if name in CURL else ''
+    return ":white_check_mark:" if name in CURL else ""
+
 
 def nginx_p(name):
-    return ':white_check_mark:' if name in NGINX else ''
+    return ":white_check_mark:" if name in NGINX else ""
+
+
+def haproxy_p(name):
+    return ":white_check_mark:" if name in HAPROXY else ""
+
 
 def impl_p(name):
     if name in impls:
-        return ':white_check_mark:' if impls[name] else ':exclamation: [^stub]'
-    return ''
+        return ":white_check_mark:" if impls[name] else ":exclamation: [^stub]"
+    return ""
+
 
 def read_impls():
     next_line = False
     stub = False
     items = {}
-    for line in open('src/entry.rs'):
-        if 'entry! {' in line:
+    for line in open("src/entry.rs"):
+        if "entry! {" in line:
             next_line = True
             stub = False
             continue
-        if 'entry_stub! {' in line:
+        if "entry_stub! {" in line:
             next_line = True
             stub = True
             continue
 
-        if next_line and 'pub fn ' in line:
-            parts = line.strip().replace('(', ' ').split()
+        if next_line and "pub fn " in line:
+            parts = line.strip().replace("(", " ").split()
             items[parts[2][1:]] = not stub
 
     return items
+
 
 impls = read_impls()
 
 # Combined requirements of curl 7.81.0-1ubuntu1.15, and curl 8.5.0
 # extracted by running with LD_DEBUG=all
-CURL = set("""
+CURL = set(
+    """
 BIO_f_ssl
 OPENSSL_init_ssl
 SSL_alert_desc_string_long
@@ -122,11 +133,13 @@ SSL_set_session
 SSL_shutdown
 SSL_write
 TLS_client_method
-""".split())
+""".split()
+)
 
 # Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0,
 # and fedora nginx 1.26.1-1.fc40.  extracted by running with LD_DEBUG=all
-NGINX = set("""
+NGINX = set(
+    """
 d2i_SSL_SESSION
 i2d_SSL_SESSION
 OPENSSL_init_ssl
@@ -245,14 +258,142 @@ SSL_write_early_data
 SSL_write
 SSL_write_early_data
 TLS_method
+""".split()
+)
+
+# Requirements of haproxy 2.8.5-1ubuntu3.3
+HAPROXY = set("""
+d2i_SSL_SESSION
+i2d_SSL_SESSION
+SSL_CIPHER_find
+SSL_CIPHER_get_auth_nid
+SSL_CIPHER_get_bits
+SSL_CIPHER_get_id
+SSL_CIPHER_get_name
+SSL_client_hello_get0_ciphers
+SSL_client_hello_get0_ext
+SSL_ctrl
+SSL_CTX_add_custom_ext
+SSL_CTX_add_server_custom_ext
+SSL_CTX_callback_ctrl
+SSL_CTX_check_private_key
+SSL_CTX_ctrl
+SSL_CTX_free
+SSL_CTX_get0_privatekey
+SSL_CTX_get_cert_store
+SSL_CTX_get_client_CA_list
+SSL_CTX_get_ex_data
+SSL_CTX_get_verify_mode
+SSL_CTX_has_client_custom_ext
+SSL_CTX_new
+SSL_CTX_sess_set_get_cb
+SSL_CTX_sess_set_new_cb
+SSL_CTX_sess_set_remove_cb
+SSL_CTX_set0_tmp_dh_pkey
+SSL_CTX_set_alpn_protos
+SSL_CTX_set_alpn_select_cb
+SSL_CTX_set_cipher_list
+SSL_CTX_set_ciphersuites
+SSL_CTX_set_client_CA_list
+SSL_CTX_set_client_hello_cb
+SSL_CTX_set_ex_data
+SSL_CTX_set_info_callback
+SSL_CTX_set_keylog_callback
+SSL_CTX_set_msg_callback
+SSL_CTX_set_next_protos_advertised_cb
+SSL_CTX_set_next_proto_select_cb
+SSL_CTX_set_options
+SSL_CTX_set_session_id_context
+SSL_CTX_set_timeout
+SSL_CTX_set_tlsext_ticket_key_evp_cb
+SSL_CTX_set_verify
+SSL_CTX_up_ref
+SSL_CTX_use_certificate
+SSL_CTX_use_PrivateKey
+SSL_do_handshake
+SSL_dup_CA_list
+SSL_free
+SSL_get0_alpn_selected
+SSL_get0_next_proto_negotiated
+SSL_get0_verified_chain
+SSL_get1_peer_certificate
+SSL_get_all_async_fds
+SSL_get_certificate
+SSL_get_changed_async_fds
+SSL_get_client_random
+SSL_get_current_cipher
+SSL_get_early_data_status
+SSL_get_error
+SSL_get_ex_data
+SSL_get_ex_data_X509_STORE_CTX_idx
+SSL_get_finished
+SSL_get_peer_cert_chain
+SSL_get_peer_finished
+SSL_get_privatekey
+SSL_get_rbio
+SSL_get_servername
+SSL_get_server_random
+SSL_get_session
+SSL_get_SSL_CTX
+SSL_get_state
+SSL_get_verify_result
+SSL_get_version
+SSL_get_wbio
+SSL_is_init_finished
+SSL_new
+SSL_peek
+SSL_read
+SSL_read_early_data
+SSL_renegotiate_pending
+SSL_select_next_proto
+SSL_SESSION_free
+SSL_SESSION_get_id
+SSL_SESSION_get_master_key
+SSL_SESSION_get_max_early_data
+SSL_session_reused
+SSL_SESSION_set1_id
+SSL_SESSION_set1_id_context
+SSL_set_accept_state
+SSL_set_alpn_protos
+SSL_set_bio
+SSL_set_client_CA_list
+SSL_set_connect_state
+SSL_set_ex_data
+SSL_set_max_early_data
+SSL_set_msg_callback
+SSL_set_quiet_shutdown
+SSL_set_session
+SSL_set_SSL_CTX
+SSL_set_verify
+SSL_shutdown
+SSL_waiting_for_async
+SSL_write
+SSL_write_early_data
+TLS_client_method
+TLS_server_method
 """.split())
 
-print('| Symbol | curl[^curl] | nginx[^nginx] | implemented? |')
-print('|---|---|---|---|')
+print("| Symbol | curl[^curl] | nginx[^nginx] | haproxy[^haproxy] | implemented? |")
+print("|---|---|---|---|")
 for i in sorted(items.keys()):
-    print('| `' + i + '` ' + flags(items[i]) + ' | ' + curl_p(i) + ' | ' + nginx_p(i) + ' | ' + impl_p(i) + ' |')
+    print(
+        "| `"
+        + i
+        + "` "
+        + flags(items[i])
+        + " | "
+        + curl_p(i)
+        + " | "
+        + nginx_p(i)
+        + " | "
+        + haproxy_p(i)
+        + " | "
+        + impl_p(i)
+        + " |"
+    )
 
-print("""
+print(
+    """
 [^stub]: symbol exists, but just returns an error.
 [^deprecatedin_1_1_0]: deprecated in openssl 1.1.0
 [^deprecatedin_3_0]: deprecated in openssl 3.0
@@ -273,5 +414,7 @@ print("""
 [^tls1_1_method]: TLS 1.1-specific
 [^tls1_2_method]: TLS 1.2-specific
 [^engine]: openssl ENGINE-specific
-[^curl]: curl 7.81.0-1ubuntu1.16 (ubuntu 22.04)
-[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)""")
+[^curl]: combined requirements of curl 7.81.0-1ubuntu1.15 (ubuntu 22.04), and curl 8.5.0 (ubuntu 24.04)
+[^nginx]: combined requirements of nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04), and nginx 1.24.0 (ubuntu 24.04), and fedora nginx 1.26.1-1.fc40
+[^haproxy]: haproxy 2.8.5-1ubuntu3.3 (ubuntu 24.04)"""
+)

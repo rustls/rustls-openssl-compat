@@ -416,7 +416,7 @@ print(
 [^tls1_1_method]: TLS 1.1-specific
 [^tls1_2_method]: TLS 1.2-specific
 [^engine]: openssl ENGINE-specific
-[^curl]: curl 7.81.0-1ubuntu1.16 (ubuntu 22.04)
-[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)
+[^curl]: combined requirements of curl 7.81.0-1ubuntu1.15 (ubuntu 22.04), and curl 8.5.0 (ubuntu 24.04)
+[^nginx]: combined requirements of nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04), and nginx 1.24.0 (ubuntu 24.04), and fedora nginx 1.26.1-1.fc40
 [^haproxy]: haproxy 2.8.5-1ubuntu3.3 (ubuntu 24.04)"""
 )

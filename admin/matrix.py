@@ -1,63 +1,70 @@
 #!/usr/bin/env python3
 
 # from openssl 3.0.0 util/libssl.num
-lines = open('admin/libssl.num', 'r').readlines()
+lines = open("admin/libssl.num", "r").readlines()
 
 items = {}
 
 for l in lines:
     l = l.strip()
-    if not l or l[0] == '#':
+    if not l or l[0] == "#":
         continue
     name, ord, ver, flags = l.split()
-    exist, _, type, flags = flags.split(':')
-    flags = set(flags.strip().split(','))
-    flags.discard('')
-    assert type == 'FUNCTION'
-    if exist == 'EXIST':
+    exist, _, type, flags = flags.split(":")
+    flags = set(flags.strip().split(","))
+    flags.discard("")
+    assert type == "FUNCTION"
+    if exist == "EXIST":
         items[name] = flags
 
-def flags(f):
-    r = ['[^%s]' % x.lower() for x in sorted(f)]
 
-    return ' '.join(r)
+def flags(f):
+    r = ["[^%s]" % x.lower() for x in sorted(f)]
+
+    return " ".join(r)
+
 
 def curl_p(name):
-    return ':white_check_mark:' if name in CURL else ''
+    return ":white_check_mark:" if name in CURL else ""
+
 
 def nginx_p(name):
-    return ':white_check_mark:' if name in NGINX else ''
+    return ":white_check_mark:" if name in NGINX else ""
+
 
 def impl_p(name):
     if name in impls:
-        return ':white_check_mark:' if impls[name] else ':exclamation: [^stub]'
-    return ''
+        return ":white_check_mark:" if impls[name] else ":exclamation: [^stub]"
+    return ""
+
 
 def read_impls():
     next_line = False
     stub = False
     items = {}
-    for line in open('src/entry.rs'):
-        if 'entry! {' in line:
+    for line in open("src/entry.rs"):
+        if "entry! {" in line:
             next_line = True
             stub = False
             continue
-        if 'entry_stub! {' in line:
+        if "entry_stub! {" in line:
             next_line = True
             stub = True
             continue
 
-        if next_line and 'pub fn ' in line:
-            parts = line.strip().replace('(', ' ').split()
+        if next_line and "pub fn " in line:
+            parts = line.strip().replace("(", " ").split()
             items[parts[2][1:]] = not stub
 
     return items
+
 
 impls = read_impls()
 
 # Combined requirements of curl 7.81.0-1ubuntu1.15, and curl 8.5.0
 # extracted by running with LD_DEBUG=all
-CURL = set("""
+CURL = set(
+    """
 BIO_f_ssl
 OPENSSL_init_ssl
 SSL_alert_desc_string_long
@@ -122,11 +129,13 @@ SSL_set_session
 SSL_shutdown
 SSL_write
 TLS_client_method
-""".split())
+""".split()
+)
 
 # Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0,
 # and fedora nginx 1.26.1-1.fc40.  extracted by running with LD_DEBUG=all
-NGINX = set("""
+NGINX = set(
+    """
 d2i_SSL_SESSION
 i2d_SSL_SESSION
 OPENSSL_init_ssl
@@ -245,14 +254,28 @@ SSL_write_early_data
 SSL_write
 SSL_write_early_data
 TLS_method
-""".split())
+""".split()
+)
 
-print('| Symbol | curl[^curl] | nginx[^nginx] | implemented? |')
-print('|---|---|---|---|')
+print("| Symbol | curl[^curl] | nginx[^nginx] | implemented? |")
+print("|---|---|---|---|")
 for i in sorted(items.keys()):
-    print('| `' + i + '` ' + flags(items[i]) + ' | ' + curl_p(i) + ' | ' + nginx_p(i) + ' | ' + impl_p(i) + ' |')
+    print(
+        "| `"
+        + i
+        + "` "
+        + flags(items[i])
+        + " | "
+        + curl_p(i)
+        + " | "
+        + nginx_p(i)
+        + " | "
+        + impl_p(i)
+        + " |"
+    )
 
-print("""
+print(
+    """
 [^stub]: symbol exists, but just returns an error.
 [^deprecatedin_1_1_0]: deprecated in openssl 1.1.0
 [^deprecatedin_3_0]: deprecated in openssl 3.0
@@ -274,4 +297,5 @@ print("""
 [^tls1_2_method]: TLS 1.2-specific
 [^engine]: openssl ENGINE-specific
 [^curl]: curl 7.81.0-1ubuntu1.16 (ubuntu 22.04)
-[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)""")
+[^nginx]: nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04)"""
+)

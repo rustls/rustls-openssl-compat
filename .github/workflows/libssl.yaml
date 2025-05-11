@@ -110,6 +110,8 @@ jobs:
         run: ./admin/format --all -- --check
       - name: Check C formatting
         run: make format-check
+      - name: Check python formatting
+        uses: psf/black@stable
       - name: Check ordering of build.rs entrypoints
         run: ./admin/sort-entrypoints.py
       - name: Check MATRIX.md is up-to-date

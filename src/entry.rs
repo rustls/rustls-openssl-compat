@@ -2326,7 +2326,8 @@ entry_stub! {
     ) -> c_long;
 }
 
-// No access to individual certificate extensions
+// No access to individual clienthello extensions and no
+// SSL_CTX_set_client_hello_cb support
 
 entry_stub! {
     pub fn _SSL_client_hello_get0_ext(
@@ -2335,6 +2336,10 @@ entry_stub! {
         _out: *mut *const c_uchar,
         _outlen: *mut usize,
     ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_client_hello_get0_ciphers(_ssl: *mut SSL, _out: *mut *const c_uchar) -> usize;
 }
 
 // No custom extension support

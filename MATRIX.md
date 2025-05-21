@@ -30,7 +30,7 @@
 | `SRP_Calc_A_param` [^deprecatedin_3_0] [^srp] |  |  |  |  |
 | `SSL_CIPHER_description`  |  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_CIPHER_find`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_CIPHER_get_auth_nid`  |  |  | :white_check_mark: |  |
+| `SSL_CIPHER_get_auth_nid`  |  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CIPHER_get_bits`  |  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CIPHER_get_cipher_nid`  |  |  |  |  |
 | `SSL_CIPHER_get_digest_nid`  |  |  |  |  |

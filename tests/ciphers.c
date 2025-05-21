@@ -8,12 +8,13 @@
 
 static void print_cipher(const SSL_CIPHER *cipher) {
   if (cipher) {
-    printf("openssl_id=0x%08x protocol_id=0x%08x ", SSL_CIPHER_get_id(cipher),
-           SSL_CIPHER_get_protocol_id(cipher));
+    printf("openssl_id=0x%08x protocol_id=0x%08x auth=%d ",
+           SSL_CIPHER_get_id(cipher), SSL_CIPHER_get_protocol_id(cipher),
+           SSL_CIPHER_get_auth_nid(cipher));
   } else {
-    // SSL_CIPHER_get_id(NULL) and SSL_CIPHER_get_protocol_id(NULL) both
-    // segfault
-    printf("openssl_id=undef protocol_id=undef ");
+    // SSL_CIPHER_get_id(NULL), SSL_CIPHER_get_protocol_id(NULL),
+    // SSL_CIPHER_get_auth_nid(NULL) all segfault
+    printf("openssl_id=undef protocol_id=undef auth=undef ");
   }
   int alg_bits = -1;
   printf("bits=%d ", SSL_CIPHER_get_bits(cipher, &alg_bits));

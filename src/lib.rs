@@ -93,6 +93,7 @@ static TLS_METHOD: SslMethod = SslMethod {
 /// Functions that return `SSL_CIPHER` give static-lifetime pointers.
 pub struct SslCipher {
     pub bits: usize,
+    pub auth: i32,
     pub openssl_name: &'static CStr,
     pub standard_name: &'static CStr,
     pub version: &'static CStr,
@@ -139,6 +140,7 @@ impl SslCipher {
 
 static TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+    auth: constants::NID_AUTH_ECDSA,
     bits: 128,
     openssl_name: c"ECDHE-ECDSA-AES128-GCM-SHA256",
     standard_name: c"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
@@ -148,6 +150,7 @@ static TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: SslCipher = SslCipher {
 
 static TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+    auth: constants::NID_AUTH_ECDSA,
     bits: 256,
     openssl_name: c"ECDHE-ECDSA-AES256-GCM-SHA384",
     standard_name: c"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
@@ -157,6 +160,7 @@ static TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: SslCipher = SslCipher {
 
 static TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+    auth: constants::NID_AUTH_ECDSA,
     bits: 256,
     openssl_name: c"ECDHE-ECDSA-CHACHA20-POLY1305",
     standard_name: c"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -166,6 +170,7 @@ static TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 
 static TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    auth: constants::NID_AUTH_RSA,
     bits: 128,
     openssl_name: c"ECDHE-RSA-AES128-GCM-SHA256",
     standard_name: c"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -175,6 +180,7 @@ static TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256: SslCipher = SslCipher {
 
 static TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+    auth: constants::NID_AUTH_RSA,
     bits: 256,
     openssl_name: c"ECDHE-RSA-AES256-GCM-SHA384",
     standard_name: c"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
@@ -184,6 +190,7 @@ static TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384: SslCipher = SslCipher {
 
 static TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+    auth: constants::NID_AUTH_RSA,
     bits: 256,
     openssl_name: c"ECDHE-RSA-CHACHA20-POLY1305",
     standard_name: c"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -193,6 +200,7 @@ static TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
 
 static TLS13_AES_128_GCM_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS13_AES_128_GCM_SHA256,
+    auth: constants::NID_AUTH_ANY,
     bits: 128,
     openssl_name: c"TLS_AES_128_GCM_SHA256",
     standard_name: c"TLS_AES_128_GCM_SHA256",
@@ -202,6 +210,7 @@ static TLS13_AES_128_GCM_SHA256: SslCipher = SslCipher {
 
 static TLS13_AES_256_GCM_SHA384: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS13_AES_256_GCM_SHA384,
+    auth: constants::NID_AUTH_ANY,
     bits: 256,
     openssl_name: c"TLS_AES_256_GCM_SHA384",
     standard_name: c"TLS_AES_256_GCM_SHA384",
@@ -211,6 +220,7 @@ static TLS13_AES_256_GCM_SHA384: SslCipher = SslCipher {
 
 static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
     rustls: &provider::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
+    auth: constants::NID_AUTH_ANY,
     bits: 256,
     openssl_name: c"TLS_CHACHA20_POLY1305_SHA256",
     standard_name: c"TLS_CHACHA20_POLY1305_SHA256",

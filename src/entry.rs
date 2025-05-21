@@ -1551,6 +1551,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CIPHER_get_auth_nid(cipher: *const SSL_CIPHER) -> c_int {
+        try_ref_from_ptr!(cipher).auth
+    }
+}
+
+entry! {
     pub fn _SSL_CIPHER_get_protocol_id(cipher: *const SSL_CIPHER) -> u16 {
         try_ref_from_ptr!(cipher).protocol_id()
     }

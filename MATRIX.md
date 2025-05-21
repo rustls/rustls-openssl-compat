@@ -36,7 +36,7 @@
 | `SSL_CIPHER_get_digest_nid`  |  |  |  |  |
 | `SSL_CIPHER_get_handshake_digest`  |  |  |  |  |
 | `SSL_CIPHER_get_id`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_CIPHER_get_kx_nid`  |  |  |  |  |
+| `SSL_CIPHER_get_kx_nid`  |  |  |  | :white_check_mark: |
 | `SSL_CIPHER_get_name`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CIPHER_get_protocol_id`  |  |  |  | :white_check_mark: |
 | `SSL_CIPHER_get_version`  |  |  |  | :white_check_mark: |

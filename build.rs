@@ -55,6 +55,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CIPHER_get_auth_nid",
     "SSL_CIPHER_get_bits",
     "SSL_CIPHER_get_id",
+    "SSL_CIPHER_get_kx_nid",
     "SSL_CIPHER_get_name",
     "SSL_CIPHER_get_protocol_id",
     "SSL_CIPHER_get_version",

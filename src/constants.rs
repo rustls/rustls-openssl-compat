@@ -154,3 +154,6 @@ pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
 pub(super) const NID_AUTH_ANY: c_int = 1064;
 pub(super) const NID_AUTH_ECDSA: c_int = 1047;
 pub(super) const NID_AUTH_RSA: c_int = 1046;
+
+pub(super) const NID_KX_ANY: c_int = 1063;
+pub(super) const NID_KX_ECDHE: c_int = 1038;

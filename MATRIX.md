@@ -275,7 +275,7 @@
 | `SSL_check_private_key`  |  |  |  | :white_check_mark: |
 | `SSL_clear`  |  |  |  |  |
 | `SSL_clear_options`  |  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_client_hello_get0_ciphers`  |  |  | :white_check_mark: |  |
+| `SSL_client_hello_get0_ciphers`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_client_hello_get0_compression_methods`  |  |  |  |  |
 | `SSL_client_hello_get0_ext`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_client_hello_get0_legacy_version`  |  |  |  |  |

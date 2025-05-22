@@ -199,6 +199,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_read",
     "SSL_read_early_data",
     "SSL_renegotiate",
+    "SSL_renegotiate_pending",
     "SSL_select_next_proto",
     "SSL_sendfile",
     "SSL_SESSION_free",

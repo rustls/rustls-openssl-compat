@@ -405,7 +405,7 @@
 | `SSL_read_ex`  |  |  |  |  |
 | `SSL_renegotiate`  |  |  |  | :exclamation: [^stub] |
 | `SSL_renegotiate_abbreviated`  |  |  |  |  |
-| `SSL_renegotiate_pending`  |  |  | :white_check_mark: |  |
+| `SSL_renegotiate_pending`  |  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_rstate_string`  |  |  |  |  |
 | `SSL_rstate_string_long`  |  |  |  |  |
 | `SSL_select_next_proto`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |

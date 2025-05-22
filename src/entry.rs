@@ -1494,6 +1494,13 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_renegotiate_pending(_ssl: *mut SSL) -> c_int {
+        // rustls does not implement renegotiation, so it is never pending.
+        0
+    }
+}
+
 impl Castable for SSL {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<Self>;

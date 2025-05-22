@@ -1,8 +1,10 @@
 use std::io::Read;
-use std::ops::Add;
+use std::ops::{Add, Deref};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic;
-use std::{fs, net, thread, time};
+use std::{fmt, fs, net, thread, time};
+
+use pretty_assertions::assert_eq;
 
 /* Note:
  *
@@ -807,17 +809,42 @@ impl Drop for KillOnDrop {
     }
 }
 
-fn print_output(out: Output) -> Output {
-    println!("status: {:?}\n", out.status);
-    println!(
-        "stdout:\n{}\n",
-        String::from_utf8(out.stdout.clone()).unwrap()
-    );
-    println!(
-        "stderr:\n{}\n",
-        String::from_utf8(out.stderr.clone()).unwrap()
-    );
-    out
+fn print_output(out: Output) -> PrettyOutput {
+    let p = PrettyOutput(out);
+    println!("output: {p:?}");
+    p
+}
+
+#[derive(PartialEq)]
+struct PrettyOutput(Output);
+
+impl fmt::Debug for PrettyOutput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Output")
+            .field("status", &self.0.status)
+            .field("stdout", &"<follows>")
+            .field("stderr", &"<follows>")
+            .finish()?;
+
+        // ensure line endings in command output appear literally, so
+        // pretty_assertions can make a nice diff.
+        writeln!(f)?;
+        for l in String::from_utf8(self.0.stdout.clone()).unwrap().lines() {
+            writeln!(f, "stdout => {l}")?;
+        }
+        for l in String::from_utf8(self.0.stderr.clone()).unwrap().lines() {
+            writeln!(f, "stderr => {l}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Deref for PrettyOutput {
+    type Target = Output;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /// Wait until we can connect to localhost:port.

@@ -2447,6 +2447,12 @@ entry_stub! {
     ) -> c_int;
 }
 
+// Unsafe low-level accessors.  OpenSSL docs say "you probably shouldn't use these functions."
+
+entry_stub! {
+    pub fn _SSL_get_client_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
+}
+
 // ---------------------
 
 #[cfg(test)]

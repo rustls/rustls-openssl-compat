@@ -2249,6 +2249,10 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_set_client_CA_list(_ssl: *mut SSL, _name_list: *mut stack_st_X509_NAME);
+}
+
+entry_stub! {
     pub fn _SSL_add_file_cert_subjects_to_stack(
         _stack: *mut stack_st_X509_NAME,
         _file: *const c_char,

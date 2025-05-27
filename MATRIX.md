@@ -429,7 +429,7 @@
 | `SSL_set_cert_cb`  |  |  |  |  |
 | `SSL_set_cipher_list`  |  |  |  | :white_check_mark: |
 | `SSL_set_ciphersuites`  |  |  |  |  |
-| `SSL_set_client_CA_list`  |  |  | :white_check_mark: |  |
+| `SSL_set_client_CA_list`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_set_connect_state`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_ct_validation_callback` [^ct] |  |  |  |  |
 | `SSL_set_debug` [^deprecatedin_1_1_0] |  |  |  |  |

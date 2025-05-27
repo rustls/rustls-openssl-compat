@@ -2465,6 +2465,13 @@ entry_stub! {
     ) -> usize;
 }
 
+// This can be filled in when client SSL_SESSIONs are supported, via
+// `Tls13ClientSessionValue::max_early_data_size()`.
+
+entry_stub! {
+    pub fn _SSL_SESSION_get_max_early_data(_sess: *const SSL_SESSION) -> u32;
+}
+
 // ---------------------
 
 #[cfg(test)]

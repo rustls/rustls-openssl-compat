@@ -228,7 +228,7 @@
 | `SSL_SESSION_get_ex_data`  |  |  |  |  |
 | `SSL_SESSION_get_id`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_SESSION_get_master_key`  |  |  | :white_check_mark: | :exclamation: [^stub] |
-| `SSL_SESSION_get_max_early_data`  |  |  | :white_check_mark: |  |
+| `SSL_SESSION_get_max_early_data`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |  |
 | `SSL_SESSION_get_protocol_version`  |  |  |  |  |
 | `SSL_SESSION_get_ticket_lifetime_hint`  |  |  |  |  |

@@ -295,7 +295,7 @@
 | `SSL_dane_tlsa_add`  |  |  |  |  |
 | `SSL_do_handshake`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_dup`  |  |  |  |  |
-| `SSL_dup_CA_list`  |  |  | :white_check_mark: |  |
+| `SSL_dup_CA_list`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_enable_ct` [^ct] |  |  |  |  |
 | `SSL_export_keying_material`  |  |  |  |  |
 | `SSL_export_keying_material_early`  |  |  |  |  |

@@ -206,6 +206,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_SESSION_get_compress_id",
     "SSL_SESSION_get_id",
     "SSL_SESSION_get_master_key",
+    "SSL_SESSION_get_max_early_data",
     "SSL_SESSION_get_time",
     "SSL_SESSION_get_timeout",
     "SSL_session_reused",

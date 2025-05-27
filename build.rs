@@ -158,6 +158,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_get_changed_async_fds",
     "SSL_get_ciphers",
     "SSL_get_client_CA_list",
+    "SSL_get_client_random",
     "SSL_get_current_cipher",
     "SSL_get_current_compression",
     "SSL_get_error",

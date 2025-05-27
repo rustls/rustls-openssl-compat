@@ -327,7 +327,7 @@
 | `SSL_get_ciphers`  |  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_CA_list`  |  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_ciphers`  |  |  |  |  |
-| `SSL_get_client_random`  |  |  | :white_check_mark: |  |
+| `SSL_get_client_random`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_current_cipher`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_current_compression`  |  |  |  | :white_check_mark: |
 | `SSL_get_current_expansion`  |  |  |  |  |

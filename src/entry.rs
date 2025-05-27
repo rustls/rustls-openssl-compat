@@ -2453,6 +2453,10 @@ entry_stub! {
     pub fn _SSL_get_client_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
 }
 
+entry_stub! {
+    pub fn _SSL_get_server_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
+}
+
 // ---------------------
 
 #[cfg(test)]

@@ -1008,6 +1008,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get_early_data_status(ssl: *const SSL) -> c_int {
+        try_clone_arc!(ssl).get_mut().get_early_data_status().into()
+    }
+}
+
+entry! {
     pub fn _SSL_set_alpn_protos(
         ssl: *mut SSL,
         protos: *const c_uchar,

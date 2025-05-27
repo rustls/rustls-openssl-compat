@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
   printf("SSL_get_min_proto_version 0x%lx\n", SSL_get_min_proto_version(ssl));
   printf("SSL_get_max_proto_version 0x%lx\n", SSL_get_max_proto_version(ssl));
   printf("SSL_renegotiate_pending %d\n", SSL_renegotiate_pending(ssl));
+  printf("SSL_get_early_data_status %d\n", SSL_get_early_data_status(ssl));
   printf("SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
          SSL_get_servername_type(ssl));

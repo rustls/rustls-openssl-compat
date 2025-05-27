@@ -858,6 +858,27 @@ impl Ssl {
         self.max_early_data = max;
     }
 
+    fn get_early_data_status(&mut self) -> EarlyDataStatus {
+        // XXX: unfortunately `ClientConnection::early_data()` and
+        // `ServerConnection::early_data()` both require a mut self;
+        // which means this getter is mut too.
+        match self.conn_mut() {
+            Some(Connection::Server(server)) => match server.early_data() {
+                Some(_) => EarlyDataStatus::Accepted,
+                None => EarlyDataStatus::NotSent,
+            },
+            Some(Connection::Client(client)) => {
+                let accepted = client.is_early_data_accepted();
+                match (client.early_data(), accepted) {
+                    (_, true) => EarlyDataStatus::Accepted,
+                    (None, false) => EarlyDataStatus::Rejected,
+                    (Some(_), _) => EarlyDataStatus::NotSent,
+                }
+            }
+            None => EarlyDataStatus::NotSent,
+        }
+    }
+
     fn clear_options(&mut self, clear: u64) -> u64 {
         self.raw_options &= !clear;
         self.raw_options
@@ -1719,6 +1740,24 @@ impl EnabledVersions {
         let max = self.max.map(u16::from).unwrap_or(0xffff);
         let v = u16::from(v);
         min <= v && v <= max
+    }
+}
+
+#[derive(Debug)]
+enum EarlyDataStatus {
+    NotSent,
+    Rejected,
+    Accepted,
+}
+
+impl From<EarlyDataStatus> for c_int {
+    fn from(e: EarlyDataStatus) -> Self {
+        // refer to OpenSSL SSL_EARLY_DATA_NOT_SENT et al.
+        match e {
+            EarlyDataStatus::NotSent => 0,
+            EarlyDataStatus::Rejected => 1,
+            EarlyDataStatus::Accepted => 2,
+        }
     }
 }
 

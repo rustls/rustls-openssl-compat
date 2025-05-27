@@ -2457,6 +2457,14 @@ entry_stub! {
     pub fn _SSL_get_server_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
 }
 
+entry_stub! {
+    pub fn _SSL_SESSION_get_master_key(
+        _sess: *const SSL_SESSION,
+        _out: *mut c_uchar,
+        _outlen: usize,
+    ) -> usize;
+}
+
 // ---------------------
 
 #[cfg(test)]

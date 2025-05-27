@@ -499,7 +499,7 @@
 | `SSL_use_psk_identity_hint` [^psk] |  |  |  |  |
 | `SSL_verify_client_post_handshake`  |  |  |  | :exclamation: [^stub] |
 | `SSL_version`  |  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_waiting_for_async`  |  |  | :white_check_mark: |  |
+| `SSL_waiting_for_async`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_want`  |  |  |  | :white_check_mark: |
 | `SSL_write`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_write_early_data`  |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |

@@ -357,6 +357,16 @@ impl SslSession {
         &self.id.0
     }
 
+    pub fn set_id(&mut self, new_value: &[u8]) -> Result<(), error::Error> {
+        match new_value.len() {
+            0..=SslSessionLookup::MAX_LEN => {
+                self.id = SslSessionLookup::for_id(new_value);
+                Ok(())
+            }
+            _ => Err(error::Error::bad_data("excess SSL_SESSION id length")),
+        }
+    }
+
     pub fn get_creation_time(&self) -> u64 {
         self.creation_time.0
     }
@@ -425,6 +435,8 @@ impl SslSessionLookup {
     pub fn for_id(id: &[u8]) -> Self {
         Self(id.to_vec())
     }
+
+    const MAX_LEN: usize = 32;
 }
 
 pub struct SslContext {

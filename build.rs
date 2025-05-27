@@ -241,6 +241,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_use_PrivateKey_file",
     "SSL_verify_client_post_handshake",
     "SSL_version",
+    "SSL_waiting_for_async",
     "SSL_want",
     "SSL_write",
     "SSL_write_early_data",

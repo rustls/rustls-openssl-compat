@@ -2427,6 +2427,12 @@ entry_stub! {
     pub fn _SSL_COMP_get_compression_methods() -> *mut stack_st_void;
 }
 
+// No `SSL_MODE_ASYNC`
+
+entry_stub! {
+    pub fn _SSL_waiting_for_async(_ssl: *mut SSL) -> c_int;
+}
+
 // ---------------------
 
 #[cfg(test)]

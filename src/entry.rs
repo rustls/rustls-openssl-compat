@@ -2253,6 +2253,10 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_dup_CA_list(_sk: *const stack_st_X509_NAME) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
     pub fn _SSL_add_file_cert_subjects_to_stack(
         _stack: *mut stack_st_X509_NAME,
         _file: *const c_char,

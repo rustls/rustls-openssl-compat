@@ -2437,6 +2437,16 @@ entry_stub! {
     pub fn _SSL_get_all_async_fds(_ssl: *mut SSL, _fds: *mut c_int, _numfds: *mut usize) -> c_int;
 }
 
+entry_stub! {
+    pub fn _SSL_get_changed_async_fds(
+        _ssl: *mut SSL,
+        _addfd: *mut c_int,
+        _numaddfds: *mut usize,
+        _delfd: *mut c_int,
+        _numdelfds: *mut usize,
+    ) -> c_int;
+}
+
 // ---------------------
 
 #[cfg(test)]

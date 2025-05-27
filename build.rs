@@ -162,6 +162,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_get_client_random",
     "SSL_get_current_cipher",
     "SSL_get_current_compression",
+    "SSL_get_early_data_status",
     "SSL_get_error",
     "SSL_get_ex_data",
     "SSL_get_ex_data_X509_STORE_CTX_idx",

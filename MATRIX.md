@@ -334,7 +334,7 @@
 | `SSL_get_default_passwd_cb`  |  |  |  |  |
 | `SSL_get_default_passwd_cb_userdata`  |  |  |  |  |
 | `SSL_get_default_timeout`  |  |  |  |  |
-| `SSL_get_early_data_status`  |  |  | :white_check_mark: |  |
+| `SSL_get_early_data_status`  |  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_get_error`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_ex_data`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_ex_data_X509_STORE_CTX_idx`  |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |

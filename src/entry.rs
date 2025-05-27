@@ -769,6 +769,73 @@ entry! {
     }
 }
 
+entry! {
+    pub fn _SSL_CTX_add_server_custom_ext(
+        ctx: *mut SSL_CTX,
+        ext_type: c_uint,
+        _add_cb: custom_ext_add_cb,
+        _free_cb: custom_ext_free_cb,
+        _add_arg: *mut c_void,
+        _parse_cb: custom_ext_parse_cb,
+        _parse_arg: *mut c_void,
+    ) -> c_int {
+        let _null_check = try_ref_from_ptr!(ctx);
+
+        match ext_type {
+            // Previously rustls had support for this extension, but removed it as
+            // the SCT-via-TLS-extension method was never widely deployed. Instead,
+            // SCTs are delivered via an X.509v3 extension.
+            //
+            // If rustls retained that support, here is a sketch of how we could
+            // proceed here:
+            //
+            // - store the callbacks and arguments, in a SCT-specific location,
+            //   inside the ctx's `sign::CertifiedKeySet`,
+            // - when making a new `ServerConfig`, call `add_cb` to extract the
+            //   SCT extension body,
+            // - decode the SCT extension body, and store the SCTs in our selected
+            //   `CertifiedKey::sct_list`,
+            // - call `free_cb`.
+            //
+            // Instead, we say this call is successful, never call the callbacks,
+            // and do not attach their data to an extension.
+            EXTENSION_TYPE_SCT => C_INT_SUCCESS,
+            other => {
+                log::warn!("SSL_CTX_add_server_custom_ext for 0x{other:x?} failed");
+                0
+            }
+        }
+    }
+}
+
+const EXTENSION_TYPE_SCT: u32 = 0x0012;
+
+pub type custom_ext_add_cb = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        ext_type: c_uint,
+        out: *mut *const c_uchar,
+        outlen: *mut usize,
+        al: *mut c_int,
+        add_arg: *mut c_void,
+    ) -> c_int,
+>;
+
+pub type custom_ext_free_cb = Option<
+    unsafe extern "C" fn(s: *mut SSL, ext_type: c_uint, out: *const c_uchar, add_arg: *mut c_void),
+>;
+
+pub type custom_ext_parse_cb = Option<
+    unsafe extern "C" fn(
+        s: *mut SSL,
+        ext_type: c_uint,
+        in_: *const c_uchar,
+        inlen: usize,
+        al: *mut c_int,
+        parse_arg: *mut c_void,
+    ) -> c_int,
+>;
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<Self>;

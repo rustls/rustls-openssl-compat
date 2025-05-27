@@ -172,6 +172,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_get_peer_signature_type_nid",
     "SSL_get_privatekey",
     "SSL_get_rbio",
+    "SSL_get_server_random",
     "SSL_get_servername",
     "SSL_get_servername_type",
     "SSL_get_session",

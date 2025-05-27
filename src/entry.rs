@@ -1701,6 +1701,20 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_set1_id(
+        sess: *mut SSL_SESSION,
+        sid: *const c_uchar,
+        sid_len: c_uint,
+    ) -> c_int {
+        let slice = try_slice!(sid, c_uint_into_usize(sid_len));
+        match try_clone_arc!(sess).get_mut().set_id(slice) {
+            Ok(()) => C_INT_SUCCESS,
+            Err(err) => err.raise().into(),
+        }
+    }
+}
+
+entry! {
     pub fn _SSL_SESSION_up_ref(sess: *mut SSL_SESSION) -> c_int {
         let sess = try_clone_arc!(sess);
         mem::forget(sess.clone());

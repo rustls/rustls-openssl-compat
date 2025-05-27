@@ -322,7 +322,7 @@
 | `SSL_get_all_async_fds`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_async_status`  |  |  |  |  |
 | `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_changed_async_fds`  |  |  | :white_check_mark: |  |
+| `SSL_get_changed_async_fds`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_cipher_list`  |  |  |  |  |
 | `SSL_get_ciphers`  |  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_CA_list`  |  |  |  | :exclamation: [^stub] |

@@ -227,8 +227,8 @@
 | `SSL_SESSION_get_compress_id`  |  |  |  | :exclamation: [^stub] |
 | `SSL_SESSION_get_ex_data`  |  |  |  |  |
 | `SSL_SESSION_get_id`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_SESSION_get_master_key`  |  |  | :white_check_mark: |  |
-| `SSL_SESSION_get_max_early_data`  |  |  | :white_check_mark: |  |
+| `SSL_SESSION_get_master_key`  |  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_SESSION_get_max_early_data`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_SESSION_get_max_fragment_length`  |  |  |  |  |
 | `SSL_SESSION_get_protocol_version`  |  |  |  |  |
 | `SSL_SESSION_get_ticket_lifetime_hint`  |  |  |  |  |
@@ -275,7 +275,7 @@
 | `SSL_check_private_key`  |  |  |  | :white_check_mark: |
 | `SSL_clear`  |  |  |  |  |
 | `SSL_clear_options`  |  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_client_hello_get0_ciphers`  |  |  | :white_check_mark: |  |
+| `SSL_client_hello_get0_ciphers`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_client_hello_get0_compression_methods`  |  |  |  |  |
 | `SSL_client_hello_get0_ext`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_client_hello_get0_legacy_version`  |  |  |  |  |
@@ -319,15 +319,15 @@
 | `SSL_get1_session`  |  | :white_check_mark: |  | :white_check_mark: |
 | `SSL_get1_supported_ciphers`  |  |  |  |  |
 | `SSL_get_SSL_CTX`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_all_async_fds`  |  |  | :white_check_mark: |  |
+| `SSL_get_all_async_fds`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_async_status`  |  |  |  |  |
 | `SSL_get_certificate`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_get_changed_async_fds`  |  |  | :white_check_mark: |  |
+| `SSL_get_changed_async_fds`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_cipher_list`  |  |  |  |  |
 | `SSL_get_ciphers`  |  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_CA_list`  |  |  |  | :exclamation: [^stub] |
 | `SSL_get_client_ciphers`  |  |  |  |  |
-| `SSL_get_client_random`  |  |  | :white_check_mark: |  |
+| `SSL_get_client_random`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_current_cipher`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_current_compression`  |  |  |  | :white_check_mark: |
 | `SSL_get_current_expansion`  |  |  |  |  |
@@ -361,7 +361,7 @@
 | `SSL_get_security_callback`  |  |  |  |  |
 | `SSL_get_security_level`  |  |  |  |  |
 | `SSL_get_selected_srtp_profile` [^srtp] |  |  |  |  |
-| `SSL_get_server_random`  |  |  | :white_check_mark: |  |
+| `SSL_get_server_random`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_get_servername`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_servername_type`  |  |  |  | :white_check_mark: |
 | `SSL_get_session`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
@@ -499,7 +499,7 @@
 | `SSL_use_psk_identity_hint` [^psk] |  |  |  |  |
 | `SSL_verify_client_post_handshake`  |  |  |  | :exclamation: [^stub] |
 | `SSL_version`  |  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_waiting_for_async`  |  |  | :white_check_mark: |  |
+| `SSL_waiting_for_async`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_want`  |  |  |  | :white_check_mark: |
 | `SSL_write`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_write_early_data`  |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |

@@ -2326,7 +2326,8 @@ entry_stub! {
     ) -> c_long;
 }
 
-// No access to individual certificate extensions
+// No access to individual clienthello extensions and no
+// SSL_CTX_set_client_hello_cb support
 
 entry_stub! {
     pub fn _SSL_client_hello_get0_ext(
@@ -2335,6 +2336,10 @@ entry_stub! {
         _out: *mut *const c_uchar,
         _outlen: *mut usize,
     ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_client_hello_get0_ciphers(_ssl: *mut SSL, _out: *mut *const c_uchar) -> usize;
 }
 
 // No custom extension support
@@ -2420,6 +2425,51 @@ entry_stub! {
 entry_stub! {
     // nb: should return stack_st_SSL_COMP, but this isn't defined in openssl-sys
     pub fn _SSL_COMP_get_compression_methods() -> *mut stack_st_void;
+}
+
+// No `SSL_MODE_ASYNC`
+
+entry_stub! {
+    pub fn _SSL_waiting_for_async(_ssl: *mut SSL) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get_all_async_fds(_ssl: *mut SSL, _fds: *mut c_int, _numfds: *mut usize) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_get_changed_async_fds(
+        _ssl: *mut SSL,
+        _addfd: *mut c_int,
+        _numaddfds: *mut usize,
+        _delfd: *mut c_int,
+        _numdelfds: *mut usize,
+    ) -> c_int;
+}
+
+// Unsafe low-level accessors.  OpenSSL docs say "you probably shouldn't use these functions."
+
+entry_stub! {
+    pub fn _SSL_get_client_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
+}
+
+entry_stub! {
+    pub fn _SSL_get_server_random(_ssl: *const SSL, _out: *mut c_uchar, _outlen: usize) -> usize;
+}
+
+entry_stub! {
+    pub fn _SSL_SESSION_get_master_key(
+        _sess: *const SSL_SESSION,
+        _out: *mut c_uchar,
+        _outlen: usize,
+    ) -> usize;
+}
+
+// This can be filled in when client SSL_SESSIONs are supported, via
+// `Tls13ClientSessionValue::max_early_data_size()`.
+
+entry_stub! {
+    pub fn _SSL_SESSION_get_max_early_data(_sess: *const SSL_SESSION) -> u32;
 }
 
 // ---------------------

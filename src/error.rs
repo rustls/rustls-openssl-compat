@@ -31,17 +31,17 @@ enum Reason {
 }
 
 impl From<Reason> for c_int {
-    fn from(r: Reason) -> c_int {
+    fn from(r: Reason) -> Self {
         use Reason::*;
         match r {
             // see `err.h.in` for magic numbers.
-            PassedNullParameter => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 258,
-            InternalError => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 259,
-            OperationFailed => (ERR_RFLAG_FATAL as i32) | ERR_RFLAG_COMMON | 263,
+            PassedNullParameter => (ERR_RFLAG_FATAL as Self) | ERR_RFLAG_COMMON | 258,
+            InternalError => (ERR_RFLAG_FATAL as Self) | ERR_RFLAG_COMMON | 259,
+            OperationFailed => (ERR_RFLAG_FATAL as Self) | ERR_RFLAG_COMMON | 263,
             Unsupported => ERR_RFLAG_COMMON | 268,
             WouldBlock => 0,
             // `sslerr.h`
-            Alert(alert) => 1000 + u8::from(alert) as c_int,
+            Alert(alert) => 1000 + u8::from(alert) as Self,
         }
     }
 }
@@ -193,7 +193,7 @@ impl From<Error> for usize {
 impl From<Error> for MysteriouslyOppositeReturnValue {
     fn from(_: Error) -> Self {
         // for a small subset of OpenSSL functions (return 1 on error)
-        MysteriouslyOppositeReturnValue::Error
+        Self::Error
     }
 }
 
@@ -232,7 +232,7 @@ impl From<Error> for () {
 }
 
 impl From<Error> for crate::entry::SSL_verify_cb {
-    fn from(_: Error) -> crate::entry::SSL_verify_cb {
+    fn from(_: Error) -> Self {
         None
     }
 }

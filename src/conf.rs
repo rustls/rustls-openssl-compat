@@ -368,7 +368,7 @@ pub(super) enum ValueType {
 
 impl From<ValueType> for c_int {
     fn from(value: ValueType) -> Self {
-        value as i32
+        value as Self
     }
 }
 
@@ -452,7 +452,7 @@ enum ActionResult {
 
 impl From<ActionResult> for c_int {
     fn from(value: ActionResult) -> Self {
-        value as c_int
+        value as Self
     }
 }
 
@@ -503,7 +503,7 @@ impl Flags {
 }
 
 impl From<Flags> for c_uint {
-    fn from(flags: Flags) -> c_uint {
+    fn from(flags: Flags) -> Self {
         flags.0
     }
 }

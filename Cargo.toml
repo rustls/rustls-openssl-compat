@@ -27,3 +27,4 @@ unused_qualifications = "warn"
 
 [lints.clippy]
 manual_let_else = "warn"
+use_self = "warn"

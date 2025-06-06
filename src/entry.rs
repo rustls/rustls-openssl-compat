@@ -1759,6 +1759,12 @@ entry! {
                 .into();
         }
 
+        let Ok(length) = usize::try_from(length) else {
+            return Error::bad_data("d2i_SSL_SESSION with negative length")
+                .raise()
+                .into();
+        };
+
         let ptr = unsafe { ptr::read(pp) };
         let slice = try_slice!(ptr, length);
 

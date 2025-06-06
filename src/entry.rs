@@ -2084,18 +2084,22 @@ num_enum! {
 // --- unimplemented stubs below here ---
 
 macro_rules! entry_stub {
-    (pub fn $name:ident($($args:tt)*);) => {
+    (pub fn $name:ident($($aname:ident: $aty:ty),*$(,)?);) => {
         #[no_mangle]
-        pub extern "C" fn $name($($args)*) {
+        pub extern "C" fn $name($($aname: $aty),*) {
             ffi_panic_boundary! {
+                #[cfg(debug_assertions)]
+                log::trace!("!! {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 Error::not_supported(stringify!($name)).raise().into()
             }
         }
     };
-    (pub fn $name:ident($($args:tt)*) -> $ret:ty;) => {
+    (pub fn $name:ident($($aname:ident: $aty:ty),*$(,)?) -> $ret:ty;) => {
         #[no_mangle]
-        pub extern "C" fn $name($($args)*) -> $ret {
+        pub extern "C" fn $name($($aname: $aty),*) -> $ret {
             ffi_panic_boundary! {
+                #[cfg(debug_assertions)]
+                log::trace!("!! {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 Error::not_supported(stringify!($name)).raise().into()
             }
         }

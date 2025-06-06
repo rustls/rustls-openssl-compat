@@ -325,8 +325,8 @@ impl SslSession {
             u64::from_le_bytes(slice.try_into().unwrap())
         }
 
-        let usize_len = mem::size_of::<usize>();
-        let u64_len = mem::size_of::<u64>();
+        let usize_len = size_of::<usize>();
+        let u64_len = size_of::<u64>();
 
         let (magic, slice) = split_at(slice, SslSession::MAGIC.len())?;
         if magic != SslSession::MAGIC {
@@ -436,7 +436,7 @@ pub struct SslContext {
     raw_options: u64,
     verify_mode: VerifyMode,
     verify_depth: c_int,
-    verify_x509_store: x509::OwnedX509Store,
+    verify_x509_store: OwnedX509Store,
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
     default_cert_dir: Option<PathBuf>,
@@ -749,7 +749,7 @@ struct Ssl {
     verify_mode: VerifyMode,
     verify_depth: c_int,
     verify_server_name: Option<ServerName<'static>>,
-    verify_x509_store: x509::OwnedX509Store,
+    verify_x509_store: OwnedX509Store,
     alpn: Vec<Vec<u8>>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
@@ -1448,7 +1448,7 @@ impl Ssl {
         }
     }
 
-    fn load_verify_certs(ctx: &SslContext) -> Result<x509::OwnedX509Store, error::Error> {
+    fn load_verify_certs(ctx: &SslContext) -> Result<OwnedX509Store, error::Error> {
         // If verify_roots isn't empty then it was configured with `SSL_CTX_load_verify_file`
         // or `SSL_CTX_load_verify_dir` and we should use it as-is.
         if !ctx.verify_x509_store.is_empty() {
@@ -1456,7 +1456,7 @@ impl Ssl {
         }
 
         // Otherwise, try to load the default cert file or cert dir.
-        let mut verify_roots = x509::OwnedX509Store::default();
+        let mut verify_roots = OwnedX509Store::default();
 
         if let Some(default_cert_file) = &ctx.default_cert_file {
             verify_roots.add_from_files([default_cert_file.to_path_buf()])?;

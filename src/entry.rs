@@ -426,13 +426,10 @@ entry! {
         let ctx = try_clone_arc!(ctx);
         let slice = try_slice!(protos, c_uint_into_usize(protos_len));
 
-        let alpn = match crate::parse_alpn(slice) {
-            Some(alpn) => alpn,
-            None => {
-                // nb. openssl doesn't add anything to the error stack
-                // in this case.
-                return Error::bad_data("invalid alpn protocols").raise().into();
-            }
+        let Some(alpn) = crate::parse_alpn(slice) else {
+            // nb. openssl doesn't add anything to the error stack
+            // in this case.
+            return Error::bad_data("invalid alpn protocols").raise().into();
         };
 
         ctx.get_mut().set_alpn_offer(alpn);
@@ -766,18 +763,14 @@ entry! {
     pub fn _SSL_new(ctx: *mut SSL_CTX) -> *mut SSL {
         let ctx = try_clone_arc!(ctx);
 
-        let ssl = match crate::Ssl::new(ctx.clone(), ctx.get()).ok() {
-            Some(ssl) => ssl,
-            None => return ptr::null_mut(),
+        let Some(ssl) = crate::Ssl::new(ctx.clone(), ctx.get()).ok() else {
+            return ptr::null_mut();
         };
 
         let out = to_arc_mut_ptr(NotThreadSafe::new(ssl));
-        let ex_data = match ExData::new_ssl(out) {
-            None => {
-                _SSL_free(out);
-                return ptr::null_mut();
-            }
-            Some(ex_data) => ex_data,
+        let Some(ex_data) = ExData::new_ssl(out) else {
+            _SSL_free(out);
+            return ptr::null_mut();
         };
 
         // safety: we just made this object, the pointer must be valid.
@@ -939,13 +932,10 @@ entry! {
         let ssl = try_clone_arc!(ssl);
         let slice = try_slice!(protos, c_uint_into_usize(protos_len));
 
-        let alpn = match crate::parse_alpn(slice) {
-            Some(alpn) => alpn,
-            None => {
-                // nb. openssl doesn't add anything to the error stack
-                // in this case.
-                return Error::bad_data("invalid alpn protocols").raise().into();
-            }
+        let Some(alpn) = crate::parse_alpn(slice) else {
+            // nb. openssl doesn't add anything to the error stack
+            // in this case.
+            return Error::bad_data("invalid alpn protocols").raise().into();
         };
 
         ssl.get_mut().set_alpn_offer(alpn);
@@ -1770,11 +1760,8 @@ entry! {
         let ptr = unsafe { ptr::read(pp) };
         let slice = try_slice!(ptr, length);
 
-        let (sess, rest) = match SSL_SESSION::decode(slice) {
-            Some(r) => r,
-            None => {
-                return Error::bad_data("cannot decode SSL_SESSION").raise().into();
-            }
+        let Some((sess, rest)) = SSL_SESSION::decode(slice) else {
+            return Error::bad_data("cannot decode SSL_SESSION").raise().into();
         };
         let consumed_bytes = slice.len() - rest.len();
 

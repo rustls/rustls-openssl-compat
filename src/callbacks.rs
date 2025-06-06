@@ -64,11 +64,8 @@ impl AlpnCallbackConfig {
     ///
     /// Returns the selected ALPN, or None, or an error.
     pub fn invoke(&self, offer: &[u8]) -> Result<Option<Vec<u8>>, Error> {
-        let callback = match self.cb {
-            Some(callback) => callback,
-            None => {
-                return Ok(None);
-            }
+        let Some(callback) = self.cb else {
+            return Ok(None);
         };
 
         let ssl = SslCallbackContext::ssl_ptr();
@@ -115,11 +112,8 @@ pub struct CertCallbackConfig {
 
 impl CertCallbackConfig {
     pub fn invoke(&self) -> Result<(), Error> {
-        let callback = match self.cb {
-            Some(callback) => callback,
-            None => {
-                return Ok(());
-            }
+        let Some(callback) = self.cb else {
+            return Ok(());
         };
         let ssl = SslCallbackContext::ssl_ptr();
 
@@ -150,11 +144,8 @@ pub struct ServerNameCallbackConfig {
 
 impl ServerNameCallbackConfig {
     pub fn invoke(&self) -> Result<(), Error> {
-        let callback = match self.cb {
-            Some(callback) => callback,
-            None => {
-                return Ok(());
-            }
+        let Some(callback) = self.cb else {
+            return Ok(());
         };
 
         let ssl = SslCallbackContext::ssl_ptr();
@@ -192,11 +183,8 @@ pub fn invoke_session_new_callback(
     callback: SSL_CTX_new_session_cb,
     sess: Arc<NotThreadSafe<SSL_SESSION>>,
 ) -> bool {
-    let callback = match callback {
-        Some(callback) => callback,
-        None => {
-            return false;
-        }
+    let Some(callback) = callback else {
+        return false;
     };
 
     let ssl = SslCallbackContext::ssl_ptr();
@@ -215,12 +203,7 @@ pub fn invoke_session_get_callback(
     callback: SSL_CTX_sess_get_cb,
     id: &[u8],
 ) -> Option<Arc<NotThreadSafe<SSL_SESSION>>> {
-    let callback = match callback {
-        Some(callback) => callback,
-        None => {
-            return None;
-        }
-    };
+    let callback = callback?;
 
     let ssl_ptr = SslCallbackContext::ssl_ptr();
     let mut copy = 1;
@@ -244,11 +227,8 @@ pub fn invoke_session_remove_callback(
     ssl_ctx: *mut SSL_CTX,
     sess: Arc<NotThreadSafe<SSL_SESSION>>,
 ) {
-    let callback = match callback {
-        Some(callback) => callback,
-        None => {
-            return;
-        }
+    let Some(callback) = callback else {
+        return;
     };
 
     let sess_ptr = Arc::into_raw(sess) as *mut SSL_SESSION;

@@ -26,11 +26,8 @@ impl SslConfigCtx {
     }
 
     pub(super) fn cmd(&mut self, cmd: &str, value: Option<&str>) -> c_int {
-        let command = match self.supported_command(cmd) {
-            Some(command) => command,
-            None => {
-                return -2; // "A return value of -2 means option is not recognised."
-            }
+        let Some(command) = self.supported_command(cmd) else {
+            return -2; // "A return value of -2 means option is not recognised."
         };
 
         match (command.action)(self, value) {
@@ -85,9 +82,8 @@ impl SslConfigCtx {
     }
 
     fn min_protocol(&mut self, proto: Option<&str>) -> Result<ActionResult, Error> {
-        let ver = match Self::parse_protocol_version(proto) {
-            Some(ver) => ver,
-            None => return Err(Error::bad_data("unrecognized protocol version")),
+        let Some(ver) = Self::parse_protocol_version(proto) else {
+            return Err(Error::bad_data("unrecognized protocol version"));
         };
 
         Ok(match &self.state {
@@ -105,9 +101,8 @@ impl SslConfigCtx {
     }
 
     fn max_protocol(&mut self, proto: Option<&str>) -> Result<ActionResult, Error> {
-        let ver = match Self::parse_protocol_version(proto) {
-            Some(ver) => ver,
-            None => return Err(Error::bad_data("unrecognized protocol version")),
+        let Some(ver) = Self::parse_protocol_version(proto) else {
+            return Err(Error::bad_data("unrecognized protocol version"));
         };
 
         Ok(match &self.state {
@@ -132,9 +127,8 @@ impl SslConfigCtx {
             State::ApplyingToCtx(ctx) => ctx.get().verify_mode,
         };
 
-        let raw_mode = match raw_mode {
-            Some(raw_mode) => raw_mode,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(raw_mode) = raw_mode else {
+            return Ok(ActionResult::ValueRequired);
         };
 
         if !self.flags.is_server() && !self.flags.is_client() {
@@ -176,9 +170,8 @@ impl SslConfigCtx {
     }
 
     fn certificate(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
-        let path = match path {
-            Some(path) => path,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(path) = path else {
+            return Ok(ActionResult::ValueRequired);
         };
         let cert_chain = use_cert_chain_file(path)?;
 
@@ -201,9 +194,8 @@ impl SslConfigCtx {
     }
 
     fn private_key(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
-        let path = match path {
-            Some(path) => path,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(path) = path else {
+            return Ok(ActionResult::ValueRequired);
         };
         let key = use_private_key_file(path, FILETYPE_PEM)?;
 
@@ -221,9 +213,8 @@ impl SslConfigCtx {
     }
 
     fn verify_ca_path(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
-        let path = match path {
-            Some(path) => path,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(path) = path else {
+            return Ok(ActionResult::ValueRequired);
         };
 
         match &self.state {
@@ -242,9 +233,8 @@ impl SslConfigCtx {
     }
 
     fn verify_ca_file(&mut self, path: Option<&str>) -> Result<ActionResult, Error> {
-        let path = match path {
-            Some(path) => path,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(path) = path else {
+            return Ok(ActionResult::ValueRequired);
         };
 
         match &self.state {
@@ -280,9 +270,8 @@ impl SslConfigCtx {
     }
 
     fn options(&mut self, opts: Option<&str>) -> Result<ActionResult, Error> {
-        let opts = match opts {
-            Some(path) => path,
-            None => return Ok(ActionResult::ValueRequired),
+        let Some(opts) = opts else {
+            return Ok(ActionResult::ValueRequired);
         };
 
         for part in opts.split(',').map(|part| part.trim()) {

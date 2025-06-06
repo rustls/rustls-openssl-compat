@@ -1086,9 +1086,8 @@ impl Ssl {
 
     fn invoke_accepted_callbacks(&mut self) -> Result<(), error::Error> {
         // called on transition from `Accepting` -> `Accepted`
-        let accepted = match &self.conn {
-            ConnState::Accepted(accepted) => accepted,
-            _ => unreachable!(),
+        let ConnState::Accepted(accepted) = &self.conn else {
+            unreachable!();
         };
 
         self.server_name = accepted
@@ -1160,9 +1159,8 @@ impl Ssl {
         let cache = self.ctx.get_mut().caches.get_server();
         config.session_storage = cache.clone();
 
-        let accepted = match mem::replace(&mut self.conn, ConnState::Nothing) {
-            ConnState::Accepted(accepted) => accepted,
-            _ => unreachable!(),
+        let ConnState::Accepted(accepted) = mem::replace(&mut self.conn, ConnState::Nothing) else {
+            unreachable!();
         };
 
         // TODO: send alert
@@ -1241,9 +1239,8 @@ impl Ssl {
     }
 
     fn try_io(&mut self) -> Result<(), error::Error> {
-        let bio = match self.bio.as_mut() {
-            Some(bio) => bio,
-            None => return Ok(()), // investigate OpenSSL behaviour without a BIO
+        let Some(bio) = self.bio.as_mut() else {
+            return Ok(()); // investigate OpenSSL behaviour without a BIO
         };
 
         match &mut self.conn {
@@ -1338,23 +1335,20 @@ impl Ssl {
     }
 
     fn init_peer_cert(&mut self) {
-        let conn = match self.conn() {
-            Some(conn) => conn,
-            None => return,
+        let Some(conn) = self.conn() else {
+            return;
         };
 
-        let certs = match conn.peer_certificates() {
-            Some(certs) => certs,
-            None => return,
+        let Some(certs) = conn.peer_certificates() else {
+            return;
         };
 
         let mut stack = x509::OwnedX509Stack::empty();
         let mut peer_cert = None;
 
         for (i, cert) in certs.iter().enumerate() {
-            let converted = match x509::OwnedX509::parse_der(cert.as_ref()) {
-                Some(converted) => converted,
-                None => return,
+            let Some(converted) = x509::OwnedX509::parse_der(cert.as_ref()) else {
+                return;
             };
 
             if i == 0 {

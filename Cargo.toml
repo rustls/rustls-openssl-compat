@@ -24,3 +24,6 @@ trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_extern_crates = "warn"
 unused_qualifications = "warn"
+
+[lints.clippy]
+manual_let_else = "warn"

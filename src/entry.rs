@@ -44,13 +44,30 @@ use crate::{conf, HandshakeState, ShutdownResult};
 ///   versioning happening there,
 /// - the name should appear in the list of all entry points there.
 macro_rules! entry {
-    (pub fn $name:ident($($args:tt)*) $body:block) => {
+    (pub fn $name:ident($($aname:ident: $aty:ty),*$(,)?) $body:block) => {
         #[no_mangle]
-        pub extern "C" fn $name($($args)*) { ffi_panic_boundary! { $body } }
+        pub extern "C" fn $name($($aname: $aty),*) {
+            ffi_panic_boundary! {
+                #[cfg(debug_assertions)]
+                log::trace!("-> {}{:?}", &stringify!($name)[1..], &($($aname,)*));
+                $body
+                #[cfg(debug_assertions)]
+                log::trace!("<- {}", &stringify!($name)[1..]);
+            }
+        }
     };
-    (pub fn $name:ident($($args:tt)*) -> $ret:ty $body:block) => {
+    (pub fn $name:ident($($aname:ident: $aty:ty),*$(,)?) -> $ret:ty $body:block) => {
         #[no_mangle]
-        pub extern "C" fn $name($($args)*) -> $ret { ffi_panic_boundary! { $body } }
+        pub extern "C" fn $name($($aname: $aty),*) -> $ret {
+            ffi_panic_boundary! {
+                #[cfg(debug_assertions)]
+                log::trace!("-> {}{:?}", &stringify!($name)[1..], &($($aname,)*));
+                let r = $body;
+                #[cfg(debug_assertions)]
+                log::trace!("<- {} [{:?}]", &stringify!($name)[1..], r);
+                r
+            }
+        }
     };
 }
 

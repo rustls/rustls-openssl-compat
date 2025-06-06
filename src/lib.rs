@@ -56,6 +56,7 @@ mod x509;
 ///
 /// # Lifetime
 /// Functions that return SSL_METHOD, like `TLS_method()`, give static-lifetime pointers.
+#[derive(Debug)]
 pub struct SslMethod {
     client_versions: &'static [&'static SupportedProtocolVersion],
     server_versions: &'static [&'static SupportedProtocolVersion],

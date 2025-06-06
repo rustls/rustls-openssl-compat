@@ -1571,9 +1571,12 @@ entry! {
 entry! {
     pub fn _SSL_CIPHER_description(
         cipher: *const SSL_CIPHER,
-        mut buf: *mut c_char,
-        mut size: c_int,
+        buf: *mut c_char,
+        size: c_int,
     ) -> *mut c_char {
+        // rebind inside `ffi_panic_boundary` closure to make `unused_assignments` lint
+        // more accurate
+        let mut buf = buf;
         let description = try_ref_from_ptr!(cipher).description;
         let required_len = description.to_bytes_with_nul().len();
 
@@ -1587,7 +1590,6 @@ entry! {
                 return allocd;
             }
             buf = allocd;
-            size = required_len as i32;
         } else if size < (required_len as i32) {
             return ptr::null_mut();
         }

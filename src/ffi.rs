@@ -418,7 +418,7 @@ macro_rules! try_slice {
         if $ptr.is_null() {
             return $crate::error::Error::null_pointer().raise().into();
         } else {
-            unsafe { ::core::slice::from_raw_parts($ptr, $count as usize) }
+            unsafe { ::core::slice::from_raw_parts($ptr, $count) }
         }
     };
 }

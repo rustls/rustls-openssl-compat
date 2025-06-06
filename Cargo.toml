@@ -18,3 +18,6 @@ rustls = "0.23.27"
 
 [dev-dependencies]
 pretty_assertions = "1"
+
+[lints.rust]
+trivial_numeric_casts = "warn"

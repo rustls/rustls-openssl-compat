@@ -424,7 +424,7 @@ entry! {
         protos_len: c_uint,
     ) -> MysteriouslyOppositeReturnValue {
         let ctx = try_clone_arc!(ctx);
-        let slice = try_slice!(protos, protos_len);
+        let slice = try_slice!(protos, c_uint_into_usize(protos_len));
 
         let alpn = match crate::parse_alpn(slice) {
             Some(alpn) => alpn,
@@ -689,7 +689,7 @@ entry! {
         sid_ctx: *const c_uchar,
         sid_ctx_len: c_uint,
     ) -> c_int {
-        let sid_ctx = try_slice!(sid_ctx, sid_ctx_len);
+        let sid_ctx = try_slice!(sid_ctx, c_uint_into_usize(sid_ctx_len));
         if sid_ctx.len() > SSL_MAX_SID_CTX_LENGTH {
             return Error::not_supported("excess sid_ctx_len").raise().into();
         }
@@ -937,7 +937,7 @@ entry! {
         protos_len: c_uint,
     ) -> MysteriouslyOppositeReturnValue {
         let ssl = try_clone_arc!(ssl);
-        let slice = try_slice!(protos, protos_len);
+        let slice = try_slice!(protos, c_uint_into_usize(protos_len));
 
         let alpn = match crate::parse_alpn(slice) {
             Some(alpn) => alpn,
@@ -1131,8 +1131,8 @@ entry! {
                 ERROR
             }
             Ok(result) => match result {
-                ShutdownResult::Sent => 0 as c_int,
-                ShutdownResult::Received => 1 as c_int,
+                ShutdownResult::Sent => 0,
+                ShutdownResult::Received => 1,
             },
         }
     }
@@ -1170,7 +1170,7 @@ entry! {
 
 entry! {
     pub fn _SSL_get_error(ssl: *const SSL, _ret_code: c_int) -> c_int {
-        try_clone_arc!(ssl).get_mut().get_error() as c_int
+        try_clone_arc!(ssl).get_mut().get_error()
     }
 }
 
@@ -1595,7 +1595,7 @@ entry! {
         }
 
         unsafe {
-            ptr::copy_nonoverlapping(description.as_ptr(), buf, required_len as usize);
+            ptr::copy_nonoverlapping(description.as_ptr(), buf, required_len);
         };
         buf
     }
@@ -1615,8 +1615,8 @@ entry! {
         client: *const c_uchar,
         client_len: c_uint,
     ) -> c_int {
-        let server = try_slice!(server, server_len);
-        let client = try_slice!(client, client_len);
+        let server = try_slice!(server, c_uint_into_usize(server_len));
+        let client = try_slice!(client, c_uint_into_usize(client_len));
 
         if out.is_null() || out_len.is_null() {
             return 0;
@@ -1734,7 +1734,7 @@ entry! {
         sid_ctx: *const c_uchar,
         sid_ctx_len: c_uint,
     ) -> c_int {
-        let slice = try_slice!(sid_ctx, sid_ctx_len);
+        let slice = try_slice!(sid_ctx, c_uint_into_usize(sid_ctx_len));
         if slice.len() > SSL_MAX_SID_CTX_LENGTH {
             return Error::not_supported("excess sid_ctx_len").raise().into();
         }
@@ -2481,6 +2481,13 @@ entry_stub! {
 }
 
 // ---------------------
+
+fn c_uint_into_usize(v: c_uint) -> usize {
+    const {
+        assert!(size_of::<c_uint>() <= size_of::<usize>());
+    }
+    v as usize
+}
 
 #[cfg(test)]
 mod tests {

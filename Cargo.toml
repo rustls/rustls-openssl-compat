@@ -21,3 +21,5 @@ pretty_assertions = "1"
 
 [lints.rust]
 trivial_numeric_casts = "warn"
+unused_import_braces = "warn"
+unused_extern_crates = "warn"

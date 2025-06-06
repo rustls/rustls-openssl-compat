@@ -103,7 +103,7 @@ pub struct SslCipher {
 }
 
 impl SslCipher {
-    pub fn find_by_id(id: CipherSuite) -> Option<&'static SslCipher> {
+    pub fn find_by_id(id: CipherSuite) -> Option<&'static Self> {
         match id {
             CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 => {
                 Some(&TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
@@ -283,7 +283,7 @@ impl SslSession {
         let time_out = self.time_out.to_le_bytes();
 
         let mut ret = Vec::with_capacity(
-            SslSession::MAGIC.len()
+            Self::MAGIC.len()
                 + id_len.len()
                 + self.id.0.len()
                 + value_len.len()
@@ -293,7 +293,7 @@ impl SslSession {
                 + creation_time.len()
                 + time_out.len(),
         );
-        ret.extend_from_slice(SslSession::MAGIC);
+        ret.extend_from_slice(Self::MAGIC);
         ret.extend_from_slice(&id_len);
         ret.extend_from_slice(&self.id.0);
         ret.extend_from_slice(&value_len);
@@ -328,8 +328,8 @@ impl SslSession {
         let usize_len = size_of::<usize>();
         let u64_len = size_of::<u64>();
 
-        let (magic, slice) = split_at(slice, SslSession::MAGIC.len())?;
-        if magic != SslSession::MAGIC {
+        let (magic, slice) = split_at(slice, Self::MAGIC.len())?;
+        if magic != Self::MAGIC {
             return None;
         }
         let (id_len, slice) = split_at(slice, usize_len)?;
@@ -381,7 +381,7 @@ impl SslSession {
     }
 }
 
-impl PartialOrd<SslSession> for SslSession {
+impl PartialOrd<Self> for SslSession {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.id.cmp(&other.id))
     }
@@ -393,7 +393,7 @@ impl Ord for SslSession {
     }
 }
 
-impl PartialEq<SslSession> for SslSession {
+impl PartialEq<Self> for SslSession {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
@@ -478,10 +478,7 @@ impl SslContext {
         }
     }
 
-    fn complete_construction(
-        &mut self,
-        pointer_to_self: *mut entry::SSL_CTX,
-    ) -> Result<(), error::Error> {
+    fn complete_construction(&mut self, pointer_to_self: *mut Self) -> Result<(), error::Error> {
         self.caches.set_pointer_to_owning_ssl_ctx(pointer_to_self);
 
         self.ex_data = ex_data::ExData::new_ssl_ctx(pointer_to_self)
@@ -1549,17 +1546,17 @@ impl HandshakeState {
             // nb.
             // 1. openssl 3 behaviour for SSL_in_before or SSL_in_init does not match docs
             // 2. SSL_in_init becomes 1 on sending a fatal alert
-            HandshakeState::Before
-            | HandshakeState::Error
-            | HandshakeState::ClientAwaitingServerHello
-            | HandshakeState::ServerAwaitingClientHello => true,
+            Self::Before
+            | Self::Error
+            | Self::ClientAwaitingServerHello
+            | Self::ServerAwaitingClientHello => true,
             _ => false,
         }
     }
 }
 
 impl From<HandshakeState> for c_uint {
-    fn from(hs: HandshakeState) -> c_uint {
+    fn from(hs: HandshakeState) -> Self {
         match hs {
             HandshakeState::Before => 0,
             HandshakeState::Finished => 1,
@@ -1603,39 +1600,39 @@ impl ShutdownFlags {
     const PRIV_QUIET: i32 = 4;
 
     fn is_sent(&self) -> bool {
-        self.0 & ShutdownFlags::SENT == ShutdownFlags::SENT
+        self.0 & Self::SENT == Self::SENT
     }
 
     fn is_received(&self) -> bool {
-        self.0 & ShutdownFlags::RECEIVED == ShutdownFlags::RECEIVED
+        self.0 & Self::RECEIVED == Self::RECEIVED
     }
 
     fn set_sent(&mut self) {
-        self.0 |= ShutdownFlags::SENT;
+        self.0 |= Self::SENT;
     }
 
     fn set_received(&mut self) {
-        self.0 |= ShutdownFlags::RECEIVED;
+        self.0 |= Self::RECEIVED;
     }
 
     fn set(&mut self, flags: i32) {
-        self.0 |= flags & ShutdownFlags::PUBLIC;
+        self.0 |= flags & Self::PUBLIC;
     }
 
     fn get(&self) -> i32 {
-        self.0 & ShutdownFlags::PUBLIC
+        self.0 & Self::PUBLIC
     }
 
     fn set_quiet(&mut self, enabled: bool) {
         if enabled {
-            self.0 |= ShutdownFlags::PRIV_QUIET;
+            self.0 |= Self::PRIV_QUIET;
         } else {
-            self.0 &= !ShutdownFlags::PRIV_QUIET;
+            self.0 &= !Self::PRIV_QUIET;
         }
     }
 
     fn quiet(&self) -> bool {
-        self.0 & ShutdownFlags::PRIV_QUIET == ShutdownFlags::PRIV_QUIET
+        self.0 & Self::PRIV_QUIET == Self::PRIV_QUIET
     }
 }
 
@@ -1649,20 +1646,20 @@ impl VerifyMode {
     // other flags not mentioned here are not implemented.
 
     pub fn client_must_verify_server(&self) -> bool {
-        self.0 & VerifyMode::PEER == VerifyMode::PEER
+        self.0 & Self::PEER == Self::PEER
     }
 
     pub fn server_must_attempt_client_auth(&self) -> bool {
-        self.0 & VerifyMode::PEER == VerifyMode::PEER
+        self.0 & Self::PEER == Self::PEER
     }
 
     pub fn server_must_verify_client(&self) -> bool {
-        let bitmap = VerifyMode::PEER | VerifyMode::FAIL_IF_NO_PEER_CERT;
+        let bitmap = Self::PEER | Self::FAIL_IF_NO_PEER_CERT;
         self.0 & bitmap == bitmap
     }
 
     pub fn server_should_verify_client_but_allow_anon(&self) -> bool {
-        self.0 & (VerifyMode::PEER | VerifyMode::FAIL_IF_NO_PEER_CERT) == VerifyMode::PEER
+        self.0 & (Self::PEER | Self::FAIL_IF_NO_PEER_CERT) == Self::PEER
     }
 }
 

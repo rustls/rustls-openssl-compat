@@ -261,7 +261,7 @@ impl SignCtx {
             }
         };
 
-        Some(SignCtx { md_ctx, pkey_ctx })
+        Some(Self { md_ctx, pkey_ctx })
     }
 
     fn set_signature_md(&mut self, md: *const EVP_MD) -> Option<()> {

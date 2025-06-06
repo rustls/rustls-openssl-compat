@@ -49,7 +49,7 @@ impl<T: Ord + PartialOrd> Ord for NotThreadSafe<T> {
 }
 
 impl<T: PartialOrd<T> + Ord> PartialOrd for NotThreadSafe<T> {
-    fn partial_cmp(&self, other: &NotThreadSafe<T>) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.get().cmp(other.get()))
     }
 }

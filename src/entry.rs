@@ -121,7 +121,7 @@ entry! {
 
 impl Castable for SSL_METHOD {
     type Ownership = OwnershipRef;
-    type RustType = SSL_METHOD;
+    type RustType = Self;
 }
 
 pub type SSL_CTX = crate::SslContext;
@@ -754,7 +754,7 @@ entry! {
 
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
-    type RustType = NotThreadSafe<SSL_CTX>;
+    type RustType = NotThreadSafe<Self>;
 }
 
 pub type SSL = crate::Ssl;
@@ -1479,7 +1479,7 @@ entry! {
 
 impl Castable for SSL {
     type Ownership = OwnershipArc;
-    type RustType = NotThreadSafe<SSL>;
+    type RustType = NotThreadSafe<Self>;
 }
 
 type SSL_CIPHER = crate::SslCipher;
@@ -1593,7 +1593,7 @@ entry! {
 
 impl Castable for SSL_CIPHER {
     type Ownership = OwnershipRef;
-    type RustType = SSL_CIPHER;
+    type RustType = Self;
 }
 
 entry! {
@@ -1795,7 +1795,7 @@ entry! {
 
 impl Castable for SSL_SESSION {
     type Ownership = OwnershipArc;
-    type RustType = NotThreadSafe<SSL_SESSION>;
+    type RustType = NotThreadSafe<Self>;
 }
 
 entry! {
@@ -1884,7 +1884,7 @@ pub type SSL_CONF_CTX = conf::SslConfigCtx;
 
 impl Castable for SSL_CONF_CTX {
     type Ownership = OwnershipBox; // SSL_CONF_CTX does not do reference counting.
-    type RustType = NotThreadSafe<conf::SslConfigCtx>;
+    type RustType = NotThreadSafe<Self>;
 }
 
 entry! {

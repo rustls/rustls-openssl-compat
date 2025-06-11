@@ -56,6 +56,13 @@ $ sudo service nginx restart
 `rustls-libssl-nginx enable` installs a systemd drop-in in `/etc/systemd/system/nginx.service.d/`.
 `rustls-libssl-nginx disable` undoes that.
 
+## Building from source
+
+In addition to Rust 1.77+ you will require `lld` to build `rustls-libssl` from
+source. At the time of writing the default linker (`ld`) doesn't offer
+sufficient `--version-script` support and `lld` must be available for the
+project `build.rs` script to use.
+
 # Changelog
 The detailed list of changes in each release can be found at
 https://github.com/rustls/rustls-openssl-compat/releases.

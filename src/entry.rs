@@ -7,6 +7,7 @@ use core::{mem, ptr};
 use std::io::{self, Read};
 use std::os::raw::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::{fs, path::PathBuf};
 
 use openssl_sys::{
@@ -48,6 +49,8 @@ macro_rules! entry {
         #[no_mangle]
         pub extern "C" fn $name($($aname: $aty),*) {
             ffi_panic_boundary! {
+                one_time_init();
+
                 #[cfg(debug_assertions)]
                 log::trace!("-> {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 $body
@@ -60,6 +63,8 @@ macro_rules! entry {
         #[no_mangle]
         pub extern "C" fn $name($($aname: $aty),*) -> $ret {
             ffi_panic_boundary! {
+                one_time_init();
+
                 #[cfg(debug_assertions)]
                 log::trace!("-> {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 let r = $body;
@@ -71,15 +76,24 @@ macro_rules! entry {
     };
 }
 
+fn one_time_init() {
+    static CELL: OnceLock<()> = OnceLock::new();
+
+    CELL.get_or_init(|| {
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+        // logging is off unless `RUST_LOG` environment variable is set.
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("off")).init();
+
+        log::trace!("Initialized rustls-libssl {VERSION}");
+    });
+}
+
 pub struct OpenSslInitSettings;
 type OPENSSL_INIT_SETTINGS = OpenSslInitSettings;
 
 entry! {
     pub fn _OPENSSL_init_ssl(_opts: u64, _settings: *const OPENSSL_INIT_SETTINGS) -> c_int {
-        const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-        env_logger::init();
-        log::trace!("OPENSSL_init_ssl in rustls-libssl {VERSION}");
         C_INT_SUCCESS
     }
 }
@@ -2088,6 +2102,7 @@ macro_rules! entry_stub {
         #[no_mangle]
         pub extern "C" fn $name($($aname: $aty),*) {
             ffi_panic_boundary! {
+                one_time_init();
                 #[cfg(debug_assertions)]
                 log::trace!("!! {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 Error::not_supported(stringify!($name)).raise().into()
@@ -2098,6 +2113,7 @@ macro_rules! entry_stub {
         #[no_mangle]
         pub extern "C" fn $name($($aname: $aty),*) -> $ret {
             ffi_panic_boundary! {
+                one_time_init();
                 #[cfg(debug_assertions)]
                 log::trace!("!! {}{:?}", &stringify!($name)[1..], &($($aname,)*));
                 Error::not_supported(stringify!($name)).raise().into()

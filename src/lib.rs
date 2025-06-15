@@ -394,7 +394,7 @@ impl SslSession {
 
 impl PartialOrd<Self> for SslSession {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 

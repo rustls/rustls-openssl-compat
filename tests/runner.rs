@@ -253,6 +253,11 @@ fn client_real_world() {
         .map(print_output)
         .unwrap();
 
+    let openssl_output = openssl_output
+        .replace_stdout_line("negotiated group NID: ", "negotiated group NID: <varies>");
+    let rustls_output = rustls_output
+        .replace_stdout_line("negotiated group NID: ", "negotiated group NID: <varies>");
+
     assert_eq!(openssl_output, rustls_output);
 }
 
@@ -817,6 +822,25 @@ fn print_output(out: Output) -> PrettyOutput {
 
 #[derive(PartialEq)]
 struct PrettyOutput(Output);
+
+impl PrettyOutput {
+    fn replace_stdout_line(mut self, prefix: &str, replace_with: &str) -> Self {
+        let mut out = String::new();
+        for line in String::from_utf8(self.0.stdout)
+            .expect("stdout should be valid utf8")
+            .lines()
+        {
+            match line.starts_with(prefix) {
+                true => out.push_str(replace_with),
+                false => out.push_str(line),
+            }
+            out.push('\n');
+        }
+
+        self.0.stdout = out.into_bytes();
+        self
+    }
+}
 
 impl fmt::Debug for PrettyOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

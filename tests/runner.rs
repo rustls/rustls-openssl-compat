@@ -239,7 +239,7 @@ fn client_real_world() {
     let openssl_output = Command::new("tests/maybe-valgrind.sh")
         .env("LD_LIBRARY_PATH", "")
         .env("NO_ECHO", "1")
-        .args(["target/client", "example.com", "443", "default"])
+        .args(["target/client", "jbp.io", "443", "default"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)
@@ -247,7 +247,7 @@ fn client_real_world() {
 
     let rustls_output = Command::new("tests/maybe-valgrind.sh")
         .env("NO_ECHO", "1")
-        .args(["target/client", "example.com", "443", "default"])
+        .args(["target/client", "jbp.io", "443", "default"])
         .stdout(Stdio::piped())
         .output()
         .map(print_output)

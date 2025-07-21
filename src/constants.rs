@@ -146,8 +146,7 @@ pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
         FFDHE4096 => Some(NID_FFDHE4096),
         FFDHE6144 => Some(NID_FFDHE6144),
         FFDHE8192 => Some(NID_FFDHE8192),
-        Unknown(id) => Some(TLSEXT_NID_UNKNOWN | id as c_int),
-        _ => None,
+        other => Some(TLSEXT_NID_UNKNOWN | u16::from(other) as c_int),
     }
 }
 

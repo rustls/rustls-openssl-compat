@@ -230,6 +230,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_set_connect_state",
     "SSL_set_ex_data",
     "SSL_set_fd",
+    "SSL_set_info_callback",
     "SSL_set_max_early_data",
     "SSL_set_msg_callback",
     "SSL_set_num_tickets",

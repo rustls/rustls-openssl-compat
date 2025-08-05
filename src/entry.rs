@@ -13,7 +13,9 @@ use std::{fs, path::PathBuf};
 use openssl_sys::{
     stack_st_SSL_CIPHER, stack_st_X509, stack_st_X509_NAME, stack_st_void, NID_undef,
     OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
-    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
+    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
+    SSL_MODE_AUTO_RETRY, SSL_MODE_ENABLE_PARTIAL_WRITE, SSL_MODE_RELEASE_BUFFERS, X509, X509_STORE,
+    X509_STORE_CTX,
 };
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -240,8 +242,18 @@ entry! {
 
         match SslCtrl::try_from(cmd) {
             Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_CTX_set_mode()");
-                0
+                const RUSTLS_DEFAULT_EQUIVALENTS: c_long = SSL_MODE_AUTO_RETRY
+                    | SSL_MODE_ENABLE_PARTIAL_WRITE
+                    | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+                    | SSL_MODE_RELEASE_BUFFERS;
+                match larg & !RUSTLS_DEFAULT_EQUIVALENTS {
+                    // Application is requesting behaviour we already implement.
+                    0 => C_INT_SUCCESS as c_long,
+                    _ => {
+                        log::warn!("unhandled SSL_CTX_set_mode({larg:x})");
+                        0
+                    }
+                }
             }
             Ok(SslCtrl::SetMsgCallbackArg) => {
                 log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");

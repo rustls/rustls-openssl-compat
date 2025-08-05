@@ -704,6 +704,15 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_set_info_callback(ctx: *mut SSL_CTX, cb: SSL_CTX_info_callback_func) {
+        try_clone_arc!(ctx).get_mut().set_info_callback(cb);
+    }
+}
+
+pub type SSL_CTX_info_callback_func =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, type_: c_int, val: c_int)>;
+
+entry! {
     pub fn _SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32 {
         try_clone_arc!(ctx).get().get_max_early_data()
     }
@@ -1044,6 +1053,12 @@ entry! {
 entry! {
     pub fn _SSL_get_early_data_status(ssl: *const SSL) -> c_int {
         try_clone_arc!(ssl).get_mut().get_early_data_status().into()
+    }
+}
+
+entry! {
+    pub fn _SSL_set_info_callback(ssl: *mut SSL, cb: SSL_CTX_info_callback_func) {
+        try_clone_arc!(ssl).get_mut().set_info_callback(cb);
     }
 }
 
@@ -2326,15 +2341,6 @@ pub type SSL_CTX_msg_cb_func = Option<
         arg: *mut c_void,
     ),
 >;
-
-// no state machine observation
-
-entry_stub! {
-    pub fn _SSL_CTX_set_info_callback(
-        _ctx: *mut SSL_CTX,
-        _cb: Option<unsafe extern "C" fn(ssl: *const SSL, type_: c_int, val: c_int)>,
-    );
-}
 
 // no NPN (obsolete precursor to ALPN)
 

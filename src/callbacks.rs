@@ -7,9 +7,9 @@ use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
 use rustls::AlertDescription;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_new_session_cb,
-    SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb,
-    _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_info_callback_func,
+    SSL_CTX_new_session_cb, SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb,
+    SSL_CTX_sess_remove_cb, _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
 };
 use crate::error::Error;
 use crate::ffi;
@@ -237,3 +237,47 @@ pub fn invoke_session_remove_callback(
 
     _SSL_SESSION_free(sess_ptr);
 }
+
+/// Configuration needed to call an [`SSL_CTX_info_callback_func`] later
+#[derive(Debug, Default, Clone)]
+pub struct InfoCallbackConfig {
+    pub cb: SSL_CTX_info_callback_func,
+}
+
+impl InfoCallbackConfig {
+    pub fn invoke(&self, info: Info) {
+        let Some(callback) = self.cb else {
+            return;
+        };
+
+        let ssl = SslCallbackContext::ssl_ptr();
+        unsafe { callback(ssl, info.typ(), info.val()) };
+    }
+}
+
+pub enum Info {
+    /// `SSL_CB_ALERT | SSL_CB_READ`
+    AlertReceived(AlertDescription),
+
+    /// `SSL_CB_ALERT | SSL_CB_WRITE`
+    AlertSent(AlertDescription),
+}
+
+impl Info {
+    fn typ(&self) -> c_int {
+        match self {
+            Self::AlertReceived(_) => SSL_CB_ALERT | SSL_CB_READ,
+            Self::AlertSent(_) => SSL_CB_ALERT | SSL_CB_WRITE,
+        }
+    }
+
+    fn val(&self) -> c_int {
+        match self {
+            Self::AlertReceived(a) | Self::AlertSent(a) => u8::from(*a) as c_int,
+        }
+    }
+}
+
+const SSL_CB_ALERT: c_int = 0x4000;
+const SSL_CB_READ: c_int = 0x0004;
+const SSL_CB_WRITE: c_int = 0x0008;

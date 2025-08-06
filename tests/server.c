@@ -69,6 +69,21 @@ static int sni_callback(SSL *ssl, int *al, void *arg) {
   return SSL_TLSEXT_ERR_OK;
 }
 
+static int client_hello_cookie = 98765;
+
+static int client_hello_callback(SSL *ssl, int *alert, void *arg) {
+  printf("in client_hello_callback\n");
+  assert(ssl != NULL);
+  assert(arg == &client_hello_cookie);
+  printf("  *alert = %d\n", *alert);
+  printf("  SSL_get_servername: %s (%d)\n",
+         SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
+         SSL_get_servername_type(ssl));
+  printf("  ssl_ex_data_idx_message: %s\n",
+         (const char *)SSL_get_ex_data(ssl, ssl_ex_data_idx_message));
+  return 1;
+}
+
 static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
   printf("in sess_new_callback\n");
   assert(ssl != NULL);
@@ -156,6 +171,9 @@ int main(int argc, char **argv) {
   SSL_CTX_set_tlsext_servername_callback(ctx, sni_callback);
   dump_openssl_error_stack();
   SSL_CTX_set_tlsext_servername_arg(ctx, &sni_cookie);
+  dump_openssl_error_stack();
+
+  SSL_CTX_set_client_hello_cb(ctx, client_hello_callback, &client_hello_cookie);
   dump_openssl_error_stack();
 
   // Default to no tickets.

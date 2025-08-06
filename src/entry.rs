@@ -901,6 +901,21 @@ pub type custom_ext_parse_cb = Option<
     ) -> c_int,
 >;
 
+entry! {
+    pub fn _SSL_CTX_set_client_hello_cb(
+        ctx: *mut SSL_CTX,
+        cb: SSL_client_hello_cb_func,
+        arg: *mut c_void,
+    ) {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_client_hello_callback(cb, arg);
+    }
+}
+
+pub type SSL_client_hello_cb_func =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<Self>;
@@ -2246,17 +2261,6 @@ pub type SSL_CTX_tlsext_ticket_key_evp_cb_func = Option<
         _enc: c_int,
     ) -> c_int,
 >;
-
-entry_stub! {
-    pub fn _SSL_CTX_set_client_hello_cb(
-        _ctx: *mut SSL_CTX,
-        _cb: SSL_client_hello_cb_func,
-        _arg: *mut c_void,
-    );
-}
-
-pub type SSL_client_hello_cb_func =
-    Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
 
 entry_stub! {
     pub fn _SSL_state_string(_ssl: *const SSL) -> *const c_char;

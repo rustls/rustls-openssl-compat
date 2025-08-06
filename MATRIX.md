@@ -143,7 +143,7 @@
 | `SSL_CTX_set_client_CA_list`  |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_client_cert_cb`  |  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_client_cert_engine` [^engine] |  |  |  |  |
-| `SSL_CTX_set_client_hello_cb`  |  |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_set_client_hello_cb`  |  |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_cookie_generate_cb`  |  |  |  |  |
 | `SSL_CTX_set_cookie_verify_cb`  |  |  |  |  |
 | `SSL_CTX_set_ct_validation_callback` [^ct] |  |  |  |  |

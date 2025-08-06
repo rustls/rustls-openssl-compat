@@ -457,6 +457,7 @@ pub struct SslContext {
     cert_callback: callbacks::CertCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
     info_callback: callbacks::InfoCallbackConfig,
+    client_hello_callback: callbacks::ClientHelloCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
     max_early_data: u32,
 }
@@ -488,6 +489,7 @@ impl SslContext {
             cert_callback: callbacks::CertCallbackConfig::default(),
             servername_callback: callbacks::ServerNameCallbackConfig::default(),
             info_callback: callbacks::InfoCallbackConfig::default(),
+            client_hello_callback: callbacks::ClientHelloCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
             max_early_data: 0,
         }
@@ -604,6 +606,15 @@ impl SslContext {
 
     fn set_info_callback(&mut self, callback: entry::SSL_CTX_info_callback_func) {
         self.info_callback.cb = callback;
+    }
+
+    fn set_client_hello_callback(
+        &mut self,
+        callback: entry::SSL_client_hello_cb_func,
+        arg: *mut c_void,
+    ) {
+        self.client_hello_callback.cb = callback;
+        self.client_hello_callback.context = arg;
     }
 
     fn set_max_early_data(&mut self, max: u32) {
@@ -784,6 +795,7 @@ struct Ssl {
     cert_callback: callbacks::CertCallbackConfig,
     info_callback: callbacks::InfoCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
+    client_hello_callback: callbacks::ClientHelloCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     server_name: Option<CString>,
     bio: Option<bio::Bio>,
@@ -826,6 +838,7 @@ impl Ssl {
             cert_callback: inner.cert_callback.clone(),
             info_callback: inner.info_callback.clone(),
             servername_callback: inner.servername_callback.clone(),
+            client_hello_callback: inner.client_hello_callback.clone(),
             sni_server_name: None,
             server_name: None,
             bio: None,
@@ -1151,6 +1164,8 @@ impl Ssl {
         let ConnState::Accepted(accepted) = &self.conn else {
             unreachable!();
         };
+
+        self.client_hello_callback.invoke()?;
 
         self.server_name = accepted
             .client_hello()

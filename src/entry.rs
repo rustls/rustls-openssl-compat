@@ -713,6 +713,30 @@ pub type SSL_CTX_info_callback_func =
     Option<unsafe extern "C" fn(ssl: *mut SSL, type_: c_int, val: c_int)>;
 
 entry! {
+    pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func) {
+        log::warn!("SSL_CTX_set_msg_callback not implemented; callback will not be called");
+    }
+}
+
+entry! {
+    pub fn _SSL_set_msg_callback(_ssl: *mut SSL, _cb: SSL_CTX_msg_cb_func) {
+        log::warn!("SSL_set_msg_callback not implemented; callback will not be called");
+    }
+}
+
+pub type SSL_CTX_msg_cb_func = Option<
+    unsafe extern "C" fn(
+        write_p: c_int,
+        version: c_int,
+        content_type: c_int,
+        buf: *const c_void,
+        len: usize,
+        ssl: *mut SSL,
+        arg: *mut c_void,
+    ),
+>;
+
+entry! {
     pub fn _SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32 {
         try_clone_arc!(ctx).get().get_max_early_data()
     }
@@ -2319,28 +2343,6 @@ entry_stub! {
         _file: *const c_char,
     ) -> c_int;
 }
-
-// no individual message logging
-
-entry_stub! {
-    pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func);
-}
-
-entry_stub! {
-    pub fn _SSL_set_msg_callback(_ssl: *mut SSL, _cb: SSL_CTX_msg_cb_func);
-}
-
-pub type SSL_CTX_msg_cb_func = Option<
-    unsafe extern "C" fn(
-        write_p: c_int,
-        version: c_int,
-        content_type: c_int,
-        buf: *const c_void,
-        len: usize,
-        ssl: *mut SSL,
-        arg: *mut c_void,
-    ),
->;
 
 // no NPN (obsolete precursor to ALPN)
 

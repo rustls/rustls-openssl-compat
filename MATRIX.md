@@ -161,7 +161,7 @@
 | `SSL_CTX_set_info_callback`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_keylog_callback`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_max_early_data`  |  | :white_check_mark: |  | :white_check_mark: |
-| `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_CTX_set_msg_callback`  | :white_check_mark: |  | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_next_proto_select_cb` [^nextprotoneg] | :white_check_mark: |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_next_protos_advertised_cb` [^nextprotoneg] |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_not_resumable_session_callback`  |  |  |  |  |
@@ -442,7 +442,7 @@
 | `SSL_set_hostflags`  |  |  |  |  |
 | `SSL_set_info_callback`  |  |  |  | :white_check_mark: |
 | `SSL_set_max_early_data`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| `SSL_set_msg_callback`  |  | :white_check_mark: | :white_check_mark: | :exclamation: [^stub] |
+| `SSL_set_msg_callback`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_set_not_resumable_session_callback`  |  |  |  |  |
 | `SSL_set_num_tickets`  |  |  |  | :white_check_mark: |
 | `SSL_set_options`  |  | :white_check_mark: |  | :white_check_mark: |

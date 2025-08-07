@@ -34,7 +34,27 @@ pub struct CertifiedKeySet {
 }
 
 impl CertifiedKeySet {
-    pub fn stage_certificate_chain(
+    /// Set the entirety of the current certificate chain to `chain`.
+    ///
+    /// `chain[0]` is the end-entity cert.
+    pub fn stage_certificate_full_chain(
+        &mut self,
+        mut chain: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
+        match chain.is_empty() {
+            false => {
+                self.stage_certificate_end_entity(chain.remove(0))?;
+                self.stage_certificate_chain_tail(chain)
+            }
+            true => Err(error::Error::bad_data("empty certificate full chain")),
+        }
+    }
+
+    /// Set the "bottom part" of the current certificate chain to `chain`.
+    ///
+    /// This does not contain the end-entity certificate.  That must be provided separately
+    /// with `stage_certificate_end_entity()`.
+    pub fn stage_certificate_chain_tail(
         &mut self,
         chain: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {

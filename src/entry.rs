@@ -283,7 +283,7 @@ entry! {
                     }
                 };
 
-                match ctx.get_mut().stage_certificate_chain(chain) {
+                match ctx.get_mut().stage_certificate_chain_tail(chain) {
                     Err(e) => e.raise().into(),
                     Ok(()) => C_INT_SUCCESS as i64,
                 }
@@ -481,7 +481,7 @@ entry! {
             Err(err) => return err.raise().into(),
         };
 
-        match ctx.get_mut().stage_certificate_chain(chain) {
+        match ctx.get_mut().stage_certificate_full_chain(chain) {
             Ok(()) => C_INT_SUCCESS,
             Err(e) => e.raise().into(),
         }
@@ -964,7 +964,7 @@ entry! {
                     }
                 };
 
-                match ssl.get_mut().stage_certificate_chain(chain) {
+                match ssl.get_mut().stage_certificate_chain_tail(chain) {
                     Ok(()) => C_INT_SUCCESS as i64,
                     Err(e) => e.raise().into(),
                 }

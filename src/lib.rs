@@ -685,11 +685,18 @@ impl SslContext {
         self.auth_keys.stage_certificate_end_entity(end)
     }
 
-    fn stage_certificate_chain(
+    fn stage_certificate_full_chain(
         &mut self,
         chain: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {
-        self.auth_keys.stage_certificate_chain(chain)
+        self.auth_keys.stage_certificate_full_chain(chain)
+    }
+
+    fn stage_certificate_chain_tail(
+        &mut self,
+        chain: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
+        self.auth_keys.stage_certificate_chain_tail(chain)
     }
 
     fn commit_private_key(&mut self, key: evp_pkey::EvpPkey) -> Result<(), error::Error> {
@@ -946,11 +953,11 @@ impl Ssl {
         self.auth_keys.stage_certificate_end_entity(end)
     }
 
-    fn stage_certificate_chain(
+    fn stage_certificate_chain_tail(
         &mut self,
         chain: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {
-        self.auth_keys.stage_certificate_chain(chain)
+        self.auth_keys.stage_certificate_chain_tail(chain)
     }
 
     fn commit_private_key(&mut self, key: evp_pkey::EvpPkey) -> Result<(), error::Error> {

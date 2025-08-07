@@ -678,11 +678,17 @@ impl SslContext {
         self.cert_callback = callbacks::CertCallbackConfig { cb, context };
     }
 
-    fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
+    fn stage_certificate_end_entity(
+        &mut self,
+        end: CertificateDer<'static>,
+    ) -> Result<(), error::Error> {
         self.auth_keys.stage_certificate_end_entity(end)
     }
 
-    fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+    fn stage_certificate_chain(
+        &mut self,
+        chain: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
         self.auth_keys.stage_certificate_chain(chain)
     }
 
@@ -933,11 +939,17 @@ impl Ssl {
         self.mode == ConnMode::Server
     }
 
-    fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
+    fn stage_certificate_end_entity(
+        &mut self,
+        end: CertificateDer<'static>,
+    ) -> Result<(), error::Error> {
         self.auth_keys.stage_certificate_end_entity(end)
     }
 
-    fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+    fn stage_certificate_chain(
+        &mut self,
+        chain: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
         self.auth_keys.stage_certificate_chain(chain)
     }
 

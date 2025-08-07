@@ -283,8 +283,10 @@ entry! {
                     }
                 };
 
-                ctx.get_mut().stage_certificate_chain(chain);
-                C_INT_SUCCESS as i64
+                match ctx.get_mut().stage_certificate_chain(chain) {
+                    Err(e) => e.raise().into(),
+                    Ok(()) => C_INT_SUCCESS as i64,
+                }
             }
             Ok(SslCtrl::SetTlsExtServerNameArg) => {
                 ctx.get_mut().set_servername_callback_context(parg);
@@ -479,8 +481,10 @@ entry! {
             Err(err) => return err.raise().into(),
         };
 
-        ctx.get_mut().stage_certificate_chain(chain);
-        C_INT_SUCCESS
+        match ctx.get_mut().stage_certificate_chain(chain) {
+            Ok(()) => C_INT_SUCCESS,
+            Err(e) => e.raise().into(),
+        }
     }
 }
 
@@ -523,8 +527,10 @@ entry! {
         let x509 = OwnedX509::new_incref(x);
         let ee = CertificateDer::from(x509.der_bytes());
 
-        ctx.get_mut().stage_certificate_end_entity(ee);
-        C_INT_SUCCESS
+        match ctx.get_mut().stage_certificate_end_entity(ee) {
+            Ok(()) => C_INT_SUCCESS,
+            Err(e) => e.raise().into(),
+        }
     }
 }
 
@@ -958,8 +964,10 @@ entry! {
                     }
                 };
 
-                ssl.get_mut().stage_certificate_chain(chain);
-                C_INT_SUCCESS as i64
+                match ssl.get_mut().stage_certificate_chain(chain) {
+                    Ok(()) => C_INT_SUCCESS as i64,
+                    Err(e) => e.raise().into(),
+                }
             }
             Ok(SslCtrl::GetNegotiatedGroup) => ssl
                 .get()
@@ -1448,8 +1456,10 @@ entry! {
         let x509 = OwnedX509::new_incref(x);
         let ee = CertificateDer::from(x509.der_bytes());
 
-        ssl.get_mut().stage_certificate_end_entity(ee);
-        C_INT_SUCCESS
+        match ssl.get_mut().stage_certificate_end_entity(ee) {
+            Ok(()) => C_INT_SUCCESS,
+            Err(e) => e.raise().into(),
+        }
     }
 }
 

@@ -180,7 +180,7 @@ impl SslConfigCtx {
             State::ApplyingToCtx(ctx) => {
                 // the "Certificate" command after `SSL_CONF_CTX_set_ssl_ctx` is documented as using
                 // `SSL_CTX_use_certificate_chain_file`.
-                ctx.get_mut().stage_certificate_chain(cert_chain);
+                ctx.get_mut().stage_certificate_chain(cert_chain)?;
                 ActionResult::Applied
             }
             State::ApplyingToSsl(_) => {

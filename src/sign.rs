@@ -34,12 +34,20 @@ pub struct CertifiedKeySet {
 }
 
 impl CertifiedKeySet {
-    pub fn stage_certificate_chain(&mut self, chain: Vec<CertificateDer<'static>>) {
+    pub fn stage_certificate_chain(
+        &mut self,
+        chain: Vec<CertificateDer<'static>>,
+    ) -> Result<(), error::Error> {
         self.pending_cert_chain = Some(chain);
+        Ok(())
     }
 
-    pub fn stage_certificate_end_entity(&mut self, end: CertificateDer<'static>) {
+    pub fn stage_certificate_end_entity(
+        &mut self,
+        end: CertificateDer<'static>,
+    ) -> Result<(), error::Error> {
         self.pending_cert_end_entity = Some(end);
+        Ok(())
     }
 
     pub fn commit_private_key(&mut self, key: EvpPkey) -> Result<(), error::Error> {

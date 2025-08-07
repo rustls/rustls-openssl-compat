@@ -19,18 +19,7 @@ use crate::x509::OwnedX509Stack;
 /// and `SSL_CTX_use_PrivateKey_file`, and matching man pages.
 #[derive(Clone, Default, Debug)]
 pub struct CertifiedKeySet {
-    /// Last `SSL_CTX_use_certificate_chain_file` result, pending a matching
-    /// `SSL_CTX_use_PrivateKey_file`.
-    pending_cert_chain: Option<Vec<CertificateDer<'static>>>,
-
-    /// Last `SSL_CTX_use_certificate` result, prepended to chain during commit.
-    /// May be absent.
-    pending_cert_end_entity: Option<CertificateDer<'static>>,
-
-    /// The key and certificate we're currently using.
-    ///
-    /// TODO: support multiple key types, and demultiplex them by type.
-    current_key: Option<OpenSslCertifiedKey>,
+    item: KeySetItem,
 }
 
 impl CertifiedKeySet {
@@ -58,7 +47,7 @@ impl CertifiedKeySet {
         &mut self,
         chain: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {
-        self.pending_cert_chain = Some(chain);
+        self.item.adopt_chain_tail(Some(chain));
         Ok(())
     }
 
@@ -66,41 +55,33 @@ impl CertifiedKeySet {
         &mut self,
         end: CertificateDer<'static>,
     ) -> Result<(), error::Error> {
-        self.pending_cert_end_entity = Some(end);
-        Ok(())
+        self.item.cert_end_entity = Some(end);
+        self.item.promote()
     }
 
     pub fn commit_private_key(&mut self, key: EvpPkey) -> Result<(), error::Error> {
-        let chain = match (
-            self.pending_cert_end_entity.take(),
-            self.pending_cert_chain.take(),
-        ) {
-            (Some(end_entity), Some(mut chain)) => {
-                chain.insert(0, end_entity);
-                chain
-            }
-            (None, Some(chain)) => chain,
-            (Some(end_entity), None) => vec![end_entity],
-            (None, None) => {
-                return Err(error::Error::bad_data("no certificate found for key"));
-            }
-        };
-
-        self.current_key = Some(OpenSslCertifiedKey::new(chain, key)?);
-        Ok(())
+        self.item.key = Some(key);
+        self.item.promote()
     }
 
     pub fn client_resolver(&self) -> Option<Arc<dyn ResolvesClientCert>> {
-        self.current_key.as_ref().map(|ck| ck.client_resolver())
+        self.item
+            .constructed
+            .as_ref()
+            .map(|ck| ck.client_resolver())
     }
 
     pub fn server_resolver(&self) -> Option<Arc<dyn ResolvesServerCert>> {
-        self.current_key.as_ref().map(|ck| ck.server_resolver())
+        self.item
+            .constructed
+            .as_ref()
+            .map(|ck| ck.server_resolver())
     }
 
     /// For `SSL_get_certificate`
     pub fn borrow_current_cert(&self) -> *mut X509 {
-        self.current_key
+        self.item
+            .constructed
             .as_ref()
             .map(|ck| ck.borrow_cert())
             .unwrap_or(ptr::null_mut())
@@ -108,10 +89,58 @@ impl CertifiedKeySet {
 
     /// For `SSL_get_privatekey`
     pub fn borrow_current_key(&self) -> *mut EVP_PKEY {
-        self.current_key
+        self.item
+            .constructed
             .as_ref()
             .map(|ck| ck.borrow_key())
             .unwrap_or(ptr::null_mut())
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct KeySetItem {
+    /// Most recent certificate chain tail.
+    cert_chain_tail: Option<Vec<CertificateDer<'static>>>,
+
+    /// Most recent end-entity certificate.
+    cert_end_entity: Option<CertificateDer<'static>>,
+
+    /// Most recent value from `SSL_CTX_use_PrivateKey_file`
+    key: Option<EvpPkey>,
+
+    /// The key and certificate we're currently using.
+    ///
+    /// This is constructed eagerly to validate the cert/key are consistent.
+    constructed: Option<OpenSslCertifiedKey>,
+}
+
+impl KeySetItem {
+    fn adopt_chain_tail(&mut self, cert_chain_tail: Option<Vec<CertificateDer<'static>>>) {
+        if let Some(tail) = cert_chain_tail {
+            self.cert_chain_tail = Some(tail);
+        }
+    }
+
+    /// If `self` has enough parts (a key and at least an end-entity cert) then fill in
+    /// `constructed`.
+    fn promote(&mut self) -> Result<(), error::Error> {
+        let Some(key) = &self.key else {
+            return Ok(());
+        };
+
+        // Reconstitute full chain from parts.
+        let chain = match (&self.cert_end_entity, &self.cert_chain_tail) {
+            (Some(end_entity), Some(tail)) => {
+                let mut chain = tail.clone();
+                chain.insert(0, end_entity.clone());
+                chain
+            }
+            (Some(end_entity), None) => vec![end_entity.clone()],
+            _ => return Ok(()),
+        };
+
+        self.constructed = Some(OpenSslCertifiedKey::new(chain, key.clone())?);
+        Ok(())
     }
 }
 

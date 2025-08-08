@@ -704,14 +704,18 @@ fn nginx_1_24() {
         35
     );
     // TLS 1.3 to the TLS 1.3 only port should succeed.
-    // The RSA CA cert should allow verification to succeed, showing the overrides of
+    // The ED25519 CA cert should allow verification to succeed, showing the overrides of
     // the ED25519 ssl_certificate/ssl_certificate_key directives worked.
+    //
+    // Note that curl+openssl by default prefers ECDSA/ED25519 to RSA, but this
+    // port is capable of selecting either.  We could test for both if/when we have
+    // curl 8.14.0 or later, using the new `--sigalgs` parameter.
     assert_eq!(
         Command::new("curl")
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "--cacert",
-                "test-ca/rsa/ca.cert",
+                "test-ca/ed25519/ca.cert",
                 "--tlsv1.3",
                 "https://localhost:8447/ssl-agreed"
             ])
@@ -728,7 +732,7 @@ fn nginx_1_24() {
             .env("LD_LIBRARY_PATH", "")
             .args([
                 "--cacert",
-                "test-ca/rsa/ca.cert",
+                "test-ca/ed25519/ca.cert",
                 "--tlsv1.3",
                 "https://localhost:8448/ssl-agreed"
             ])

@@ -6,14 +6,15 @@ use std::{fs, io};
 use openssl_sys::{
     d2i_X509, i2d_X509, stack_st_X509, OPENSSL_free, OPENSSL_sk_new_null, OPENSSL_sk_num,
     OPENSSL_sk_push, OPENSSL_sk_value, X509_STORE_add_cert, X509_STORE_free,
-    X509_STORE_get0_objects, X509_STORE_get1_all_certs, X509_STORE_new, X509_free, OPENSSL_STACK,
-    X509, X509_STORE,
+    X509_STORE_get0_objects, X509_STORE_get1_all_certs, X509_STORE_new, X509_free, EVP_PKEY,
+    OPENSSL_STACK, X509, X509_STORE,
 };
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::CertificateDer;
 use rustls::RootCertStore;
 
 use crate::error::Error;
+use crate::evp_pkey::EvpPkey;
 
 /// Safe, owning wrapper around an OpenSSL `STACK_OF(X509)` object.
 ///
@@ -207,6 +208,12 @@ impl OwnedX509 {
         v
     }
 
+    pub fn public_key(&self) -> EvpPkey {
+        // SAFETY: `X509_get0_pubkey` returns borrow of X509's public key ref.
+        // `EvpPkey::new_incref` obtains its own ref.
+        EvpPkey::new_incref(unsafe { X509_get0_pubkey(self.raw) })
+    }
+
     /// Give out our reference.
     ///
     /// This DOES NOT take a reference.  See `SSL_get0_peer_certificate`.
@@ -366,4 +373,5 @@ extern "C" {
     fn OPENSSL_sk_dup(st: *const OPENSSL_STACK) -> *mut OPENSSL_STACK;
     fn X509_up_ref(x: *mut X509) -> c_int;
     fn X509_STORE_up_ref(xs: *mut X509_STORE) -> c_int;
+    fn X509_get0_pubkey(x: *const X509) -> *mut EVP_PKEY;
 }

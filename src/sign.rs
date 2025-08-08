@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ptr;
 use std::sync::Arc;
 
@@ -13,13 +14,26 @@ use crate::evp_pkey::{
     ecdsa_sha256, ecdsa_sha384, ecdsa_sha512, ed25519, rsa_pkcs1_sha256, rsa_pkcs1_sha384,
     rsa_pkcs1_sha512, rsa_pss_sha256, rsa_pss_sha384, rsa_pss_sha512, EvpPkey, EvpScheme,
 };
-use crate::x509::OwnedX509Stack;
+use crate::x509::{OwnedX509, OwnedX509Stack};
 
 /// This matches up to the implied state machine in `SSL_CTX_use_certificate_chain_file`
 /// and `SSL_CTX_use_PrivateKey_file`, and matching man pages.
 #[derive(Clone, Default, Debug)]
 pub struct CertifiedKeySet {
-    item: KeySetItem,
+    by_algorithm: HashMap<u8, KeySetItem>,
+
+    /// The algorithm of the most-recently altered item.
+    last_algorithm: Option<SignatureAlgorithm>,
+
+    /// The most-recently provided cert chain tail.
+    ///
+    /// Because a cert chain tail does not contain its end-entity cert,
+    /// we can't determine which algorithm it is for until we see the
+    /// end-entity cert.
+    ///
+    /// This is used only if `last_algorithm` does not record the right
+    /// slot in `by_algorithm`.
+    pending_cert_chain_tail: Option<Vec<CertificateDer<'static>>>,
 }
 
 impl CertifiedKeySet {
@@ -47,53 +61,75 @@ impl CertifiedKeySet {
         &mut self,
         chain: Vec<CertificateDer<'static>>,
     ) -> Result<(), error::Error> {
-        self.item.adopt_chain_tail(Some(chain));
-        Ok(())
+        if let Some(alg) = self.last_algorithm {
+            let item = self.item_mut(alg);
+            item.adopt_chain_tail(Some(chain));
+            item.promote()
+        } else {
+            self.pending_cert_chain_tail = Some(chain);
+            Ok(())
+        }
     }
 
     pub fn stage_certificate_end_entity(
         &mut self,
         end: CertificateDer<'static>,
     ) -> Result<(), error::Error> {
-        self.item.cert_end_entity = Some(end);
-        self.item.promote()
+        let alg = OwnedX509::parse_der(end.as_ref())
+            .ok_or_else(|| error::Error::bad_data("cannot parse certificate"))
+            .map(|x509| x509.public_key().algorithm())?;
+        self.last_algorithm = Some(alg);
+
+        let tail = self.pending_cert_chain_tail.take();
+        let item = self.item_mut(alg);
+        item.adopt_chain_tail(tail);
+        item.cert_end_entity = Some(end);
+        item.promote()
     }
 
     pub fn commit_private_key(&mut self, key: EvpPkey) -> Result<(), error::Error> {
-        self.item.key = Some(key);
-        self.item.promote()
+        let alg = key.algorithm();
+        self.last_algorithm = Some(alg);
+
+        let tail = self.pending_cert_chain_tail.take();
+        let item = self.item_mut(alg);
+        item.adopt_chain_tail(tail);
+        item.key = Some(key);
+        item.promote()
     }
 
     pub fn client_resolver(&self) -> Option<Arc<dyn ResolvesClientCert>> {
-        self.item
-            .constructed
-            .as_ref()
-            .map(|ck| ck.client_resolver())
+        Some(Arc::new(ResolverByAlgorithm::new(&self.by_algorithm)))
     }
 
     pub fn server_resolver(&self) -> Option<Arc<dyn ResolvesServerCert>> {
-        self.item
-            .constructed
-            .as_ref()
-            .map(|ck| ck.server_resolver())
+        Some(Arc::new(ResolverByAlgorithm::new(&self.by_algorithm)))
     }
 
     /// For `SSL_get_certificate`
     pub fn borrow_current_cert(&self) -> *mut X509 {
-        self.item
-            .constructed
-            .as_ref()
+        self.last_algorithm
+            .and_then(|alg| self.item(alg))
+            .and_then(|item| item.constructed.as_ref())
             .map(|ck| ck.borrow_cert())
             .unwrap_or(ptr::null_mut())
     }
 
     /// For `SSL_get_privatekey`
     pub fn borrow_current_key(&self) -> *mut EVP_PKEY {
-        self.item
-            .constructed
-            .as_ref()
+        self.last_algorithm
+            .and_then(|alg| self.item(alg))
+            .and_then(|item| item.constructed.as_ref())
             .map(|ck| ck.borrow_key())
             .unwrap_or(ptr::null_mut())
+    }
+
+    fn item(&self, alg: SignatureAlgorithm) -> Option<&KeySetItem> {
+        self.by_algorithm.get(&u8::from(alg))
+    }
+
+    fn item_mut(&mut self, alg: SignatureAlgorithm) -> &mut KeySetItem {
+        self.by_algorithm.entry(u8::from(alg)).or_default()
     }
 }
 
@@ -187,45 +223,72 @@ impl OpenSslCertifiedKey {
     fn borrow_key(&self) -> *mut EVP_PKEY {
         self.key.borrow_ref()
     }
-
-    fn client_resolver(&self) -> Arc<dyn ResolvesClientCert> {
-        Arc::new(AlwaysResolvesClientCert(Arc::new(sign::CertifiedKey::new(
-            self.rustls_chain.clone(),
-            Arc::new(OpenSslKey(self.key.clone())),
-        ))))
-    }
-
-    fn server_resolver(&self) -> Arc<dyn ResolvesServerCert> {
-        Arc::new(AlwaysResolvesServerCert(Arc::new(sign::CertifiedKey::new(
-            self.rustls_chain.clone(),
-            Arc::new(OpenSslKey(self.key.clone())),
-        ))))
-    }
 }
 
 #[derive(Debug)]
-struct AlwaysResolvesClientCert(Arc<sign::CertifiedKey>);
+struct ResolverByAlgorithm(HashMap<u8, Arc<sign::CertifiedKey>>);
 
-impl ResolvesClientCert for AlwaysResolvesClientCert {
+impl ResolverByAlgorithm {
+    fn new(by_algorithm: &HashMap<u8, KeySetItem>) -> Self {
+        let mut keys = HashMap::new();
+        for (alg, item) in by_algorithm.iter() {
+            let Some(constructed) = &item.constructed else {
+                continue;
+            };
+            keys.insert(
+                *alg,
+                Arc::new(sign::CertifiedKey::new(
+                    constructed.rustls_chain.clone(),
+                    Arc::new(OpenSslKey(constructed.key.clone())),
+                )),
+            );
+        }
+        Self(keys)
+    }
+}
+
+impl ResolvesClientCert for ResolverByAlgorithm {
     fn has_certs(&self) -> bool {
-        true
+        !self.0.is_empty()
     }
 
     fn resolve(
         &self,
         _root_hint_subjects: &[&[u8]],
-        _schemes: &[SignatureScheme],
+        schemes: &[SignatureScheme],
     ) -> Option<Arc<sign::CertifiedKey>> {
-        Some(Arc::clone(&self.0))
+        for scheme in schemes {
+            if let Some(key) = self.0.get(&u8::from(scheme_algorithm(scheme))) {
+                return Some(key.clone());
+            }
+        }
+        None
     }
 }
 
-#[derive(Debug)]
-struct AlwaysResolvesServerCert(Arc<sign::CertifiedKey>);
+impl ResolvesServerCert for ResolverByAlgorithm {
+    fn resolve(&self, client_hello: ClientHello) -> Option<Arc<sign::CertifiedKey>> {
+        for scheme in client_hello.signature_schemes() {
+            if let Some(key) = self.0.get(&u8::from(scheme_algorithm(scheme))) {
+                return Some(key.clone());
+            }
+        }
+        None
+    }
+}
 
-impl ResolvesServerCert for AlwaysResolvesServerCert {
-    fn resolve(&self, _client_hello: ClientHello) -> Option<Arc<sign::CertifiedKey>> {
-        Some(Arc::clone(&self.0))
+fn scheme_algorithm(scheme: &SignatureScheme) -> SignatureAlgorithm {
+    use SignatureScheme::*;
+    match *scheme {
+        RSA_PKCS1_SHA1 | RSA_PKCS1_SHA256 | RSA_PKCS1_SHA384 | RSA_PKCS1_SHA512
+        | RSA_PSS_SHA256 | RSA_PSS_SHA384 | RSA_PSS_SHA512 => SignatureAlgorithm::RSA,
+        ECDSA_SHA1_Legacy
+        | ECDSA_NISTP256_SHA256
+        | ECDSA_NISTP384_SHA384
+        | ECDSA_NISTP521_SHA512 => SignatureAlgorithm::ECDSA,
+        ED25519 => SignatureAlgorithm::ED25519,
+        ED448 => SignatureAlgorithm::ED448,
+        _ => SignatureAlgorithm::Unknown(0),
     }
 }
 

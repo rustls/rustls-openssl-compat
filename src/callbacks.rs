@@ -160,6 +160,12 @@ impl ServerNameCallbackConfig {
 
         match result {
             SSL_TLSEXT_ERR_OK => Ok(()),
+            // in practice no client does anything if SNI is not acked, and rustls
+            // acks any syntactically valid extension (and ignores invalid ones, because OpenSSL)
+            SSL_TLSEXT_ERR_NOACK => {
+                log::trace!("NYI: SSL_TLSEXT_ERR_NOACK returned from SSL_CTX_servername_callback_func (acking the extension anyway)");
+                Ok(())
+            }
             _ => Err(Error::not_supported(
                 "SSL_CTX_servername_callback_func return error",
             )),

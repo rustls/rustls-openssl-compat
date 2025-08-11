@@ -1510,27 +1510,26 @@ impl Ssl {
     }
 
     fn get_error(&mut self) -> c_int {
-        match self.conn_mut() {
-            Some(conn) => {
-                if let Err(e) = conn.process_new_packets() {
-                    error::Error::from_rustls(e).raise();
-                    return SSL_ERROR_SSL;
-                }
-
-                let want = self.want();
-
-                if let Some(bio) = self.bio.as_ref() {
-                    if want.write && bio.write_would_block() {
-                        return SSL_ERROR_WANT_WRITE;
-                    } else if want.read && bio.read_would_block() {
-                        return SSL_ERROR_WANT_READ;
-                    }
-                }
-
-                SSL_ERROR_NONE
+        // protocol errors take precedence
+        if let Some(conn) = self.conn_mut() {
+            if let Err(e) = conn.process_new_packets() {
+                error::Error::from_rustls(e).raise();
+                return SSL_ERROR_SSL;
             }
-            None => SSL_ERROR_SSL,
         }
+
+        // io errors remain
+        let want = self.want();
+
+        if let Some(bio) = self.bio.as_ref() {
+            if want.write && bio.write_would_block() {
+                return SSL_ERROR_WANT_WRITE;
+            } else if want.read && bio.read_would_block() {
+                return SSL_ERROR_WANT_READ;
+            }
+        }
+
+        SSL_ERROR_NONE
     }
 
     fn load_verify_certs(ctx: &SslContext) -> Result<OwnedX509Store, error::Error> {

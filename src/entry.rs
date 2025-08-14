@@ -101,6 +101,12 @@ entry! {
 }
 
 entry! {
+    pub fn _ERR_load_SSL_strings() -> c_int {
+        C_INT_SUCCESS
+    }
+}
+
+entry! {
     pub fn _SSL_alert_desc_string_long(value: c_int) -> *const c_char {
         crate::constants::alert_desc_to_long_string(value).as_ptr() as *const c_char
     }

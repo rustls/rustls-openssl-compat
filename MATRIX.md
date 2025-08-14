@@ -18,7 +18,7 @@
 | `DTLSv1_listen` [^sock] |  |  |  |  |
 | `DTLSv1_method` [^deprecatedin_1_1_0] [^dtls1_method] |  |  |  |  |
 | `DTLSv1_server_method` [^deprecatedin_1_1_0] [^dtls1_method] |  |  |  |  |
-| `ERR_load_SSL_strings` [^deprecatedin_3_0] |  |  |  |  |
+| `ERR_load_SSL_strings` [^deprecatedin_3_0] |  |  |  | :white_check_mark: |
 | `OPENSSL_cipher_name`  |  |  |  |  |
 | `OPENSSL_init_ssl`  | :white_check_mark: | :white_check_mark: |  | :white_check_mark: |
 | `OSSL_default_cipher_list`  |  |  |  |  |

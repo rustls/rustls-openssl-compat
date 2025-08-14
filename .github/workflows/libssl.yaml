@@ -32,8 +32,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+      - name: Install build + integration test dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld haproxy
 
       - name: Install ${{ matrix.rust }} toolchain
         uses: dtolnay/rust-toolchain@master
@@ -68,8 +68,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install valgrind
         run: sudo apt-get update && sudo apt-get install -y valgrind
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+      - name: Install build + integration test dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld haproxy
       - run: VALGRIND="valgrind -q" make PROFILE=release test integration
 
   docs:
@@ -81,8 +81,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld
+      - name: Install build + integration test dependencies
+        run: sudo apt-get update && sudo apt-get install -y openssl libssl3 libssl-dev lld haproxy
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@nightly

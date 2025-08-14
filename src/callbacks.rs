@@ -7,9 +7,9 @@ use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
 use rustls::AlertDescription;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_new_session_cb,
-    SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb,
-    _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
+    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_info_callback_func,
+    SSL_CTX_new_session_cb, SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb,
+    SSL_CTX_sess_remove_cb, SSL_client_hello_cb_func, _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
 };
 use crate::error::Error;
 use crate::ffi;
@@ -160,6 +160,9 @@ impl ServerNameCallbackConfig {
 
         match result {
             SSL_TLSEXT_ERR_OK => Ok(()),
+            // in practice no client does anything if SNI is not acked, and rustls
+            // acks any syntactically valid extension (and ignores invalid ones, because OpenSSL)
+            SSL_TLSEXT_ERR_NOACK => Ok(()),
             _ => Err(Error::not_supported(
                 "SSL_CTX_servername_callback_func return error",
             )),
@@ -236,4 +239,83 @@ pub fn invoke_session_remove_callback(
     unsafe { callback(ssl_ctx, sess_ptr) };
 
     _SSL_SESSION_free(sess_ptr);
+}
+
+/// Configuration needed to call an [`SSL_CTX_info_callback_func`] later
+#[derive(Debug, Default, Clone)]
+pub struct InfoCallbackConfig {
+    pub cb: SSL_CTX_info_callback_func,
+}
+
+impl InfoCallbackConfig {
+    pub fn invoke(&self, info: Info) {
+        let Some(callback) = self.cb else {
+            return;
+        };
+
+        let ssl = SslCallbackContext::ssl_ptr();
+        unsafe { callback(ssl, info.typ(), info.val()) };
+    }
+}
+
+pub enum Info {
+    /// `SSL_CB_ALERT | SSL_CB_READ`
+    AlertReceived(AlertDescription),
+
+    /// `SSL_CB_ALERT | SSL_CB_WRITE`
+    AlertSent(AlertDescription),
+}
+
+impl Info {
+    fn typ(&self) -> c_int {
+        match self {
+            Self::AlertReceived(_) => SSL_CB_ALERT | SSL_CB_READ,
+            Self::AlertSent(_) => SSL_CB_ALERT | SSL_CB_WRITE,
+        }
+    }
+
+    fn val(&self) -> c_int {
+        match self {
+            Self::AlertReceived(a) | Self::AlertSent(a) => u8::from(*a) as c_int,
+        }
+    }
+}
+
+const SSL_CB_ALERT: c_int = 0x4000;
+const SSL_CB_READ: c_int = 0x0004;
+const SSL_CB_WRITE: c_int = 0x0008;
+
+/// Configuration needed to call a client hello callback later
+#[derive(Debug, Default, Clone)]
+pub struct ClientHelloCallbackConfig {
+    pub cb: SSL_client_hello_cb_func,
+    pub context: *mut c_void,
+}
+
+impl ClientHelloCallbackConfig {
+    pub fn invoke(&self) -> Result<(), Error> {
+        let Some(callback) = self.cb else {
+            return Ok(());
+        };
+
+        let internal_error = u8::from(AlertDescription::InternalError) as c_int;
+
+        let ssl = SslCallbackContext::ssl_ptr();
+        let mut alert = internal_error;
+        let result = unsafe { callback(ssl, &mut alert as *mut c_int, self.context) };
+
+        if alert != internal_error {
+            log::trace!("NYI: customised alert during client hello callback");
+        }
+
+        match result {
+            i if i < 0 => Err(Error::not_supported(
+                "SSL_client_hello_cb_func requesting suspension",
+            )),
+            0 => Err(Error::not_supported(
+                "SSL_client_hello_cb_func returning error",
+            )),
+            _ => Ok(()),
+        }
+    }
 }

@@ -13,7 +13,9 @@ use std::{fs, path::PathBuf};
 use openssl_sys::{
     stack_st_SSL_CIPHER, stack_st_X509, stack_st_X509_NAME, stack_st_void, NID_undef,
     OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
-    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, X509, X509_STORE, X509_STORE_CTX,
+    OPENSSL_NPN_NEGOTIATED, OPENSSL_NPN_NO_OVERLAP, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
+    SSL_MODE_AUTO_RETRY, SSL_MODE_ENABLE_PARTIAL_WRITE, SSL_MODE_RELEASE_BUFFERS, X509, X509_STORE,
+    X509_STORE_CTX,
 };
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -240,8 +242,18 @@ entry! {
 
         match SslCtrl::try_from(cmd) {
             Ok(SslCtrl::Mode) => {
-                log::warn!("unimplemented SSL_CTX_set_mode()");
-                0
+                const RUSTLS_DEFAULT_EQUIVALENTS: c_long = SSL_MODE_AUTO_RETRY
+                    | SSL_MODE_ENABLE_PARTIAL_WRITE
+                    | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+                    | SSL_MODE_RELEASE_BUFFERS;
+                match larg & !RUSTLS_DEFAULT_EQUIVALENTS {
+                    // Application is requesting behaviour we already implement.
+                    0 => C_INT_SUCCESS as c_long,
+                    _ => {
+                        log::warn!("unhandled SSL_CTX_set_mode({larg:x})");
+                        0
+                    }
+                }
             }
             Ok(SslCtrl::SetMsgCallbackArg) => {
                 log::warn!("unimplemented SSL_CTX_set_msg_callback_arg()");
@@ -692,6 +704,39 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_CTX_set_info_callback(ctx: *mut SSL_CTX, cb: SSL_CTX_info_callback_func) {
+        try_clone_arc!(ctx).get_mut().set_info_callback(cb);
+    }
+}
+
+pub type SSL_CTX_info_callback_func =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, type_: c_int, val: c_int)>;
+
+entry! {
+    pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func) {
+        log::warn!("SSL_CTX_set_msg_callback not implemented; callback will not be called");
+    }
+}
+
+entry! {
+    pub fn _SSL_set_msg_callback(_ssl: *mut SSL, _cb: SSL_CTX_msg_cb_func) {
+        log::warn!("SSL_set_msg_callback not implemented; callback will not be called");
+    }
+}
+
+pub type SSL_CTX_msg_cb_func = Option<
+    unsafe extern "C" fn(
+        write_p: c_int,
+        version: c_int,
+        content_type: c_int,
+        buf: *const c_void,
+        len: usize,
+        ssl: *mut SSL,
+        arg: *mut c_void,
+    ),
+>;
+
+entry! {
     pub fn _SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32 {
         try_clone_arc!(ctx).get().get_max_early_data()
     }
@@ -855,6 +900,21 @@ pub type custom_ext_parse_cb = Option<
         parse_arg: *mut c_void,
     ) -> c_int,
 >;
+
+entry! {
+    pub fn _SSL_CTX_set_client_hello_cb(
+        ctx: *mut SSL_CTX,
+        cb: SSL_client_hello_cb_func,
+        arg: *mut c_void,
+    ) {
+        try_clone_arc!(ctx)
+            .get_mut()
+            .set_client_hello_callback(cb, arg);
+    }
+}
+
+pub type SSL_client_hello_cb_func =
+    Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
 
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
@@ -2197,17 +2257,6 @@ pub type SSL_CTX_tlsext_ticket_key_evp_cb_func = Option<
 >;
 
 entry_stub! {
-    pub fn _SSL_CTX_set_client_hello_cb(
-        _ctx: *mut SSL_CTX,
-        _cb: SSL_client_hello_cb_func,
-        _arg: *mut c_void,
-    );
-}
-
-pub type SSL_client_hello_cb_func =
-    Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
-
-entry_stub! {
     pub fn _SSL_state_string(_ssl: *const SSL) -> *const c_char;
 }
 
@@ -2291,37 +2340,6 @@ entry_stub! {
         _stack: *mut stack_st_X509_NAME,
         _file: *const c_char,
     ) -> c_int;
-}
-
-// no individual message logging
-
-entry_stub! {
-    pub fn _SSL_CTX_set_msg_callback(_ctx: *mut SSL_CTX, _cb: SSL_CTX_msg_cb_func);
-}
-
-entry_stub! {
-    pub fn _SSL_set_msg_callback(_ssl: *mut SSL, _cb: SSL_CTX_msg_cb_func);
-}
-
-pub type SSL_CTX_msg_cb_func = Option<
-    unsafe extern "C" fn(
-        write_p: c_int,
-        version: c_int,
-        content_type: c_int,
-        buf: *const c_void,
-        len: usize,
-        ssl: *mut SSL,
-        arg: *mut c_void,
-    ),
->;
-
-// no state machine observation
-
-entry_stub! {
-    pub fn _SSL_CTX_set_info_callback(
-        _ctx: *mut SSL_CTX,
-        _cb: Option<unsafe extern "C" fn(ssl: *const SSL, type_: c_int, val: c_int)>,
-    );
 }
 
 // no NPN (obsolete precursor to ALPN)

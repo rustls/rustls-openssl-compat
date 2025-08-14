@@ -16,8 +16,8 @@ use rustls::crypto::{aws_lc_rs as provider, SupportedKxGroup};
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor, ProducesTickets};
 use rustls::{
-    CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind, ProtocolVersion,
-    ServerConfig, SignatureScheme, SupportedProtocolVersion,
+    AlertDescription, CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind,
+    ProtocolVersion, ServerConfig, SignatureScheme, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -456,6 +456,8 @@ pub struct SslContext {
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
+    info_callback: callbacks::InfoCallbackConfig,
+    client_hello_callback: callbacks::ClientHelloCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
     max_early_data: u32,
 }
@@ -486,6 +488,8 @@ impl SslContext {
             alpn_callback: callbacks::AlpnCallbackConfig::default(),
             cert_callback: callbacks::CertCallbackConfig::default(),
             servername_callback: callbacks::ServerNameCallbackConfig::default(),
+            info_callback: callbacks::InfoCallbackConfig::default(),
+            client_hello_callback: callbacks::ClientHelloCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
             max_early_data: 0,
         }
@@ -598,6 +602,19 @@ impl SslContext {
 
     fn flush_all_sessions(&mut self) {
         self.caches.flush_all();
+    }
+
+    fn set_info_callback(&mut self, callback: entry::SSL_CTX_info_callback_func) {
+        self.info_callback.cb = callback;
+    }
+
+    fn set_client_hello_callback(
+        &mut self,
+        callback: entry::SSL_client_hello_cb_func,
+        arg: *mut c_void,
+    ) {
+        self.client_hello_callback.cb = callback;
+        self.client_hello_callback.context = arg;
     }
 
     fn set_max_early_data(&mut self, max: u32) {
@@ -776,7 +793,9 @@ struct Ssl {
     alpn: Vec<Vec<u8>>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
+    info_callback: callbacks::InfoCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
+    client_hello_callback: callbacks::ClientHelloCallbackConfig,
     sni_server_name: Option<ServerName<'static>>,
     server_name: Option<CString>,
     bio: Option<bio::Bio>,
@@ -817,7 +836,9 @@ impl Ssl {
             alpn: inner.alpn.clone(),
             alpn_callback: inner.alpn_callback.clone(),
             cert_callback: inner.cert_callback.clone(),
+            info_callback: inner.info_callback.clone(),
             servername_callback: inner.servername_callback.clone(),
+            client_hello_callback: inner.client_hello_callback.clone(),
             sni_server_name: None,
             server_name: None,
             bio: None,
@@ -1140,6 +1161,8 @@ impl Ssl {
             unreachable!();
         };
 
+        self.client_hello_callback.invoke()?;
+
         self.server_name = accepted
             .client_hello()
             .server_name()
@@ -1301,6 +1324,10 @@ impl Ssl {
                         // obtain underlying TLS protocol error (if any), and let it stamp
                         // out the one wrapped in io::Error.
                         if let Some(tls_err) = conn.process_new_packets().err() {
+                            if let rustls::Error::AlertReceived(alert) = &tls_err {
+                                self.info_callback
+                                    .invoke(callbacks::Info::AlertReceived(*alert));
+                            }
                             return Err(error::Error::from_rustls(tls_err));
                         }
                         return Err(error::Error::from_io(e));
@@ -1326,7 +1353,17 @@ impl Ssl {
                         self.invoke_accepted_callbacks()
                     }
                     Err((error, mut alert)) => {
-                        alert.write_all(bio).map_err(error::Error::from_io)?;
+                        let mut buffer = Vec::new();
+                        alert.write_all(&mut buffer).unwrap();
+
+                        // this only works for unencrypted alerts (header plus `Alert` structure)
+                        if buffer.len() == (5 + 2) {
+                            self.info_callback.invoke(callbacks::Info::AlertSent(
+                                AlertDescription::from(buffer[6]),
+                            ));
+                        }
+
+                        bio.write_all(&buffer).map_err(error::Error::from_io)?;
                         Err(error::Error::from_rustls(error))
                     }
                 }
@@ -1469,27 +1506,26 @@ impl Ssl {
     }
 
     fn get_error(&mut self) -> c_int {
-        match self.conn_mut() {
-            Some(conn) => {
-                if let Err(e) = conn.process_new_packets() {
-                    error::Error::from_rustls(e).raise();
-                    return SSL_ERROR_SSL;
-                }
-
-                let want = self.want();
-
-                if let Some(bio) = self.bio.as_ref() {
-                    if want.write && bio.write_would_block() {
-                        return SSL_ERROR_WANT_WRITE;
-                    } else if want.read && bio.read_would_block() {
-                        return SSL_ERROR_WANT_READ;
-                    }
-                }
-
-                SSL_ERROR_NONE
+        // protocol errors take precedence
+        if let Some(conn) = self.conn_mut() {
+            if let Err(e) = conn.process_new_packets() {
+                error::Error::from_rustls(e).raise();
+                return SSL_ERROR_SSL;
             }
-            None => SSL_ERROR_SSL,
         }
+
+        // io errors remain
+        let want = self.want();
+
+        if let Some(bio) = self.bio.as_ref() {
+            if want.write && bio.write_would_block() {
+                return SSL_ERROR_WANT_WRITE;
+            } else if want.read && bio.read_would_block() {
+                return SSL_ERROR_WANT_READ;
+            }
+        }
+
+        SSL_ERROR_NONE
     }
 
     fn load_verify_certs(ctx: &SslContext) -> Result<OwnedX509Store, error::Error> {

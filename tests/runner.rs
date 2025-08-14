@@ -802,6 +802,13 @@ fn haproxy() {
     ));
     wait_for_port(9443);
 
+    // evaluate errors output by haproxy to stderr.
+    let mut child = haproxy_server.take_inner();
+    child.kill().unwrap();
+    let output = child.wait_with_output().unwrap();
+    print_output(output);
+
+    /*
     // Check front-end TLS works via status monitor
     assert!(Command::new("curl")
         .env("LD_LIBRARY_PATH", "")
@@ -880,6 +887,8 @@ fn haproxy() {
 
     // eventually we will want there to be zero of these.
     assert!(stderr.matches("OpenSSL error").count() > 0);
+    */
+    panic!("uh oh");
 }
 
 struct KillOnDrop(Option<Child>);

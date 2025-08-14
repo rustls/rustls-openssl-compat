@@ -781,6 +781,114 @@ fn nginx_version() -> (u32, u32) {
     )
 }
 
+#[test]
+#[ignore]
+fn haproxy() {
+    fs::write(
+        "test-ca/rsa/server.both",
+        (fs::read_to_string("test-ca/rsa/server.key").unwrap()
+            + &fs::read_to_string("test-ca/rsa/server.cert").unwrap())
+            .as_bytes(),
+    )
+    .unwrap();
+
+    let mut haproxy_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args(["haproxy", "-VVV", "-dv", "--", "tests/haproxy.conf"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    wait_for_port(9443);
+
+    // Check front-end TLS works via status monitor
+    assert!(Command::new("curl")
+        .env("LD_LIBRARY_PATH", "")
+        .args([
+            "-s",
+            "--cacert",
+            "test-ca/rsa/ca.cert",
+            "https://localhost:9443/monitor"
+        ])
+        .stdout(Stdio::piped())
+        .status()
+        .unwrap()
+        .success());
+
+    // Run backend server and check haproxy can connect
+    let backend = KillOnDrop(Some(
+        Command::new("openssl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "s_server",
+                "-cert",
+                "test-ca/ecdsa-p256/server.cert",
+                "-key",
+                "test-ca/ecdsa-p256/server.key",
+                "-accept",
+                "localhost:10443",
+                "-www",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("failed to start openssl s_server"),
+    ));
+    wait_for_port(10443);
+
+    // Check frontend & backend TLS works
+    assert!(String::from_utf8(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "-s",
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "https://localhost:9443/",
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap()
+            .stdout
+            .clone(),
+    )
+    .expect("stdout contained invalid utf8")
+    .contains("Ciphers common between both SSL end points:"));
+
+    // And check it was actually talking to the backend
+    drop(backend);
+    assert!(String::from_utf8(
+        Command::new("curl")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "-s",
+                "--cacert",
+                "test-ca/rsa/ca.cert",
+                "https://localhost:9443/",
+            ])
+            .stdout(Stdio::piped())
+            .output()
+            .map(print_output)
+            .unwrap()
+            .stdout
+            .clone()
+    )
+    .expect("stdout contained invalid utf8")
+    .contains("503 Service Unavailable"));
+
+    // evaluate errors output by haproxy to stderr.
+    let mut child = haproxy_server.take_inner();
+    child.kill().unwrap();
+    let output = child.wait_with_output().unwrap();
+    let output = print_output(output);
+    let stderr =
+        String::from_utf8(output.stderr.clone()).expect("haproxy stderr is not valid utf8");
+
+    // eventually we will want there to be zero of these.
+    assert!(stderr.matches("OpenSSL error").count() > 0);
+}
+
 struct KillOnDrop(Option<Child>);
 
 impl KillOnDrop {

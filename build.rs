@@ -139,6 +139,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_set_srp_username_callback",
     "SSL_CTX_set_timeout",
     "SSL_CTX_set_tlsext_ticket_key_evp_cb",
+    "SSL_CTX_set_tmp_dh_callback",
     "SSL_CTX_set_verify",
     "SSL_CTX_set_verify_depth",
     "SSL_CTX_up_ref",

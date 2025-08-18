@@ -195,7 +195,7 @@
 | `SSL_CTX_set_tlsext_max_fragment_length`  |  |  |  |  |
 | `SSL_CTX_set_tlsext_ticket_key_evp_cb`  |  |  | :white_check_mark: | :exclamation: [^stub] |
 | `SSL_CTX_set_tlsext_use_srtp` [^srtp] |  |  |  |  |
-| `SSL_CTX_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  |  |
+| `SSL_CTX_set_tmp_dh_callback` [^deprecatedin_3_0] [^dh] |  |  |  | :exclamation: [^stub] |
 | `SSL_CTX_set_trust`  |  |  |  |  |
 | `SSL_CTX_set_verify`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_CTX_set_verify_depth`  |  | :white_check_mark: |  | :white_check_mark: |

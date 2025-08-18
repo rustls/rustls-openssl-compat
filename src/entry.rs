@@ -2462,11 +2462,18 @@ entry_stub! {
     pub fn _SSL_get_srp_userinfo(_ssl: *mut SSL) -> *mut c_char;
 }
 
-// no DH ciphersuites
+// no DH ciphersuites or DH KX reuse
 
 entry_stub! {
     pub fn _SSL_CTX_set0_tmp_dh_pkey(_ctx: *mut SSL_CTX, _dhpkey: *mut EVP_PKEY) -> c_int;
 }
+
+entry_stub! {
+    pub fn _SSL_CTX_set_tmp_dh_callback(_ctx: *mut SSL_CTX, _dh: SSL_CTX_tmp_dh_callback);
+}
+
+type SSL_CTX_tmp_dh_callback =
+    Option<unsafe extern "C" fn(ssl: *mut SSL, is_export: c_int, keylength: c_int) -> *mut c_void>;
 
 // no post-handshake auth
 

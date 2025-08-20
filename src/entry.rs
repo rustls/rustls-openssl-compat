@@ -922,6 +922,13 @@ entry! {
 pub type SSL_client_hello_cb_func =
     Option<unsafe extern "C" fn(_ssl: *mut SSL, _al: *mut c_int, _arg: *mut c_void) -> c_int>;
 
+entry! {
+    pub fn _SSL_CTX_set_security_level(ctx: *mut SSL_CTX, level: c_int) {
+        let _null_check = try_clone_arc!(ctx);
+        security_level_diagnostic(level)
+    }
+}
+
 impl Castable for SSL_CTX {
     type Ownership = OwnershipArc;
     type RustType = NotThreadSafe<Self>;
@@ -1133,6 +1140,27 @@ entry! {
             "HIGH:!aNULL:!MD5" => C_INT_SUCCESS,
             _ => Error::not_supported("SSL_set_cipher_list").raise().into(),
         }
+    }
+}
+
+entry! {
+    pub fn _SSL_set_security_level(ssl: *mut SSL, level: c_int) {
+        let _null_check = try_clone_arc!(ssl);
+        security_level_diagnostic(level)
+    }
+}
+
+fn security_level_diagnostic(level: c_int) {
+    match level {
+        // this is the rustls default
+        2 => {}
+        // all of these are possible with sufficient CryptoProvider plumbing. the signature verification
+        // facets would be the most complex to arrange.
+        3 => log::warn!("security level for 128-bit security requested but NYI"),
+        4 => log::warn!("security level for 192-bit security requested but NYI"),
+        5 => log::warn!("security level for 256-bit security requested but NYI"),
+        // others (lower, or negative, or huge are not reasonable)
+        _ => log::warn!("security level {level:?} not supported"),
     }
 }
 

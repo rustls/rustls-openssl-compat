@@ -117,6 +117,21 @@ jobs:
       - name: Check MATRIX.md is up-to-date
         run: ./admin/matrix.py > MATRIX.md.new && diff -su MATRIX.md MATRIX.md.new
 
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88
+      - name: Check build using MSRV
+        run: cargo check --locked --lib --all-features
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

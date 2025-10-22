@@ -3,7 +3,7 @@ name = "rustls-libssl"
 version = "0.2.1"
 edition = "2021"
 build = "build.rs"
-rust-version = "1.77"
+rust-version = "1.88"
 
 [lib]
 name = "ssl"

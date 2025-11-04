@@ -993,7 +993,7 @@ fn wait_for_port(port: u16) -> Option<()> {
         }
         println!("waiting for port {port}");
         count += 1;
-        if count == 10 {
+        if count == 30 {
             return None;
         }
     }

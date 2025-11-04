@@ -20,7 +20,7 @@ use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::{Accepted, Acceptor, ProducesTickets};
 use rustls::{
     AlertDescription, CipherSuite, ClientConfig, ClientConnection, Connection, HandshakeKind,
-    NamedGroup, ProtocolVersion, ServerConfig, SignatureScheme, SupportedProtocolVersion,
+    ProtocolVersion, ServerConfig, SignatureScheme, SupportedProtocolVersion,
 };
 
 use not_thread_safe::NotThreadSafe;
@@ -240,158 +240,6 @@ static TLS13_CHACHA20_POLY1305_SHA256: SslCipher = SslCipher {
     version: c"TLSv1.3",
     description: c"TLS_CHACHA20_POLY1305_SHA256   TLSv1.3 Kx=any      Au=any   Enc=CHACHA20/POLY1305(256) Mac=AEAD\n",
     rustls: CipherSuite::TLS13_CHACHA20_POLY1305_SHA256,
-};
-
-#[allow(dead_code)]
-struct TlsGroupInfo {
-    pub tls_name: &'static CStr,
-    pub standard_name: &'static CStr,
-    pub algorithm: &'static CStr,
-    pub secbits: usize,
-    pub group_id: NamedGroup,
-}
-
-impl TlsGroupInfo {
-    pub fn find_by_id(id: NamedGroup) -> Option<&'static Self> {
-        match id {
-            NamedGroup::secp256r1 => Some(&SECP256R1),
-            NamedGroup::secp384r1 => Some(&SECP384R1),
-            NamedGroup::secp521r1 => Some(&SECP521R1),
-            NamedGroup::X25519 => Some(&X25519),
-            NamedGroup::X448 => Some(&X448),
-            NamedGroup::FFDHE2048 => Some(&FFDHE2048),
-            NamedGroup::FFDHE3072 => Some(&FFDHE3072),
-            NamedGroup::FFDHE4096 => Some(&FFDHE4096),
-            NamedGroup::FFDHE6144 => Some(&FFDHE6144),
-            NamedGroup::FFDHE8192 => Some(&FFDHE8192),
-            NamedGroup::MLKEM512 => Some(&MLKEM512),
-            NamedGroup::MLKEM768 => Some(&MLKEM768),
-            NamedGroup::MLKEM1024 => Some(&MLKEM1024),
-            NamedGroup::X25519MLKEM768 => Some(&X25519MLKEM768),
-            NamedGroup::secp256r1MLKEM768 => Some(&SECP256R1_MLKEM768),
-            _ => None,
-        }
-    }
-}
-
-static SECP256R1: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"secp256r1",
-    standard_name: c"prime256v1",
-    algorithm: c"EC",
-    secbits: 128,
-    group_id: NamedGroup::secp256r1,
-};
-
-static SECP384R1: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"secp384r1",
-    standard_name: c"secp384r1",
-    algorithm: c"EC",
-    secbits: 192,
-    group_id: NamedGroup::secp384r1,
-};
-
-static SECP521R1: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"secp521r1",
-    standard_name: c"secp521r1",
-    algorithm: c"EC",
-    secbits: 256,
-    group_id: NamedGroup::secp521r1,
-};
-
-static X25519: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"x25519",
-    standard_name: c"X25519",
-    algorithm: c"X25519",
-    secbits: 128,
-    group_id: NamedGroup::X25519,
-};
-
-static X448: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"x448",
-    standard_name: c"X448",
-    algorithm: c"X448",
-    secbits: 224,
-    group_id: NamedGroup::X448,
-};
-
-static FFDHE2048: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"ffdhe2048",
-    standard_name: c"ffdhe2048",
-    algorithm: c"DH",
-    secbits: 112,
-    group_id: NamedGroup::FFDHE2048,
-};
-
-static FFDHE3072: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"ffdhe3072",
-    standard_name: c"ffdhe3072",
-    algorithm: c"DH",
-    secbits: 128,
-    group_id: NamedGroup::FFDHE3072,
-};
-
-static FFDHE4096: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"ffdhe4096",
-    standard_name: c"ffdhe4096",
-    algorithm: c"DH",
-    secbits: 128,
-    group_id: NamedGroup::FFDHE4096,
-};
-
-static FFDHE6144: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"ffdhe6144",
-    standard_name: c"ffdhe6144",
-    algorithm: c"DH",
-    secbits: 128,
-    group_id: NamedGroup::FFDHE6144,
-};
-
-static FFDHE8192: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"ffdhe8192",
-    standard_name: c"ffdhe8192",
-    algorithm: c"DH",
-    secbits: 192,
-    group_id: NamedGroup::FFDHE8192,
-};
-
-static MLKEM512: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"MLKEM512",
-    standard_name: c"",
-    algorithm: c"ML-KEM-512",
-    secbits: 128,
-    group_id: NamedGroup::MLKEM512,
-};
-
-static MLKEM768: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"MLKEM768",
-    standard_name: c"",
-    algorithm: c"ML-KEM-768",
-    secbits: 192,
-    group_id: NamedGroup::MLKEM768,
-};
-
-static MLKEM1024: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"MLKEM1024",
-    standard_name: c"",
-    algorithm: c"ML-KEM-1024",
-    secbits: 256,
-    group_id: NamedGroup::MLKEM1024,
-};
-
-static X25519MLKEM768: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"X25519MLKEM768",
-    standard_name: c"",
-    algorithm: c"X25519MLKEM768",
-    secbits: 192,
-    group_id: NamedGroup::X25519MLKEM768,
-};
-
-static SECP256R1_MLKEM768: TlsGroupInfo = TlsGroupInfo {
-    tls_name: c"SecP256r1MLKEM768",
-    standard_name: c"",
-    algorithm: c"SecP256r1MLKEM768",
-    secbits: 192,
-    group_id: NamedGroup::secp256r1MLKEM768,
 };
 
 /// Backs a server-side SSL_SESSION object
@@ -614,7 +462,6 @@ pub struct SslContext {
     info_callback: callbacks::InfoCallbackConfig,
     client_hello_callback: callbacks::ClientHelloCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
-    groups: Vec<&'static dyn SupportedKxGroup>,
     max_early_data: u32,
 }
 
@@ -647,7 +494,6 @@ impl SslContext {
             info_callback: callbacks::InfoCallbackConfig::default(),
             client_hello_callback: callbacks::ClientHelloCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
-            groups: provider::default_provider().kx_groups.clone(),
             max_early_data: 0,
         }
     }
@@ -676,10 +522,6 @@ impl SslContext {
     fn set_options(&mut self, set: u64) -> u64 {
         self.raw_options |= set;
         self.raw_options
-    }
-
-    fn get_groups(&self) -> &Vec<&'static dyn SupportedKxGroup> {
-        &self.groups
     }
 
     fn get_num_tickets(&self) -> usize {
@@ -1039,10 +881,6 @@ impl Ssl {
     fn set_options(&mut self, set: u64) -> u64 {
         self.raw_options |= set;
         self.raw_options
-    }
-
-    fn get_groups(&self) -> &Vec<&'static dyn SupportedKxGroup> {
-        self.ctx.get().get_groups()
     }
 
     fn get_num_tickets(&self) -> usize {

@@ -120,6 +120,27 @@ pub fn sig_scheme_to_type_nid(scheme: SignatureScheme) -> Option<c_int> {
     }
 }
 
+pub fn named_group_to_tls_name(id: NamedGroup) -> Option<&'static CStr> {
+    match id {
+        NamedGroup::secp256r1 => Some(c"secp256r1"),
+        NamedGroup::secp384r1 => Some(c"secp384r1"),
+        NamedGroup::secp521r1 => Some(c"secp521r1"),
+        NamedGroup::X25519 => Some(c"x25519"),
+        NamedGroup::X448 => Some(c"x448"),
+        NamedGroup::FFDHE2048 => Some(c"ffdhe2048"),
+        NamedGroup::FFDHE3072 => Some(c"ffdhe3072"),
+        NamedGroup::FFDHE4096 => Some(c"ffdhe4096"),
+        NamedGroup::FFDHE6144 => Some(c"ffdhe6144"),
+        NamedGroup::FFDHE8192 => Some(c"ffdhe8192"),
+        NamedGroup::MLKEM512 => Some(c"MLKEM512"),
+        NamedGroup::MLKEM768 => Some(c"MLKEM768"),
+        NamedGroup::MLKEM1024 => Some(c"MLKEM1024"),
+        NamedGroup::X25519MLKEM768 => Some(c"X25519MLKEM768"),
+        NamedGroup::secp256r1MLKEM768 => Some(c"SecP256r1MLKEM768"),
+        _ => None,
+    }
+}
+
 pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
     use NamedGroup::*;
 

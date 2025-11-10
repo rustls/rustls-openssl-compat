@@ -22,7 +22,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
 use crate::bio::{Bio, BIO, BIO_METHOD};
 use crate::callbacks::SslCallbackContext;
-use crate::constants::{named_group_to_nid, sig_scheme_to_type_nid};
+use crate::constants::{named_group_to_nid, named_group_to_tls_name, sig_scheme_to_type_nid};
 use crate::error::{ffi_panic_boundary, Error, MysteriouslyOppositeReturnValue};
 use crate::evp_pkey::EvpPkey;
 use crate::ex_data::ExData;
@@ -1481,10 +1481,12 @@ entry! {
             .get()
             .get_groups()
             .iter()
-            .find(|group| named_group_to_nid(group.name()) == Some(id))
-            .map(|group| group.name())
-            .and_then(crate::TlsGroupInfo::find_by_id)
-            .map(|group| group.tls_name.as_ptr())
+            .find_map(|group| match named_group_to_nid(group.name()) {
+                Some(nid) if nid == id => {
+                    named_group_to_tls_name(group.name()).map(|info| info.as_ptr())
+                }
+                _ => None,
+            })
             .unwrap_or_else(ptr::null)
     }
 }

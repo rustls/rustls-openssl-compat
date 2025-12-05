@@ -120,9 +120,33 @@ pub fn sig_scheme_to_type_nid(scheme: SignatureScheme) -> Option<c_int> {
     }
 }
 
+pub fn named_group_to_tls_name(id: NamedGroup) -> Option<&'static CStr> {
+    match id {
+        NamedGroup::secp256r1 => Some(c"secp256r1"),
+        NamedGroup::secp384r1 => Some(c"secp384r1"),
+        NamedGroup::secp521r1 => Some(c"secp521r1"),
+        NamedGroup::X25519 => Some(c"x25519"),
+        NamedGroup::X448 => Some(c"x448"),
+        NamedGroup::FFDHE2048 => Some(c"ffdhe2048"),
+        NamedGroup::FFDHE3072 => Some(c"ffdhe3072"),
+        NamedGroup::FFDHE4096 => Some(c"ffdhe4096"),
+        NamedGroup::FFDHE6144 => Some(c"ffdhe6144"),
+        NamedGroup::FFDHE8192 => Some(c"ffdhe8192"),
+        NamedGroup::MLKEM512 => Some(c"MLKEM512"),
+        NamedGroup::MLKEM768 => Some(c"MLKEM768"),
+        NamedGroup::MLKEM1024 => Some(c"MLKEM1024"),
+        NamedGroup::X25519MLKEM768 => Some(c"X25519MLKEM768"),
+        NamedGroup::secp256r1MLKEM768 => Some(c"SecP256r1MLKEM768"),
+        _ => None,
+    }
+}
+
 pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
     use NamedGroup::*;
 
+    // See TLSEXT_nid_unknown from tls1.h - openssl-sys does not
+    // have a constant for this to import.
+    const TLSEXT_NID_UNKNOWN: c_int = 0x1000000;
     // See NID_ffhdhe* from obj_mac.h - openssl-sys does not have
     // constants for these to import.
     const NID_FFDHE2048: c_int = 1126;
@@ -130,10 +154,11 @@ pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
     const NID_FFDHE4096: c_int = 1128;
     const NID_FFDHE6144: c_int = 1129;
     const NID_FFDHE8192: c_int = 1130;
-
-    // See TLSEXT_nid_unknown from tls1.h - openssl-sys does not
-    // have a constant for this to import.
-    const TLSEXT_NID_UNKNOWN: c_int = 0x1000000;
+    // See NID_ML_KEM_* from obj_mac.h - openssl-sys does not have
+    // constants for these to import.
+    const NID_ML_KEM_512: c_int = 1454;
+    const NID_ML_KEM_768: c_int = 1455;
+    const NID_ML_KEM_1024: c_int = 1456;
 
     match group {
         secp256r1 => Some(NID_X9_62_prime256v1),
@@ -146,6 +171,9 @@ pub fn named_group_to_nid(group: NamedGroup) -> Option<c_int> {
         FFDHE4096 => Some(NID_FFDHE4096),
         FFDHE6144 => Some(NID_FFDHE6144),
         FFDHE8192 => Some(NID_FFDHE8192),
+        MLKEM512 => Some(NID_ML_KEM_512),
+        MLKEM768 => Some(NID_ML_KEM_768),
+        MLKEM1024 => Some(NID_ML_KEM_1024),
         other => Some(TLSEXT_NID_UNKNOWN | u16::from(other) as c_int),
     }
 }

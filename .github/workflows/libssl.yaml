@@ -276,7 +276,7 @@ jobs:
           make package-${{ matrix.package }} PROFILE=release
 
       - name: Archive package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.package }} package built on ${{ matrix.container }} ${{ matrix.version }}
           path: target/dist/*.${{ matrix.package }}

@@ -220,7 +220,7 @@ impl SslConfigCtx {
         match &self.state {
             State::Validating => Ok(ActionResult::Applied),
             State::ApplyingToCtx(ctx) => {
-                ctx.get_mut().default_cert_dir = Some(path.into());
+                ctx.get_mut().default_cert_dir = vec![path.into()];
                 Ok(ActionResult::Applied)
             }
             State::ApplyingToSsl(_) => {

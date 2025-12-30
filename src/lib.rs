@@ -452,7 +452,7 @@ pub struct SslContext {
     verify_x509_store: OwnedX509Store,
     alpn: Vec<Vec<u8>>,
     default_cert_file: Option<PathBuf>,
-    default_cert_dir: Option<PathBuf>,
+    default_cert_dir: Vec<PathBuf>,
     alpn_callback: callbacks::AlpnCallbackConfig,
     cert_callback: callbacks::CertCallbackConfig,
     servername_callback: callbacks::ServerNameCallbackConfig,
@@ -484,7 +484,7 @@ impl SslContext {
             verify_x509_store: OwnedX509Store::default(),
             alpn: vec![],
             default_cert_file: None,
-            default_cert_dir: None,
+            default_cert_dir: vec![],
             alpn_callback: callbacks::AlpnCallbackConfig::default(),
             cert_callback: callbacks::CertCallbackConfig::default(),
             servername_callback: callbacks::ServerNameCallbackConfig::default(),
@@ -1544,13 +1544,16 @@ impl Ssl {
 
         if let Some(default_cert_file) = &ctx.default_cert_file {
             verify_roots.add_from_files([default_cert_file.to_path_buf()])?;
-        } else if let Some(default_cert_dir) = &ctx.default_cert_dir {
-            let entries = match fs::read_dir(default_cert_dir) {
+        }
+
+        for cert_dir in &ctx.default_cert_dir {
+            let entries = match fs::read_dir(cert_dir) {
                 Ok(iter) => iter,
                 Err(err) => return Err(error::Error::from_io(err).raise()),
             }
             .filter_map(|entry| entry.ok())
-            .map(|dir_entry| dir_entry.path());
+            .map(|dir_entry| dir_entry.path())
+            .filter(|path| path.is_file());
 
             verify_roots.add_from_files(entries)?;
         }

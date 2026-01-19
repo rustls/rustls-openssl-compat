@@ -67,8 +67,7 @@ impls = read_impls()
 
 # Combined requirements of curl 7.81.0-1ubuntu1.15, and curl 8.5.0
 # extracted by running with LD_DEBUG=all
-CURL = set(
-    """
+CURL = set("""
 BIO_f_ssl
 OPENSSL_init_ssl
 SSL_alert_desc_string_long
@@ -133,13 +132,11 @@ SSL_set_session
 SSL_shutdown
 SSL_write
 TLS_client_method
-""".split()
-)
+""".split())
 
 # Combined requirements of nginx 1.18.0-6ubuntu14.4, and nginx 1.24.0,
 # and fedora nginx 1.26.1-1.fc40.  extracted by running with LD_DEBUG=all
-NGINX = set(
-    """
+NGINX = set("""
 d2i_SSL_SESSION
 i2d_SSL_SESSION
 OPENSSL_init_ssl
@@ -258,12 +255,10 @@ SSL_write_early_data
 SSL_write
 SSL_write_early_data
 TLS_method
-""".split()
-)
+""".split())
 
 # Requirements of haproxy 2.8.5-1ubuntu3.3
-HAPROXY = set(
-    """
+HAPROXY = set("""
 d2i_SSL_SESSION
 i2d_SSL_SESSION
 SSL_CIPHER_find
@@ -372,8 +367,7 @@ SSL_write
 SSL_write_early_data
 TLS_client_method
 TLS_server_method
-""".split()
-)
+""".split())
 
 print("| Symbol | curl[^curl] | nginx[^nginx] | haproxy[^haproxy] | implemented? |")
 print("|---|---|---|---|---|")
@@ -394,8 +388,7 @@ for i in sorted(items.keys()):
         + " |"
     )
 
-print(
-    """
+print("""
 [^stub]: symbol exists, but just returns an error.
 [^deprecatedin_1_1_0]: deprecated in openssl 1.1.0
 [^deprecatedin_3_0]: deprecated in openssl 3.0
@@ -418,5 +411,4 @@ print(
 [^engine]: openssl ENGINE-specific
 [^curl]: combined requirements of curl 7.81.0-1ubuntu1.15 (ubuntu 22.04), and curl 8.5.0 (ubuntu 24.04)
 [^nginx]: combined requirements of nginx 1.18.0-6ubuntu14.4 (ubuntu 22.04), and nginx 1.24.0 (ubuntu 24.04), and fedora nginx 1.26.1-1.fc40
-[^haproxy]: haproxy 2.8.5-1ubuntu3.3 (ubuntu 24.04)"""
-)
+[^haproxy]: haproxy 2.8.5-1ubuntu3.3 (ubuntu 24.04)""")

@@ -384,7 +384,7 @@
 | `SSL_get_version`  | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_wbio`  |  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | `SSL_get_wfd`  |  |  |  |  |
-| `SSL_group_to_name`  |  |  |  |  |
+| `SSL_group_to_name`  |  |  |  | :white_check_mark: |
 | `SSL_has_matching_session_id`  |  |  |  |  |
 | `SSL_has_pending`  |  |  |  | :white_check_mark: |
 | `SSL_in_before`  |  |  |  | :white_check_mark: |

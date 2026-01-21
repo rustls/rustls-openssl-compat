@@ -11,6 +11,7 @@ use openssl_sys::{
     EVP_PKEY, SSL_ERROR_NONE, SSL_ERROR_SSL, SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE, X509,
     X509_STORE, X509_V_ERR_UNSPECIFIED,
 };
+
 use rustls::client::Resumption;
 use rustls::crypto::{aws_lc_rs as provider, SupportedKxGroup};
 use rustls::pki_types::{CertificateDer, ServerName};
@@ -459,6 +460,7 @@ pub struct SslContext {
     info_callback: callbacks::InfoCallbackConfig,
     client_hello_callback: callbacks::ClientHelloCallbackConfig,
     auth_keys: sign::CertifiedKeySet,
+    groups: Vec<&'static dyn SupportedKxGroup>,
     max_early_data: u32,
 }
 
@@ -491,6 +493,7 @@ impl SslContext {
             info_callback: callbacks::InfoCallbackConfig::default(),
             client_hello_callback: callbacks::ClientHelloCallbackConfig::default(),
             auth_keys: sign::CertifiedKeySet::default(),
+            groups: provider::default_provider().kx_groups.clone(),
             max_early_data: 0,
         }
     }
@@ -519,6 +522,10 @@ impl SslContext {
     fn set_options(&mut self, set: u64) -> u64 {
         self.raw_options |= set;
         self.raw_options
+    }
+
+    fn get_groups(&self) -> &[&'static dyn SupportedKxGroup] {
+        &self.groups
     }
 
     fn get_num_tickets(&self) -> usize {
@@ -878,6 +885,10 @@ impl Ssl {
     fn set_options(&mut self, set: u64) -> u64 {
         self.raw_options |= set;
         self.raw_options
+    }
+
+    fn get_groups(&self) -> &[&'static dyn SupportedKxGroup] {
+        self.ctx.get().get_groups()
     }
 
     fn get_num_tickets(&self) -> usize {

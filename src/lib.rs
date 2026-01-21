@@ -1559,19 +1559,19 @@ impl Ssl {
         );
 
         if let Some(default_cert_file) = &ctx.default_cert_file {
-            verify_roots.add_from_files([default_cert_file.to_path_buf()])?;
+            dbg!(verify_roots.add_from_files([default_cert_file.to_path_buf()]))?;
         }
 
         for cert_dir in &ctx.default_cert_dir {
             let entries = match fs::read_dir(cert_dir) {
                 Ok(iter) => iter,
-                Err(err) => return Err(error::Error::from_io(err).raise()),
+                Err(err) => return Err(error::Error::from_io(dbg!(err)).raise()),
             }
             .filter_map(|entry| entry.ok())
             .map(|dir_entry| dir_entry.path())
             .filter(|path| path.exists());
 
-            verify_roots.add_from_files(entries)?;
+            dbg!(verify_roots.add_from_files(entries))?;
         }
 
         Ok(verify_roots)

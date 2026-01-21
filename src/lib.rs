@@ -1542,6 +1542,19 @@ impl Ssl {
         // Otherwise, try to load the default cert file or cert dir.
         let mut verify_roots = OwnedX509Store::default();
 
+        println!(
+            "verify_certs file={:?} dirs={:?}",
+            ctx.default_cert_file, ctx.default_cert_dir
+        );
+        println!(
+            "verify_certs file_exists={:?}",
+            ctx.default_cert_file.as_ref().map(|p| p.exists())
+        );
+        println!(
+            "verify_certs dir_exists={:?}",
+            ctx.default_cert_dir.as_ref().map(|p| p.exists())
+        );
+
         if let Some(default_cert_file) = &ctx.default_cert_file {
             verify_roots.add_from_files([default_cert_file.to_path_buf()])?;
         } else if let Some(default_cert_dir) = &ctx.default_cert_dir {

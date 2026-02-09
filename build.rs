@@ -11,11 +11,17 @@ fn main() {
         let filename = write_version_file();
         println!("cargo:rustc-cdylib-link-arg=-Wl,--version-script={filename}");
 
-        for symbol in ENTRYPOINTS {
-            // Rename underscore-prefixed symbols (produced by rust code) to
-            // unprefixed symbols (manipulated by our version file).
-            println!("cargo:rustc-cdylib-link-arg=-Wl,--defsym={symbol}=_{symbol}",);
+        // Rename underscore-prefixed symbols (produced by rust code) to
+        // unprefixed symbols (manipulated by our version file).
+        macro_rules! generate_renames {
+            ($symbols:expr) => {
+                for symbol in $symbols.iter() {
+                    println!("cargo:rustc-cdylib-link-arg=-Wl,--defsym={symbol}=_{symbol}",);
+                }
+            };
         }
+        generate_renames!(ENTRYPOINTS_3_0_0);
+        generate_renames!(ENTRYPOINTS_3_2_0);
     }
 }
 
@@ -26,7 +32,16 @@ fn write_version_file() -> String {
     let mut content = String::new();
     content.push_str("OPENSSL_3.0.0 {\n");
     content.push_str("    global:\n");
-    for e in ENTRYPOINTS {
+    for e in ENTRYPOINTS_3_0_0 {
+        content.push_str(&format!("        {e};\n"));
+    }
+    content.push_str("    local:\n");
+    content.push_str("        *;\n");
+    content.push_str("};\n");
+
+    content.push_str("OPENSSL_3.2.0 {\n");
+    content.push_str("    global:\n");
+    for e in ENTRYPOINTS_3_2_0 {
         content.push_str(&format!("        {e};\n"));
     }
     content.push_str("    local:\n");
@@ -38,13 +53,14 @@ fn write_version_file() -> String {
     dest.to_str().unwrap().to_string()
 }
 
-const ENTRYPOINTS: &[&str] = &[
+const ENTRYPOINTS_3_0_0: &[&str] = &[
     "BIO_f_ssl",
     "d2i_SSL_SESSION",
     "ERR_load_SSL_strings",
     "i2d_SSL_SESSION",
     "OPENSSL_init_ssl",
     "SSL_accept",
+    "SSL_add_dir_cert_subjects_to_stack",
     "SSL_add_file_cert_subjects_to_stack",
     "SSL_alert_desc_string",
     "SSL_alert_desc_string_long",
@@ -102,6 +118,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_CTX_load_verify_file",
     "SSL_CTX_load_verify_locations",
     "SSL_CTX_new",
+    "SSL_CTX_new_ex",
     "SSL_CTX_remove_session",
     "SSL_CTX_sess_set_get_cb",
     "SSL_CTX_sess_set_new_cb",
@@ -230,6 +247,7 @@ const ENTRYPOINTS: &[&str] = &[
     "SSL_set_alpn_protos",
     "SSL_set_bio",
     "SSL_set_cipher_list",
+    "SSL_set_ciphersuites",
     "SSL_set_client_CA_list",
     "SSL_set_connect_state",
     "SSL_set_ex_data",
@@ -268,3 +286,5 @@ const ENTRYPOINTS: &[&str] = &[
     "TLS_server_method",
     "X509_check_private_key",
 ];
+
+const ENTRYPOINTS_3_2_0: &[&str] = &["OSSL_QUIC_client_method", "SSL_get0_group_name"];

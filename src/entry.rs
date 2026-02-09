@@ -180,6 +180,17 @@ entry! {
     }
 }
 
+pub struct OSSL_LIB_CTX;
+
+entry! {
+    pub fn _SSL_CTX_new_ex(libctx: *mut OSSL_LIB_CTX, propq: *const c_char, method: *const SSL_METHOD) -> *mut SSL_CTX {
+        if !libctx.is_null() || !propq.is_null() {
+            unimplemented!();
+        }
+        _SSL_CTX_new(method)
+    }
+}
+
 entry! {
     pub fn _SSL_CTX_up_ref(ctx: *mut SSL_CTX) -> c_int {
         let ctx = try_clone_arc!(ctx);
@@ -2256,6 +2267,10 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_set_ciphersuites(_ssl: *mut SSL, _s: *const c_char) -> c_int;
+}
+
+entry_stub! {
     pub fn _SSL_set_session(_ssl: *mut SSL, _session: *mut SSL_SESSION) -> c_int;
 }
 
@@ -2337,6 +2352,14 @@ entry_stub! {
 }
 
 entry_stub! {
+    pub fn _SSL_get0_group_name(_ssl: *const SSL) -> *const c_char;
+}
+
+entry_stub! {
+    pub fn _OSSL_QUIC_client_method() -> *const SSL_METHOD;
+}
+
+entry_stub! {
     pub fn _SSL_CTX_set_client_cert_cb(_ctx: *mut SSL_CTX, _cb: SSL_client_cert_cb_func);
 }
 
@@ -2389,6 +2412,13 @@ entry_stub! {
 
 entry_stub! {
     pub fn _SSL_dup_CA_list(_sk: *const stack_st_X509_NAME) -> *mut stack_st_X509_NAME;
+}
+
+entry_stub! {
+    pub fn _SSL_add_dir_cert_subjects_to_stack(
+        _stack: *mut stack_st_X509_NAME,
+        _dir: *const c_char,
+    ) -> c_int;
 }
 
 entry_stub! {

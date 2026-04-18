@@ -7,9 +7,10 @@ use openssl_sys::{SSL_TLSEXT_ERR_NOACK, SSL_TLSEXT_ERR_OK};
 use rustls::AlertDescription;
 
 use crate::entry::{
-    SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func, SSL_CTX_info_callback_func,
-    SSL_CTX_new_session_cb, SSL_CTX_servername_callback_func, SSL_CTX_sess_get_cb,
-    SSL_CTX_sess_remove_cb, SSL_client_hello_cb_func, _SSL_SESSION_free, SSL, SSL_CTX, SSL_SESSION,
+    _SSL_SESSION_free, SSL_CTX_alpn_select_cb_func, SSL_CTX_cert_cb_func,
+    SSL_CTX_info_callback_func, SSL_CTX_new_session_cb, SSL_CTX_servername_callback_func,
+    SSL_CTX_sess_get_cb, SSL_CTX_sess_remove_cb, SSL_client_hello_cb_func, SSL, SSL_CTX,
+    SSL_SESSION,
 };
 use crate::error::Error;
 use crate::ffi;

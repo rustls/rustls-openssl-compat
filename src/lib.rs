@@ -2,7 +2,7 @@ use core::ffi::{c_char, c_int, c_uint, c_void, CStr};
 use core::{borrow, cmp, fmt, mem, ptr};
 use std::ffi::CString;
 use std::fs;
-use std::io::{ErrorKind, Read, Write};
+use std::io::{self, ErrorKind, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -1114,7 +1114,8 @@ impl Ssl {
             self.init_client_conn()?;
         }
 
-        self.try_io()
+        self.try_io()?;
+        self.check_handshake_complete()
     }
 
     fn init_client_conn(&mut self) -> Result<(), error::Error> {
@@ -1167,7 +1168,24 @@ impl Ssl {
             self.conn = ConnState::Accepting(Acceptor::default());
         }
 
-        self.try_io()
+        self.try_io()?;
+        self.check_handshake_complete()
+    }
+
+    /// Return an error if handshake is still in-progress.
+    ///
+    /// `SSL_accept`, `SSL_connect` and `SSL_do_handshake` must not report
+    /// success in that case, so report `WouldBlock` instead.  That is quiet
+    /// (it never reaches the error stack) and leaves `SSL_get_error` to
+    /// report `SSL_ERROR_WANT_READ`/`_WRITE` from the `BIO`'s retry flags,
+    /// which record whichever direction actually blocked.
+    fn check_handshake_complete(&self) -> Result<(), error::Error> {
+        match self.conn() {
+            Some(conn) if !conn.is_handshaking() => Ok(()),
+            _ => Err(error::Error::from_io(io::Error::from(
+                ErrorKind::WouldBlock,
+            ))),
+        }
     }
 
     fn invoke_accepted_callbacks(&mut self) -> Result<(), error::Error> {
@@ -1357,31 +1375,45 @@ impl Ssl {
                 Ok(())
             }
             ConnState::Accepting(acceptor) => {
-                if let Err(e) = acceptor.read_tls(bio) {
-                    return Err(error::Error::from_io(e));
+                // Keep reading until we have the whole `ClientHello`.  Stopping
+                // early and returning `Ok(())` would tell `SSL_accept` the
+                // handshake had succeeded, which callers take to mean the
+                // connection is fully established.
+                let accepted = loop {
+                    match acceptor.accept() {
+                        Ok(Some(accepted)) => break accepted,
+                        Ok(None) => {}
+                        Err((error, mut alert)) => {
+                            let mut buffer = Vec::new();
+                            alert.write_all(&mut buffer).unwrap();
+
+                            // this only works for unencrypted alerts (header plus `Alert` structure)
+                            if buffer.len() == (5 + 2) {
+                                self.info_callback.invoke(callbacks::Info::AlertSent(
+                                    AlertDescription::from(buffer[6]),
+                                ));
+                            }
+
+                            bio.write_all(&buffer).map_err(error::Error::from_io)?;
+                            return Err(error::Error::from_rustls(error));
+                        }
+                    }
+
+                    match acceptor.read_tls(bio) {
+                        // `WouldBlock` here leaves `SSL_get_error` to report
+                        // `SSL_ERROR_WANT_READ`, as OpenSSL would.
+                        Err(e) => return Err(error::Error::from_io(e)),
+                        Ok(0) => {
+                            return Err(error::Error::from_io(io::Error::from(
+                                ErrorKind::UnexpectedEof,
+                            )))
+                        }
+                        Ok(_) => {}
+                    }
                 };
 
-                match acceptor.accept() {
-                    Ok(None) => Ok(()),
-                    Ok(Some(accepted)) => {
-                        self.conn = ConnState::Accepted(accepted);
-                        self.invoke_accepted_callbacks()
-                    }
-                    Err((error, mut alert)) => {
-                        let mut buffer = Vec::new();
-                        alert.write_all(&mut buffer).unwrap();
-
-                        // this only works for unencrypted alerts (header plus `Alert` structure)
-                        if buffer.len() == (5 + 2) {
-                            self.info_callback.invoke(callbacks::Info::AlertSent(
-                                AlertDescription::from(buffer[6]),
-                            ));
-                        }
-
-                        bio.write_all(&buffer).map_err(error::Error::from_io)?;
-                        Err(error::Error::from_rustls(error))
-                    }
-                }
+                self.conn = ConnState::Accepted(accepted);
+                self.invoke_accepted_callbacks()
             }
             _ => Ok(()),
         }

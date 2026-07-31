@@ -14,6 +14,7 @@ use std::io;
 pub struct Bio {
     read: *mut BIO,
     write: *mut BIO,
+    record_limit: RecordLimit,
 }
 
 impl Bio {
@@ -26,7 +27,11 @@ impl Bio {
             BIO_up_ref(bio);
             (bio, bio)
         };
-        Self { read, write }
+        Self {
+            read,
+            write,
+            record_limit: RecordLimit::default(),
+        }
     }
 
     /// Use a pair of raw BIO pointers.
@@ -41,6 +46,7 @@ impl Bio {
         let mut ret = Self {
             read: null_2,
             write: null_2,
+            record_limit: RecordLimit::default(),
         };
         ret.update(rbio, wbio);
         ret
@@ -161,6 +167,8 @@ impl Bio {
         if !ptr::eq(rbio, self.read) {
             unsafe { BIO_free_all(self.read) };
             self.read = rbio;
+            // a different transport means a different record stream
+            self.record_limit = RecordLimit::default();
         } else {
             unsafe { BIO_free_all(rbio) };
         }
@@ -191,8 +199,66 @@ impl Bio {
     }
 }
 
+/// Tracks where we are in the TLS record currently being read.
+///
+/// OpenSSL never reads more from a `BIO` than the record it is currently
+/// processing needs (read-ahead is off by default, and callers rely on
+/// that).  Anything belonging to a later record stays in the underlying
+/// socket, so the caller's poll loop still sees it as readable.
+///
+/// rustls, by contrast, hands `read_tls` a large buffer and takes
+/// everything the transport will give it.  Doing that here breaks callers
+/// like haproxy: if the client's `Finished` and its first application data
+/// arrive in one segment we swallow both, the caller completes the
+/// handshake, subscribes for a read event that can never arrive, and the
+/// request sits undelivered in our buffer until the caller times out.
+///
+/// So: read a record header, then no more than that record's body.
+#[derive(Default)]
+struct RecordLimit {
+    /// Bytes of the current record's body still to be read.
+    body_remaining: usize,
+
+    /// The record header, while we have less than all of it.
+    header: [u8; Self::HEADER_LEN],
+    header_used: usize,
+}
+
+impl RecordLimit {
+    /// How many bytes may be read from the transport right now.
+    fn allowance(&self) -> usize {
+        match self.body_remaining {
+            0 => Self::HEADER_LEN - self.header_used,
+            body => body,
+        }
+    }
+
+    /// Account for `data`, which was just read from the transport.
+    fn update(&mut self, data: &[u8]) {
+        debug_assert!(data.len() <= self.allowance());
+        if self.body_remaining > 0 {
+            self.body_remaining -= data.len().min(self.body_remaining);
+            return;
+        }
+
+        let take = data.len().min(Self::HEADER_LEN - self.header_used);
+        self.header[self.header_used..self.header_used + take].copy_from_slice(&data[..take]);
+        self.header_used += take;
+
+        if self.header_used == Self::HEADER_LEN {
+            self.body_remaining = u16::from_be_bytes([self.header[3], self.header[4]]) as usize;
+            self.header_used = 0;
+        }
+    }
+
+    const HEADER_LEN: usize = 5;
+}
+
 impl io::Read for Bio {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let allowance = buf.len().min(self.record_limit.allowance());
+        let buf = &mut buf[..allowance];
+
         let mut read_bytes = 0;
         let rc = unsafe {
             BIO_read_ex(
@@ -204,7 +270,11 @@ impl io::Read for Bio {
         };
 
         match rc {
-            1 => Ok(read_bytes),
+            1 => {
+                let read_bytes = read_bytes.min(buf.len());
+                self.record_limit.update(&buf[..read_bytes]);
+                Ok(read_bytes)
+            }
             _ => {
                 if bio_in_eof(self.read) {
                     Ok(0)
@@ -366,4 +436,60 @@ extern "C" {
     fn BIO_up_ref(b: *mut BIO) -> c_int;
     fn BIO_test_flags(b: *const BIO, flags: c_int) -> c_int;
     fn BIO_s_null() -> *const BIO_METHOD;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RecordLimit;
+
+    #[test]
+    fn stops_at_record_boundary() {
+        let mut limit = RecordLimit::default();
+        // header first, then the body: two reads, and never more.
+        assert_eq!(drive(&mut limit, &record(64), usize::MAX), 2);
+        assert_eq!(limit.allowance(), RecordLimit::HEADER_LEN);
+    }
+
+    #[test]
+    fn handles_split_header() {
+        let mut limit = RecordLimit::default();
+        assert_eq!(drive(&mut limit, &record(64), 1), 5 + 64);
+        assert_eq!(limit.allowance(), RecordLimit::HEADER_LEN);
+    }
+
+    #[test]
+    fn handles_consecutive_records() {
+        let mut limit = RecordLimit::default();
+        for len in [0, 1, 5, 4096, 16384] {
+            drive(&mut limit, &record(len), usize::MAX);
+            assert_eq!(limit.allowance(), RecordLimit::HEADER_LEN);
+        }
+    }
+
+    fn drive(limit: &mut RecordLimit, record: &[u8], chunk: usize) -> usize {
+        let mut offset = 0;
+        let mut reads = 0;
+        while offset < record.len() {
+            // the limiter must ask for exactly the rest of the header,
+            // then exactly the rest of the body
+            let expected = match offset < RecordLimit::HEADER_LEN {
+                true => RecordLimit::HEADER_LEN - offset,
+                false => record.len() - offset,
+            };
+            assert_eq!(limit.allowance(), expected);
+
+            let take = expected.min(chunk);
+            limit.update(&record[offset..offset + take]);
+            offset += take;
+            reads += 1;
+        }
+        reads
+    }
+
+    fn record(body_len: u16) -> Vec<u8> {
+        let mut r = vec![0x17, 0x03, 0x03];
+        r.extend_from_slice(&body_len.to_be_bytes());
+        r.extend(std::iter::repeat_n(0xab, body_len as usize));
+        r
+    }
 }

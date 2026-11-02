@@ -312,4 +312,8 @@ const ENTRYPOINTS_3_2_0: &[&str] = &["SSL_get0_group_name"];
 const ENTRYPOINTS_3_3_0: &[&str] = &["SSL_SESSION_get_time_ex", "SSL_SESSION_set_time_ex"];
 
 /// Entrypoints introduced in OpenSSL 3.5.0.
-const ENTRYPOINTS_3_5_0: &[&str] = &["SSL_set_quic_tls_cbs", "SSL_set_quic_tls_transport_params"];
+const ENTRYPOINTS_3_5_0: &[&str] = &[
+    "SSL_set_quic_tls_cbs",
+    "SSL_set_quic_tls_early_data_enabled",
+    "SSL_set_quic_tls_transport_params",
+];

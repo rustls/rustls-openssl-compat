@@ -2672,6 +2672,10 @@ entry_stub! {
     ) -> c_int;
 }
 
+entry_stub! {
+    pub fn _SSL_set_quic_tls_early_data_enabled(_ssl: *mut SSL, _enabled: c_int) -> c_int;
+}
+
 // TODO: this could be implemented accurately by storing the SNI
 // of the originating connection (but only for TLS1.2) in the `SslSession`
 entry_stub! {

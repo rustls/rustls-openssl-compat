@@ -873,7 +873,7 @@ fn haproxy() {
                 "-key",
                 "test-ca/ecdsa-p256/server.key",
                 "-accept",
-                "localhost:10443",
+                "127.0.0.1:10443",
                 "-www",
             ])
             .stdout(Stdio::piped())

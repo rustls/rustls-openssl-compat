@@ -2664,6 +2664,14 @@ entry_stub! {
         -> c_int;
 }
 
+entry_stub! {
+    pub fn _SSL_set_quic_tls_transport_params(
+        _ssl: *mut SSL,
+        _params: *const c_uchar,
+        _params_len: usize,
+    ) -> c_int;
+}
+
 // TODO: this could be implemented accurately by storing the SNI
 // of the originating connection (but only for TLS1.2) in the `SslSession`
 entry_stub! {

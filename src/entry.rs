@@ -1492,6 +1492,17 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get0_group_name(ssl: *mut SSL) -> *const c_char {
+        try_clone_arc!(ssl)
+            .get()
+            .get_negotiated_key_exchange_group()
+            .and_then(|group| named_group_to_tls_name(group.name()))
+            .map(|name| name.as_ptr())
+            .unwrap_or_else(ptr::null)
+    }
+}
+
+entry! {
     pub fn _SSL_version(ssl: *const SSL) -> c_int {
         try_clone_arc!(ssl)
             .get()

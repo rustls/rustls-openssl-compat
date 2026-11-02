@@ -66,7 +66,10 @@ fn entrypoints() -> impl Iterator<Item = &'static str> {
 /// An entrypoint belongs to the version of OpenSSL that introduced it, so
 /// binaries built against newer OpenSSL find it where they expect.  Oldest
 /// first.
-const VERSIONS: &[(&str, &[&str])] = &[("OPENSSL_3.0.0", ENTRYPOINTS_3_0_0)];
+const VERSIONS: &[(&str, &[&str])] = &[
+    ("OPENSSL_3.0.0", ENTRYPOINTS_3_0_0),
+    ("OPENSSL_3.2.0", ENTRYPOINTS_3_2_0),
+];
 
 /// Entrypoints present in OpenSSL 3.0.0.
 const ENTRYPOINTS_3_0_0: &[&str] = &[
@@ -299,3 +302,6 @@ const ENTRYPOINTS_3_0_0: &[&str] = &[
     "TLS_server_method",
     "X509_check_private_key",
 ];
+
+/// Entrypoints introduced in OpenSSL 3.2.0.
+const ENTRYPOINTS_3_2_0: &[&str] = &["SSL_get0_group_name"];

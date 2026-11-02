@@ -1966,6 +1966,18 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_set_time_ex(sess: *mut SSL_SESSION, time: time_t) -> time_t {
+        if time < 0 {
+            return 0;
+        }
+        try_clone_arc!(sess, 0)
+            .get_mut()
+            .set_creation_time(time as u64);
+        time
+    }
+}
+
+entry! {
     pub fn _SSL_SESSION_get_time_ex(sess: *const SSL_SESSION) -> time_t {
         try_clone_arc!(sess, 0).get().get_creation_time() as time_t
     }
@@ -2736,6 +2748,11 @@ mod tests {
     #[test]
     fn test_SSL_SESSION_get_time_ex_null() {
         assert_eq!(_SSL_SESSION_get_time_ex(ptr::null()), 0);
+    }
+
+    #[test]
+    fn test_SSL_SESSION_set_time_ex_null() {
+        assert_eq!(_SSL_SESSION_set_time_ex(ptr::null_mut(), 1), 0);
     }
 
     #[test]

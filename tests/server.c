@@ -97,6 +97,11 @@ static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
   time_t now = time(NULL), created = SSL_SESSION_get_time_ex(sess);
   printf("  SSL_SESSION_get_time_ex recent: %d\n",
          created <= now && created > now - 60);
+  printf("  SSL_SESSION_set_time_ex returns time: %d\n",
+         SSL_SESSION_set_time_ex(sess, created - 10) == created - 10);
+  printf("  SSL_SESSION_get_time_ex after set: %d\n",
+         SSL_SESSION_get_time_ex(sess) == created - 10);
+  SSL_SESSION_set_time_ex(sess, created);
 #endif
   TRACE(SSL_SESSION_set1_id_context(sess, (uint8_t *)"hello", 5));
   return 0;

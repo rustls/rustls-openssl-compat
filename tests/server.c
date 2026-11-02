@@ -265,16 +265,16 @@ int main(int argc, char **argv) {
     char buf[128] = {0};
     int rd = TRACE(SSL_read(ssl, buf, sizeof(buf)));
     dump_openssl_error_stack();
+    if (rd == 0) {
+      printf("nothing read\n");
+      break;
+    }
+
     TRACE(SSL_pending(ssl));
     dump_openssl_error_stack();
     TRACE(SSL_has_pending(ssl));
     dump_openssl_error_stack();
-    if (rd == 0) {
-      printf("nothing read\n");
-      break;
-    } else {
-      hexdump("result", buf, rd);
-    }
+    hexdump("result", buf, rd);
     state(ssl);
 
     if (!TRACE(SSL_has_pending(ssl))) {

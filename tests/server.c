@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <openssl/ssl.h>
@@ -92,6 +93,11 @@ static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
   SSL_SESSION_get_id(sess, &id_len);
   printf("  SSL_SESSION_get_id len=%u\n", id_len);
   TRACE(SSL_SESSION_set_timeout(sess, SSL_SESSION_get_timeout(sess)));
+#if OPENSSL_VERSION_NUMBER >= 0x30300000L
+  time_t now = time(NULL), created = SSL_SESSION_get_time_ex(sess);
+  printf("  SSL_SESSION_get_time_ex recent: %d\n",
+         created <= now && created > now - 60);
+#endif
   TRACE(SSL_SESSION_set1_id_context(sess, (uint8_t *)"hello", 5));
   return 0;
 }

@@ -69,6 +69,7 @@ fn entrypoints() -> impl Iterator<Item = &'static str> {
 const VERSIONS: &[(&str, &[&str])] = &[
     ("OPENSSL_3.0.0", ENTRYPOINTS_3_0_0),
     ("OPENSSL_3.2.0", ENTRYPOINTS_3_2_0),
+    ("OPENSSL_3.3.0", ENTRYPOINTS_3_3_0),
 ];
 
 /// Entrypoints present in OpenSSL 3.0.0.
@@ -305,3 +306,6 @@ const ENTRYPOINTS_3_0_0: &[&str] = &[
 
 /// Entrypoints introduced in OpenSSL 3.2.0.
 const ENTRYPOINTS_3_2_0: &[&str] = &["SSL_get0_group_name"];
+
+/// Entrypoints introduced in OpenSSL 3.3.0.
+const ENTRYPOINTS_3_3_0: &[&str] = &["SSL_SESSION_get_time_ex"];

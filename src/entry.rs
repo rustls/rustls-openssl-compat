@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::{fs, path::PathBuf};
 
+use libc::time_t;
 use openssl_sys::{
     stack_st_SSL_CIPHER, stack_st_X509, stack_st_X509_NAME, stack_st_void, NID_undef,
     OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
@@ -1965,6 +1966,12 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_SESSION_get_time_ex(sess: *const SSL_SESSION) -> time_t {
+        try_clone_arc!(sess, 0).get().get_creation_time() as time_t
+    }
+}
+
+entry! {
     pub fn _SSL_SESSION_set_timeout(sess: *mut SSL_SESSION, time_out: c_long) -> c_long {
         if time_out < 0 {
             return 0;
@@ -2724,6 +2731,11 @@ mod tests {
     #[test]
     fn test_SSL_CTX_new_null() {
         assert!(_SSL_CTX_new(ptr::null()).is_null());
+    }
+
+    #[test]
+    fn test_SSL_SESSION_get_time_ex_null() {
+        assert_eq!(_SSL_SESSION_get_time_ex(ptr::null()), 0);
     }
 
     #[test]

@@ -2655,6 +2655,15 @@ type SSL_custom_ext_free_cb_ex = Option<
     ),
 >;
 
+// No support for OpenSSL 3.5's API for third-party QUIC stacks
+// (used by haproxy to implement quic)
+
+entry_stub! {
+    // nb. `qtdis` is `const OSSL_DISPATCH *`, which isn't defined in openssl-sys
+    pub fn _SSL_set_quic_tls_cbs(_ssl: *mut SSL, _qtdis: *const c_void, _arg: *mut c_void)
+        -> c_int;
+}
+
 // TODO: this could be implemented accurately by storing the SNI
 // of the originating connection (but only for TLS1.2) in the `SslSession`
 entry_stub! {

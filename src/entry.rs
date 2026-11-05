@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::{fs, path::PathBuf};
 
+use libc::time_t;
 use openssl_sys::{
     stack_st_SSL_CIPHER, stack_st_X509, stack_st_X509_NAME, stack_st_void, NID_undef,
     OPENSSL_malloc, TLSEXT_NAMETYPE_host_name, BIGNUM, EVP_CIPHER_CTX, EVP_PKEY, HMAC_CTX,
@@ -1492,6 +1493,17 @@ entry! {
 }
 
 entry! {
+    pub fn _SSL_get0_group_name(ssl: *mut SSL) -> *const c_char {
+        try_clone_arc!(ssl)
+            .get()
+            .get_negotiated_key_exchange_group()
+            .and_then(|group| named_group_to_tls_name(group.name()))
+            .map(|name| name.as_ptr())
+            .unwrap_or_else(ptr::null)
+    }
+}
+
+entry! {
     pub fn _SSL_version(ssl: *const SSL) -> c_int {
         try_clone_arc!(ssl)
             .get()
@@ -1950,6 +1962,24 @@ entry! {
 entry! {
     pub fn _SSL_SESSION_get_time(sess: *const SSL_SESSION) -> c_long {
         try_clone_arc!(sess).get().get_creation_time() as c_long
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_set_time_ex(sess: *mut SSL_SESSION, time: time_t) -> time_t {
+        if time < 0 {
+            return 0;
+        }
+        try_clone_arc!(sess, 0)
+            .get_mut()
+            .set_creation_time(time as u64);
+        time
+    }
+}
+
+entry! {
+    pub fn _SSL_SESSION_get_time_ex(sess: *const SSL_SESSION) -> time_t {
+        try_clone_arc!(sess, 0).get().get_creation_time() as time_t
     }
 }
 
@@ -2625,6 +2655,27 @@ type SSL_custom_ext_free_cb_ex = Option<
     ),
 >;
 
+// No support for OpenSSL 3.5's API for third-party QUIC stacks
+// (used by haproxy to implement quic)
+
+entry_stub! {
+    // nb. `qtdis` is `const OSSL_DISPATCH *`, which isn't defined in openssl-sys
+    pub fn _SSL_set_quic_tls_cbs(_ssl: *mut SSL, _qtdis: *const c_void, _arg: *mut c_void)
+        -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_set_quic_tls_transport_params(
+        _ssl: *mut SSL,
+        _params: *const c_uchar,
+        _params_len: usize,
+    ) -> c_int;
+}
+
+entry_stub! {
+    pub fn _SSL_set_quic_tls_early_data_enabled(_ssl: *mut SSL, _enabled: c_int) -> c_int;
+}
+
 // TODO: this could be implemented accurately by storing the SNI
 // of the originating connection (but only for TLS1.2) in the `SslSession`
 entry_stub! {
@@ -2713,6 +2764,16 @@ mod tests {
     #[test]
     fn test_SSL_CTX_new_null() {
         assert!(_SSL_CTX_new(ptr::null()).is_null());
+    }
+
+    #[test]
+    fn test_SSL_SESSION_get_time_ex_null() {
+        assert_eq!(_SSL_SESSION_get_time_ex(ptr::null()), 0);
+    }
+
+    #[test]
+    fn test_SSL_SESSION_set_time_ex_null() {
+        assert_eq!(_SSL_SESSION_set_time_ex(ptr::null_mut(), 1), 0);
     }
 
     #[test]

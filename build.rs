@@ -11,7 +11,7 @@ fn main() {
         let filename = write_version_file();
         println!("cargo:rustc-cdylib-link-arg=-Wl,--version-script={filename}");
 
-        for symbol in ENTRYPOINTS {
+        for symbol in entrypoints() {
             // Rename underscore-prefixed symbols (produced by rust code) to
             // unprefixed symbols (manipulated by our version file).
             println!("cargo:rustc-cdylib-link-arg=-Wl,--defsym={symbol}=_{symbol}",);
@@ -23,22 +23,58 @@ fn write_version_file() -> String {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest = path::Path::new(&out_dir).join("versions.map");
 
+    // Each version node inherits from the previous one, matching
+    // OpenSSL's own version script.  Nodes with no entrypoints are
+    // omitted: a binary needing one should fail to load rather than
+    // find it present but empty.
     let mut content = String::new();
-    content.push_str("OPENSSL_3.0.0 {\n");
-    content.push_str("    global:\n");
-    for e in ENTRYPOINTS {
-        content.push_str(&format!("        {e};\n"));
+    let mut previous = None;
+    for (version, entrypoints) in VERSIONS {
+        if entrypoints.is_empty() {
+            continue;
+        }
+
+        content.push_str(&format!("{version} {{\n"));
+        content.push_str("    global:\n");
+        for e in *entrypoints {
+            content.push_str(&format!("        {e};\n"));
+        }
+        if previous.is_none() {
+            content.push_str("    local:\n");
+            content.push_str("        *;\n");
+        }
+        match previous {
+            Some(previous) => content.push_str(&format!("}} {previous};\n")),
+            None => content.push_str("};\n"),
+        }
+        previous = Some(version);
     }
-    content.push_str("    local:\n");
-    content.push_str("        *;\n");
-    content.push_str("};\n");
 
     fs::write(&dest, content).unwrap();
     println!("cargo:rerun-if-changed=build.rs");
     dest.to_str().unwrap().to_string()
 }
 
-const ENTRYPOINTS: &[&str] = &[
+fn entrypoints() -> impl Iterator<Item = &'static str> {
+    VERSIONS
+        .iter()
+        .flat_map(|(_, entrypoints)| entrypoints.iter().copied())
+}
+
+/// Exported symbols, grouped into the symbol version nodes they belong to.
+///
+/// An entrypoint belongs to the version of OpenSSL that introduced it, so
+/// binaries built against newer OpenSSL find it where they expect.  Oldest
+/// first.
+const VERSIONS: &[(&str, &[&str])] = &[
+    ("OPENSSL_3.0.0", ENTRYPOINTS_3_0_0),
+    ("OPENSSL_3.2.0", ENTRYPOINTS_3_2_0),
+    ("OPENSSL_3.3.0", ENTRYPOINTS_3_3_0),
+    ("OPENSSL_3.5.0", ENTRYPOINTS_3_5_0),
+];
+
+/// Entrypoints present in OpenSSL 3.0.0.
+const ENTRYPOINTS_3_0_0: &[&str] = &[
     "BIO_f_ssl",
     "d2i_SSL_SESSION",
     "ERR_load_SSL_strings",
@@ -267,4 +303,17 @@ const ENTRYPOINTS: &[&str] = &[
     "TLS_method",
     "TLS_server_method",
     "X509_check_private_key",
+];
+
+/// Entrypoints introduced in OpenSSL 3.2.0.
+const ENTRYPOINTS_3_2_0: &[&str] = &["SSL_get0_group_name"];
+
+/// Entrypoints introduced in OpenSSL 3.3.0.
+const ENTRYPOINTS_3_3_0: &[&str] = &["SSL_SESSION_get_time_ex", "SSL_SESSION_set_time_ex"];
+
+/// Entrypoints introduced in OpenSSL 3.5.0.
+const ENTRYPOINTS_3_5_0: &[&str] = &[
+    "SSL_set_quic_tls_cbs",
+    "SSL_set_quic_tls_early_data_enabled",
+    "SSL_set_quic_tls_transport_params",
 ];

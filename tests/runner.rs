@@ -327,7 +327,7 @@ fn ciphers() {
 #[test]
 #[ignore]
 fn server() {
-    fn curl(port: u16) {
+    fn curl(port: u16, extra_args: &[&str]) {
         Command::new("curl")
             .env("LD_LIBRARY_PATH", "")
             .args([
@@ -338,6 +338,7 @@ fn server() {
                 "test-ca/rsa/ca.cert",
                 &format!("https://localhost:{port}/"),
             ])
+            .args(extra_args)
             .stdout(Stdio::piped())
             .output()
             .map(print_output)
@@ -360,7 +361,7 @@ fn server() {
             .unwrap(),
     ));
     let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
-    curl(port);
+    curl(port, &[]);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
 
@@ -379,7 +380,7 @@ fn server() {
             .unwrap(),
     ));
     let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
-    curl(port);
+    curl(port, &[]);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
     assert_eq!(openssl_output, rustls_output);
@@ -400,7 +401,7 @@ fn server() {
             .unwrap(),
     ));
     let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
-    curl(port);
+    curl(port, &[]);
 
     let openssl_output = print_output(openssl_server.wait_with_timeout());
 
@@ -419,7 +420,52 @@ fn server() {
             .unwrap(),
     ));
     let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
-    curl(port);
+    curl(port, &[]);
+
+    let rustls_output = print_output(rustls_server.wait_with_timeout());
+    assert_eq!(openssl_output, rustls_output);
+
+    // TLS1.2 creates a stateful session during the handshake, which
+    // exercises the session callbacks (TLS1.3 does not: tickets are disabled).
+    //
+    // ALPN is disabled because OpenSSL calls the ALPN callback after the cert
+    // callback in TLS1.2, but we always call it before.
+    let mut openssl_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .env("LD_LIBRARY_PATH", "")
+            .args([
+                "target/server",
+                "0",
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+                "internal+external",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    let port = wait_for_port_announcement(&mut openssl_server, "openssl server");
+    curl(port, &["--tls-max", "1.2", "--no-alpn"]);
+
+    let openssl_output = print_output(openssl_server.wait_with_timeout());
+
+    let mut rustls_server = KillOnDrop(Some(
+        Command::new("tests/maybe-valgrind.sh")
+            .args([
+                "target/server",
+                "0",
+                "test-ca/rsa/server.key",
+                "test-ca/rsa/server.cert",
+                "unauth",
+                "internal+external",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
+    let port = wait_for_port_announcement(&mut rustls_server, "rustls server");
+    curl(port, &["--tls-max", "1.2", "--no-alpn"]);
 
     let rustls_output = print_output(rustls_server.wait_with_timeout());
     assert_eq!(openssl_output, rustls_output);
@@ -827,7 +873,7 @@ fn haproxy() {
                 "-key",
                 "test-ca/ecdsa-p256/server.key",
                 "-accept",
-                "localhost:10443",
+                "127.0.0.1:10443",
                 "-www",
             ])
             .stdout(Stdio::piped())

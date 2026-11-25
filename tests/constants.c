@@ -37,6 +37,10 @@ void print_group_to_name() {
 
 void print_alert_desc_string() {
   for (int i = -1; i < 260; i++) {
+    if (i == 10) {
+      printf("%d: <OpenSSL 3.0 and 3.5 differ here>\n", i);
+      continue;
+    }
     printf("%d: '%s' '%s'\n", i, SSL_alert_desc_string(i),
            SSL_alert_desc_string_long(i));
   }

@@ -10,7 +10,7 @@ use rustls::{AlertDescription, NamedGroup, SignatureScheme};
 pub fn alert_desc_to_long_string(value: c_int) -> &'static CStr {
     match AlertDescription::from(value as u8) {
         AlertDescription::CloseNotify => c"close notify",
-        AlertDescription::UnexpectedMessage => c"unexpected_message",
+        AlertDescription::UnexpectedMessage => c"unexpected message",
         AlertDescription::BadRecordMac => c"bad record mac",
         AlertDescription::DecryptionFailed => c"decryption failed",
         AlertDescription::RecordOverflow => c"record overflow",

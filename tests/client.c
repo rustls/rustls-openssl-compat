@@ -138,6 +138,9 @@ int main(int argc, char **argv) {
   dump_openssl_error_stack();
   printf("cipher NID: %d\n", cipher_nid);
   printf("negotiated group NID: %ld\n", SSL_get_negotiated_group(ssl));
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+  printf("negotiated group name: %s\n", SSL_get0_group_name(ssl));
+#endif
 
   show_peer_certificate("server", ssl);
 

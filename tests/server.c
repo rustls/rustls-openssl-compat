@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <openssl/ssl.h>
@@ -92,6 +93,16 @@ static int sess_new_callback(SSL *ssl, SSL_SESSION *sess) {
   SSL_SESSION_get_id(sess, &id_len);
   printf("  SSL_SESSION_get_id len=%u\n", id_len);
   TRACE(SSL_SESSION_set_timeout(sess, SSL_SESSION_get_timeout(sess)));
+#if OPENSSL_VERSION_NUMBER >= 0x30300000L
+  time_t now = time(NULL), created = SSL_SESSION_get_time_ex(sess);
+  printf("  SSL_SESSION_get_time_ex recent: %d\n",
+         created <= now && created > now - 60);
+  printf("  SSL_SESSION_set_time_ex returns time: %d\n",
+         SSL_SESSION_set_time_ex(sess, created - 10) == created - 10);
+  printf("  SSL_SESSION_get_time_ex after set: %d\n",
+         SSL_SESSION_get_time_ex(sess) == created - 10);
+  SSL_SESSION_set_time_ex(sess, created);
+#endif
   TRACE(SSL_SESSION_set1_id_context(sess, (uint8_t *)"hello", 5));
   return 0;
 }
@@ -253,6 +264,9 @@ int main(int argc, char **argv) {
   dump_openssl_error_stack();
   printf("cipher NID: %d\n", cipher_nid);
   printf("negotiated group NID: %ld\n", SSL_get_negotiated_group(ssl));
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+  printf("negotiated group name: %s\n", SSL_get0_group_name(ssl));
+#endif
 
   printf("SSL_get_servername: %s (%d)\n",
          SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name),
@@ -265,16 +279,16 @@ int main(int argc, char **argv) {
     char buf[128] = {0};
     int rd = TRACE(SSL_read(ssl, buf, sizeof(buf)));
     dump_openssl_error_stack();
+    if (rd == 0) {
+      printf("nothing read\n");
+      break;
+    }
+
     TRACE(SSL_pending(ssl));
     dump_openssl_error_stack();
     TRACE(SSL_has_pending(ssl));
     dump_openssl_error_stack();
-    if (rd == 0) {
-      printf("nothing read\n");
-      break;
-    } else {
-      hexdump("result", buf, rd);
-    }
+    hexdump("result", buf, rd);
     state(ssl);
 
     if (!TRACE(SSL_has_pending(ssl))) {
